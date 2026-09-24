@@ -187,6 +187,12 @@ function openFamily() {
     add(u.addChild(name), u.childNote, () => ({ values: childOf(base), extra: { childOf: base.id } }), 'child'),
     partnerOf(base) ? null : add(u.addSpouse(name), u.spouseNote, () => ({ values: spouseOf(base), extra: { spouseOf: base.id } }), 'spouse'),
     add(u.addEmpty, null, () => ({ values: {} }), 'empty'),
+    h('button', { class: 'btn ghost wide wipe', type: 'button', text: u.wipe, onclick: () => {
+      if (!confirm(u.confirmWipe)) return;
+      try { [KEY, OLD_KEY, REQ_KEY].forEach((k) => localStorage.removeItem(k)); } catch (e) { /* ignore */ }
+      app.forms = []; addForm(); persist();
+      closeSheet(); app.review = false; renderForm(); scrollTo(0, 0); toast(u.wiped);
+    } }),
   ), { tall: app.forms.length > 3 });
 }
 

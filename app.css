@@ -83,6 +83,7 @@ svg { width: 20px; height: 20px; flex-shrink: 0; }
 .fam-name small { color: var(--muted); font-size: 12.5px; }
 .fam-del { width: 44px; height: 44px; border: 0; background: none; color: var(--muted); font-size: 16px; cursor: pointer; }
 .fam-add { width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: right; background: var(--gold-tint); border: 1px dashed var(--gold); color: var(--gold-ink); border-radius: 12px; padding: 10px 14px; margin-top: 8px; cursor: pointer; }
+.wipe { color: var(--bad); border-color: #F1C9C5; margin-top: 16px; font-size: 14px; }
 .fam-add small { font-size: 12.5px; line-height: 1.7; opacity: .9; }
 
 /* ---- service request ---- */
