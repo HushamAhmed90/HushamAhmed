@@ -1,6 +1,6 @@
 import { LISTS } from './lists.js';
 import { FIELDS, FIXED, SECTIONS, LABELS } from './schema.js';
-import { UI, OWNER } from './texts.js';
+import { UI, OWNER, SERVICES } from './texts.js';
 import { drawSheet, sheetFontsReady } from './sheet.js';
 import { jpegPagePdf } from './pdf.js';
 
@@ -190,6 +190,78 @@ function openFamily() {
   ), { tall: app.forms.length > 3 });
 }
 
+// ---------- service request (booking / lawyer) ----------
+const REQ_KEY = 'bitaqa.request.v1';
+function openRequest(preselect) {
+  const u = t();
+  let last = {};
+  try { last = JSON.parse(localStorage.getItem(REQ_KEY) || '{}'); } catch (e) { /* ignore */ }
+  const chosen = new Set(preselect ? [preselect] : []);
+  let people = 1;
+  let when = u.reqTimes.length - 1;
+
+  const chips = h('div', { class: 'chips' }, SERVICES.map((sv) => {
+    const b = h('button', { class: 'chipbtn' + (chosen.has(sv.id) ? ' on' : ''), type: 'button', 'aria-pressed': String(chosen.has(sv.id)),
+      text: app.lang === 'Kur' ? sv.ku : sv.ar });
+    b.addEventListener('click', () => {
+      if (chosen.has(sv.id)) chosen.delete(sv.id); else chosen.add(sv.id);
+      b.classList.toggle('on', chosen.has(sv.id)); b.setAttribute('aria-pressed', String(chosen.has(sv.id)));
+      err.textContent = '';
+    });
+    return b;
+  }));
+  const err = h('p', { class: 'err' });
+  const guess = personName(app.values);
+  const name = h('input', { class: 'input', id: 'rq_name', value: last.name || (guess !== t().unnamed ? guess : ''), autocomplete: 'name' });
+  const city = h('input', { class: 'input', id: 'rq_city', value: last.city || '', placeholder: u.reqCityHint, autocomplete: 'address-level2' });
+  const countOut = h('b', { class: 'count', text: '1' });
+  const step = (d) => { people = Math.min(20, Math.max(1, people + d)); countOut.textContent = String(people); };
+  const times = h('div', { class: 'chips' }, u.reqTimes.map((label, i) => {
+    const b = h('button', { class: 'chipbtn' + (i === when ? ' on' : ''), type: 'button', text: label });
+    b.addEventListener('click', () => { when = i; [...times.children].forEach((c, j) => c.classList.toggle('on', j === i)); });
+    return b;
+  }));
+  const notes = h('textarea', { class: 'input area', id: 'rq_notes', rows: 3 });
+
+  const send = () => {
+    if (!chosen.size) { err.textContent = u.reqPickOne; chips.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+    if (!name.value.trim()) { name.focus(); name.classList.add('badin'); return; }
+    const picked = SERVICES.filter((sv) => chosen.has(sv.id));
+    const lines = [
+      'مرحباً هشام، أريد تقديم طلب:',
+      `• المعاملة: ${picked.map((sv) => sv.ar).join('، ')}`,
+      `• الاسم: ${name.value.trim()}`,
+      city.value.trim() ? `• المدينة: ${city.value.trim()}` : null,
+      `• عدد الأشخاص: ${people}`,
+      `• أفضل وقت للتواصل: ${UI.Ara.reqTimes[when]}`,
+      notes.value.trim() ? `• ملاحظات: ${notes.value.trim()}` : null,
+      '(مرسل من برنامج استمارة البطاقة الوطنية)',
+    ].filter(Boolean);
+    try { localStorage.setItem(REQ_KEY, JSON.stringify({ name: name.value.trim(), city: city.value.trim() })); } catch (e) { /* ignore */ }
+    count('booking_request', { services: picked.map((sv) => sv.id).join(','), people });
+    window.open(waLink(lines.join('\n')), '_blank', 'noopener');
+    closeSheet();
+  };
+
+  sheet(h('div', { class: 'request' },
+    h('div', { class: 'picker-top' }, h('h2', { text: u.reqTitle }), h('button', { class: 'x', type: 'button', 'aria-label': u.close, onclick: closeSheet, text: '✕' })),
+    h('p', { class: 'trust', html: ICON.check }, u.noUpfront),
+    h('p', { class: 'note', text: u.reqNote }),
+    h('p', { class: 'qlabel', text: u.reqWhat }), chips, err,
+    h('div', { class: 'field' }, h('label', { for: 'rq_name' }, u.reqName, h('span', { class: 'req', text: ' *' })), name),
+    h('div', { class: 'field' }, h('label', { for: 'rq_city', text: u.reqCity }), city),
+    h('div', { class: 'field' }, h('label', { text: u.reqCount }),
+      h('div', { class: 'stepper' },
+        h('button', { class: 'stepbtn', type: 'button', 'aria-label': '+', text: '+', onclick: () => step(1) }),
+        countOut,
+        h('button', { class: 'stepbtn', type: 'button', 'aria-label': '-', text: '−', onclick: () => step(-1) }))),
+    h('div', { class: 'field' }, h('label', { text: u.reqTime }), times),
+    h('div', { class: 'field' }, h('label', { for: 'rq_notes', text: u.reqNotes }), notes),
+    h('button', { class: 'btn wa wide big', type: 'button', html: ICON.wa, onclick: send }, u.reqSend),
+  ), { tall: true });
+  count('booking_open', { from: preselect || 'button' });
+}
+
 // ---------- sheets (bottom dialogs) ----------
 function sheet(content, { tall = false, onClose } = {}) {
   closeSheet();
@@ -358,7 +430,11 @@ function promoBanner() {
   const items = t().promos;
   let i = 0;
   const title = h('b'); const text = h('span');
-  const box = h('a', { class: 'promo', target: '_blank', rel: 'noopener', onclick: () => count(items[i].key + '_click', { place: 'banner' }) },
+  const box = h('a', { class: 'promo', target: '_blank', rel: 'noopener', onclick: (e) => {
+    const key = items[i].key;
+    count(key + '_click', { place: 'banner' });
+    if (key === 'booking' || key === 'lawyer') { e.preventDefault(); openRequest(key === 'lawyer' ? 'lawyer' : null); }
+  } },
     h('span', { class: 'promo-tag', text: '★' }), h('span', { class: 'promo-body' }, title, text));
   const show = () => {
     const p = items[i];
@@ -435,6 +511,8 @@ async function renderReview() {
       h('div', { class: 'owner-card' },
         h('div', { class: 'oc-head' }, h('img', { src: OWNER.photo, alt: '', width: 52, height: 52 }),
           h('div', {}, h('b', { text: OWNER.name[app.lang] }), h('p', { text: u.helpTitle }))),
+        h('button', { class: 'btn primary wide', type: 'button', text: u.reqButton, onclick: () => openRequest(null) }),
+        h('p', { class: 'trust small', html: ICON.check }, u.noUpfront),
         h('a', { class: 'btn wa wide', href: waLink(u.waHello), target: '_blank', rel: 'noopener', html: ICON.wa, onclick: () => count('whatsapp_click', { place: 'review' }) }, u.whatsapp),
         h('div', { class: 'two' },
           h('a', { class: 'btn fb', href: OWNER.facebook, target: '_blank', rel: 'noopener', html: ICON.fb, onclick: () => count('facebook_click', { place: 'review' }) }, u.facebook),
