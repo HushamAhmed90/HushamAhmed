@@ -23,8 +23,7 @@ function useForm(form) {
   app.values = form.values;
   app.open = form.open || 'names';
 }
-const IRAQ_DEFAULTS = { a39addrCountry: 'IRQ', a26fatherCountry: 'IRQ', a29motherCountry: 'IRQ' };
-function addForm(values = { ...IRAQ_DEFAULTS }, extra = {}) {
+function addForm(values = {}, extra = {}) {
   const form = { id: newId(), values, open: 'names', ...extra };
   app.forms.push(form);
   useForm(form);
@@ -86,8 +85,7 @@ const PRINT_RAW = new Set(['a02mariage', 'a03bloodGroup']);
 const record = () => ({ ...FIXED, ...app.values });
 
 const missingIn = (sec) => sec.keys.filter((k) => FIELDS[k].req && !app.values[k]);
-const isDefault = (k, v) => (typeof IRAQ_DEFAULTS !== 'undefined') && IRAQ_DEFAULTS[k] === v;
-const filledIn = (sec) => sec.keys.filter((k) => app.values[k] && !isDefault(k, app.values[k])).length;
+const filledIn = (sec) => sec.keys.filter((k) => app.values[k]).length;
 
 function persist() {
   const cur = currentForm();
@@ -104,7 +102,7 @@ function restore() {
     return { lang: old.lang, forms: [{ id, values: old.values || {}, open: old.open || 'names' }], current: id };
   } catch (e) { return null; }
 }
-const hasData = (saved) => saved && (saved.forms || []).some((f) => Object.entries(f.values || {}).some(([k, v]) => v && !isDefault(k, v)));
+const hasData = (saved) => saved && (saved.forms || []).some((f) => Object.keys(f.values || {}).length);
 function loadSaved(saved) {
   app.forms = (saved && saved.forms && saved.forms.length) ? saved.forms : [];
   const cur = app.forms.find((f) => f.id === (saved && saved.current)) || app.forms[0];
@@ -138,8 +136,6 @@ function childOf(parent) {
   copyKeys(p, v, ['a33religion', 'a12office', 'a13bookNo', 'a14pageNo', 'a40phone', ...ADDRESS]);
   v.a27fatherIsLive = '1';
   v.a30motherIsLive = '1';
-  v.a26fatherCountry = 'IRQ';
-  v.a29motherCountry = 'IRQ';
   const single = LISTS.options[app.lang].mariageStatus[0];
   if (single) v.a02mariage = single[0];
   return v;
@@ -148,7 +144,6 @@ function spouseOf(person) {
   const p = person.values;
   const v = {};
   copyKeys(p, v, ['a33religion', 'a40phone', ...ADDRESS]);
-  Object.assign(v, { a26fatherCountry: 'IRQ', a29motherCountry: 'IRQ' });
   if (p.a01gender === 'm') v.a01gender = 'f';
   else if (p.a01gender === 'f') v.a01gender = 'm';
   const married = LISTS.options[app.lang].mariageStatus[1];
@@ -191,7 +186,7 @@ function openFamily() {
     h('div', { class: 'fam-list' }, app.forms.map(row)),
     add(u.addChild(name), u.childNote, () => ({ values: childOf(base), extra: { childOf: base.id } }), 'child'),
     partnerOf(base) ? null : add(u.addSpouse(name), u.spouseNote, () => ({ values: spouseOf(base), extra: { spouseOf: base.id } }), 'spouse'),
-    add(u.addEmpty, null, () => ({ values: { ...IRAQ_DEFAULTS } }), 'empty'),
+    add(u.addEmpty, null, () => ({ values: {} }), 'empty'),
   ), { tall: app.forms.length > 3 });
 }
 
@@ -218,11 +213,7 @@ function openRequest(preselect) {
   const err = h('p', { class: 'err' });
   const guess = personName(app.values);
   const name = h('input', { class: 'input', id: 'rq_name', value: last.name || (guess !== t().unnamed ? guess : ''), autocomplete: 'name' });
-  const city = h('select', { class: 'input', id: 'rq_city' },
-    h('option', { value: '', text: u.reqCityHint }),
-    LISTS.prov.map(([, name]) => h('option', { value: name, text: name })),
-    h('option', { value: UI.Ara.outside, text: u.outside }));
-  city.value = last.city || '';
+  const city = h('input', { class: 'input', id: 'rq_city', value: last.city || '', placeholder: u.reqCityHint, autocomplete: 'address-level2' });
   const countOut = h('b', { class: 'count', text: '1' });
   const step = (d) => { people = Math.min(20, Math.max(1, people + d)); countOut.textContent = String(people); };
   const times = h('div', { class: 'chips' }, u.reqTimes.map((label, i) => {
@@ -240,13 +231,13 @@ function openRequest(preselect) {
       'مرحباً هشام، أريد تقديم طلب:',
       `• المعاملة: ${picked.map((sv) => sv.ar).join('، ')}`,
       `• الاسم: ${name.value.trim()}`,
-      city.value ? `• المحافظة: ${city.value}` : null,
+      city.value.trim() ? `• المدينة: ${city.value.trim()}` : null,
       `• عدد الأشخاص: ${people}`,
       `• أفضل وقت للتواصل: ${UI.Ara.reqTimes[when]}`,
       notes.value.trim() ? `• ملاحظات: ${notes.value.trim()}` : null,
       '(مرسل من برنامج استمارة البطاقة الوطنية)',
     ].filter(Boolean);
-    try { localStorage.setItem(REQ_KEY, JSON.stringify({ name: name.value.trim(), city: city.value })); } catch (e) { /* ignore */ }
+    try { localStorage.setItem(REQ_KEY, JSON.stringify({ name: name.value.trim(), city: city.value.trim() })); } catch (e) { /* ignore */ }
     count('booking_request', { services: picked.map((sv) => sv.id).join(','), people });
     window.open(waLink(lines.join('\n')), '_blank', 'noopener');
     closeSheet();
@@ -269,37 +260,6 @@ function openRequest(preselect) {
     h('button', { class: 'btn wa wide big', type: 'button', html: ICON.wa, onclick: send }, u.reqSend),
   ), { tall: true });
   count('booking_open', { from: preselect || 'button' });
-}
-
-// ---------- save contact / share ----------
-async function saveContact() {
-  let photo = '';
-  try {
-    const buf = new Uint8Array(await (await fetch(OWNER.photo)).arrayBuffer());
-    let bin = '';
-    buf.forEach((b) => { bin += String.fromCharCode(b); });
-    photo = `PHOTO;ENCODING=b;TYPE=JPEG:${btoa(bin)}`;
-  } catch (e) { /* card without photo */ }
-  const name = OWNER.name.Ara.split(' ');
-  const card = [
-    'BEGIN:VCARD', 'VERSION:3.0',
-    `N:${name.slice(1).join(' ')};${name[0]};;;`, `FN:${OWNER.name.Ara}`,
-    `TEL;TYPE=CELL:+${OWNER.whatsapp}`,
-    `NOTE:${UI.Ara.contactNote}`,
-    `URL:${location.origin}`,
-    photo, 'END:VCARD',
-  ].filter(Boolean).join('\r\n');
-  await hand(new Blob([card], { type: 'text/vcard' }), 'husham-ahmed.vcf');
-  count('contact_saved');
-}
-async function shareApp() {
-  const text = t().shareText;
-  const url = location.origin;
-  count('app_shared');
-  if (navigator.share) {
-    try { await navigator.share({ title: t().appName, text, url }); return; } catch (e) { if (e.name === 'AbortError') return; }
-  }
-  window.open(`https://wa.me/?text=${encodeURIComponent(text + '\n' + url)}`, '_blank', 'noopener');
 }
 
 // ---------- sheets (bottom dialogs) ----------
@@ -499,11 +459,7 @@ function renderForm() {
         h('span', { class: 'fambar-btn' }, `${t().family} (${app.forms.length})`)),
       h('p', { id: 'progress-text' }),
       h('div', { class: 'track' }, h('div', { id: 'progress-bar', class: 'fill' }))),
-    h('main', { class: 'cards' }, SECTIONS.map(sectionCard),
-      h('div', { class: 'two' },
-        h('button', { class: 'btn ghost', type: 'button', text: t().saveContact, onclick: saveContact }),
-        h('button', { class: 'btn ghost', type: 'button', text: t().shareApp, onclick: shareApp })),
-      h('p', { class: 'disclaimer', text: t().disclaimer })),
+    h('main', { class: 'cards' }, SECTIONS.map(sectionCard), h('p', { class: 'disclaimer', text: t().disclaimer })),
     h('div', { class: 'dock' }, h('button', { class: 'btn primary wide big', type: 'button', text: t().review, onclick: goReview })),
   );
   refreshStatus();
@@ -558,9 +514,6 @@ async function renderReview() {
         h('button', { class: 'btn primary wide', type: 'button', text: u.reqButton, onclick: () => openRequest(null) }),
         h('p', { class: 'trust small', html: ICON.check }, u.noUpfront),
         h('a', { class: 'btn wa wide', href: waLink(u.waHello), target: '_blank', rel: 'noopener', html: ICON.wa, onclick: () => count('whatsapp_click', { place: 'review' }) }, u.whatsapp),
-        h('div', { class: 'two' },
-          h('button', { class: 'btn soft', type: 'button', text: u.saveContact, onclick: saveContact }),
-          h('button', { class: 'btn soft', type: 'button', text: u.shareApp, onclick: shareApp })),
         h('div', { class: 'two' },
           h('a', { class: 'btn fb', href: OWNER.facebook, target: '_blank', rel: 'noopener', html: ICON.fb, onclick: () => count('facebook_click', { place: 'review' }) }, u.facebook),
           h('a', { class: 'btn tt', href: OWNER.tiktok, target: '_blank', rel: 'noopener', html: ICON.tt, onclick: () => count('tiktok_click', { place: 'review' }) }, u.tiktok))),
