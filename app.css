@@ -65,6 +65,26 @@ svg { width: 20px; height: 20px; flex-shrink: 0; }
 .track { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
 .fill { height: 100%; width: 0; background: var(--ok); border-radius: 3px; transition: width .3s; }
 
+/* ---- family ---- */
+.fambar { width: 100%; display: flex; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 8px 12px; margin-bottom: 12px; cursor: pointer; text-align: right; }
+.fambar-who { flex: 1; display: flex; flex-direction: column; line-height: 1.4; min-width: 0; }
+.fambar-who small { color: var(--muted); font-size: 12.5px; }
+.fambar-who b { font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fambar-btn { background: var(--navy); color: #fff; border-radius: 999px; padding: 4px 14px; font-weight: 700; font-size: 14px; white-space: nowrap; }
+.family .note { margin: 0 0 10px; }
+.fam-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.fam-row { display: flex; align-items: center; gap: 6px; border: 1.5px solid var(--line); border-radius: 12px; }
+.fam-row.on { border-color: var(--navy); background: var(--navy-tint); }
+.fam-pick { flex: 1; display: flex; align-items: center; gap: 10px; background: none; border: 0; padding: 10px 12px; cursor: pointer; text-align: right; }
+.fam-dot { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.fam-dot.ok { background: var(--ok); border-color: var(--ok); color: #fff; }
+.fam-dot svg { width: 15px; height: 15px; }
+.fam-name { display: flex; flex-direction: column; line-height: 1.4; }
+.fam-name small { color: var(--muted); font-size: 12.5px; }
+.fam-del { width: 44px; height: 44px; border: 0; background: none; color: var(--muted); font-size: 16px; cursor: pointer; }
+.fam-add { width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: right; background: var(--gold-tint); border: 1px dashed var(--gold); color: var(--gold-ink); border-radius: 12px; padding: 10px 14px; margin-top: 8px; cursor: pointer; }
+.fam-add small { font-size: 12.5px; line-height: 1.7; opacity: .9; }
+
 /* ---- section cards ---- */
 .cards, .review { max-width: 620px; margin: 0 auto; padding: 10px 14px 20px; }
 .card { background: var(--card); border-radius: 16px; margin-bottom: 10px; border: 1px solid var(--line); overflow: hidden; }

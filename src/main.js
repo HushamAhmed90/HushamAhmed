@@ -4,15 +4,31 @@ import { UI, OWNER } from './texts.js';
 import { drawSheet, sheetFontsReady } from './sheet.js';
 import { jpegPagePdf } from './pdf.js';
 
-const KEY = 'bitaqa.form.v1';
+const KEY = 'bitaqa.forms.v2';
+const OLD_KEY = 'bitaqa.form.v1';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 const app = {
   lang: null,
-  values: {},        // raw values (codes for pick fields)
+  forms: [],         // family: [{ id, values, open, spouseOf? }]
+  current: null,     // id of the form being edited
+  values: {},        // raw values of the current form (codes for pick fields)
   open: 'names',     // open section id
   review: false,
 };
+const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const currentForm = () => app.forms.find((f) => f.id === app.current);
+function useForm(form) {
+  app.current = form.id;
+  app.values = form.values;
+  app.open = form.open || 'names';
+}
+function addForm(values = {}, extra = {}) {
+  const form = { id: newId(), values, open: 'names', ...extra };
+  app.forms.push(form);
+  useForm(form);
+  return form;
+}
 
 // ---------- tiny DOM helper ----------
 function h(tag, props = {}, ...kids) {
@@ -72,10 +88,106 @@ const missingIn = (sec) => sec.keys.filter((k) => FIELDS[k].req && !app.values[k
 const filledIn = (sec) => sec.keys.filter((k) => app.values[k]).length;
 
 function persist() {
-  try { localStorage.setItem(KEY, JSON.stringify({ lang: app.lang, values: app.values, open: app.open })); } catch (e) { /* private mode */ }
+  const cur = currentForm();
+  if (cur) { cur.values = app.values; cur.open = app.open; }
+  try { localStorage.setItem(KEY, JSON.stringify({ lang: app.lang, forms: app.forms, current: app.current })); } catch (e) { /* private mode */ }
 }
 function restore() {
-  try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; }
+  try {
+    const saved = JSON.parse(localStorage.getItem(KEY) || 'null');
+    if (saved) return saved;
+    const old = JSON.parse(localStorage.getItem(OLD_KEY) || 'null');   // single-form version
+    if (!old) return null;
+    const id = newId();
+    return { lang: old.lang, forms: [{ id, values: old.values || {}, open: old.open || 'names' }], current: id };
+  } catch (e) { return null; }
+}
+const hasData = (saved) => saved && (saved.forms || []).some((f) => Object.keys(f.values || {}).length);
+function loadSaved(saved) {
+  app.forms = (saved && saved.forms && saved.forms.length) ? saved.forms : [];
+  const cur = app.forms.find((f) => f.id === (saved && saved.current)) || app.forms[0];
+  if (cur) useForm(cur); else addForm();
+}
+function resetAll() {
+  app.forms = [];
+  addForm();
+  persist();
+}
+
+// ---------- family ----------
+const ADDRESS = ['a39addrCountry', 'a38addrProv', 'a37addrM', 'a36addrStNo', 'a42addrBuildingNo', 'a41addrOther', 'a22addrOffice'];
+const personName = (values) => [values.a07name1, values.a06name2].filter(Boolean).join(' ') || t().unnamed;
+const formMissing = (values) => Object.entries(FIELDS).filter(([k, f]) => f.req && !values[k]).length;
+const copyKeys = (from, to, keys) => keys.forEach((k) => { if (from[k]) to[k] = from[k]; });
+const partnerOf = (form) => app.forms.find((f) => f.spouseOf === form.id) || app.forms.find((f) => f.id === form.spouseOf);
+
+function childOf(parent) {
+  const p = parent.values;
+  const partner = partnerOf(parent);
+  const isMother = p.a01gender === 'f';
+  const father = isMother ? (partner ? partner.values : {}) : p;
+  const mother = isMother ? p : (partner ? partner.values : {});
+  const v = {};
+  if (father.a07name1) v.a06name2 = father.a07name1;
+  if (father.a06name2) v.a09name3 = father.a06name2;
+  if (father.a08name4) v.a08name4 = father.a08name4;
+  if (mother.a07name1) v.a11motherName = mother.a07name1;
+  if (mother.a06name2) v.a10motherFatherName = mother.a06name2;
+  copyKeys(p, v, ['a33religion', 'a12office', 'a13bookNo', 'a14pageNo', 'a40phone', ...ADDRESS]);
+  v.a27fatherIsLive = '1';
+  v.a30motherIsLive = '1';
+  const single = LISTS.options[app.lang].mariageStatus[0];
+  if (single) v.a02mariage = single[0];
+  return v;
+}
+function spouseOf(person) {
+  const p = person.values;
+  const v = {};
+  copyKeys(p, v, ['a33religion', 'a40phone', ...ADDRESS]);
+  if (p.a01gender === 'm') v.a01gender = 'f';
+  else if (p.a01gender === 'f') v.a01gender = 'm';
+  const married = LISTS.options[app.lang].mariageStatus[1];
+  v.a02mariage = p.a02mariage || (married && married[0]);
+  return v;
+}
+
+function openFamily() {
+  const u = t();
+  const cur = currentForm();
+  const row = (form) => {
+    const miss = formMissing(form.values);
+    const on = form.id === app.current;
+    return h('div', { class: 'fam-row' + (on ? ' on' : '') },
+      h('button', { class: 'fam-pick', type: 'button', onclick: () => { persist(); useForm(form); persist(); closeSheet(); app.review = false; renderForm(); scrollTo(0, 0); } },
+        h('span', { class: 'fam-dot' + (miss ? '' : ' ok'), html: miss ? '' : ICON.check }),
+        h('span', { class: 'fam-name' }, h('b', { text: personName(form.values) }), h('small', { text: miss ? `${u.formMissing} (${miss})` : u.formDone }))),
+      app.forms.length > 1 ? h('button', { class: 'fam-del', type: 'button', 'aria-label': u.remove, text: '✕', onclick: () => {
+        if (!confirm(u.confirmRemove(personName(form.values)))) return;
+        app.forms = app.forms.filter((f) => f.id !== form.id);
+        app.forms.forEach((f) => { if (f.spouseOf === form.id) delete f.spouseOf; if (f.childOf === form.id) delete f.childOf; });
+        if (form.id === app.current) useForm(app.forms[0]);
+        persist(); closeSheet(); renderForm(); openFamily();
+      } }) : null);
+  };
+  const add = (label, note, make, type) => h('button', { class: 'fam-add', type: 'button', onclick: () => {
+    persist();
+    const made = make();
+    addForm(made.values, made.extra);
+    persist(); closeSheet(); app.review = false; renderForm(); scrollTo(0, 0);
+    toast(u.added); count('family_add', { type });
+  } }, h('b', { text: '+ ' + label }), note ? h('small', { text: note }) : null);
+
+  // Children are added to the parents' family, not to the child.
+  const base = (cur.childOf && app.forms.find((f) => f.id === cur.childOf)) || cur;
+  const name = personName(base.values);
+  sheet(h('div', { class: 'family' },
+    h('div', { class: 'picker-top' }, h('h2', { text: u.familyTitle }), h('button', { class: 'x', type: 'button', 'aria-label': u.close, onclick: closeSheet, text: '✕' })),
+    h('p', { class: 'note', text: u.familyNote }),
+    h('div', { class: 'fam-list' }, app.forms.map(row)),
+    add(u.addChild(name), u.childNote, () => ({ values: childOf(base), extra: { childOf: base.id } }), 'child'),
+    partnerOf(base) ? null : add(u.addSpouse(name), u.spouseNote, () => ({ values: spouseOf(base), extra: { spouseOf: base.id } }), 'spouse'),
+    add(u.addEmpty, null, () => ({ values: {} }), 'empty'),
+  ), { tall: app.forms.length > 3 });
 }
 
 // ---------- sheets (bottom dialogs) ----------
@@ -180,6 +292,7 @@ function setValue(key, v) {
   if (f && v) f.classList.remove('bad');
   persist();
   refreshStatus();
+  if (key === 'a07name1' || key === 'a06name2') { const b = $('.fambar-who b'); if (b) b.textContent = personName(app.values); }
 }
 
 function sectionCard(sec, index) {
@@ -265,6 +378,9 @@ function renderForm() {
     header(),
     promoBanner(),
     h('div', { class: 'progress' },
+      h('button', { class: 'fambar', type: 'button', onclick: openFamily },
+        h('span', { class: 'fambar-who' }, h('small', { text: t().editing }), h('b', { text: personName(app.values) })),
+        h('span', { class: 'fambar-btn' }, `${t().family} (${app.forms.length})`)),
       h('p', { id: 'progress-text' }),
       h('div', { class: 'track' }, h('div', { id: 'progress-bar', class: 'fill' }))),
     h('main', { class: 'cards' }, SECTIONS.map(sectionCard), h('p', { class: 'disclaimer', text: t().disclaimer })),
@@ -324,10 +440,7 @@ async function renderReview() {
           h('a', { class: 'btn fb', href: OWNER.facebook, target: '_blank', rel: 'noopener', html: ICON.fb, onclick: () => count('facebook_click', { place: 'review' }) }, u.facebook),
           h('a', { class: 'btn tt', href: OWNER.tiktok, target: '_blank', rel: 'noopener', html: ICON.tt, onclick: () => count('tiktok_click', { place: 'review' }) }, u.tiktok))),
       promoBanner(),
-      h('button', { class: 'btn ghost wide', type: 'button', text: u.newForm, onclick: () => {
-        if (!confirm(u.confirmNew)) return;
-        app.values = {}; app.open = 'names'; app.review = false; persist(); history.replaceState(null, ''); renderForm(); scrollTo(0, 0);
-      } }),
+      h('button', { class: 'btn soft wide', type: 'button', text: `${u.familyBtn} (${app.forms.length})`, onclick: openFamily }),
       h('p', { class: 'disclaimer', text: u.disclaimer })),
     h('div', { class: 'dock grid' },
       h('button', { class: 'btn primary', type: 'button', text: u.saveImg, onclick: (e) => save('png', e.currentTarget) }),
@@ -428,7 +541,8 @@ function welcome(saved) {
   const langBtn = (lang, text) => h('button', { class: 'btn primary', type: 'button', text, onclick: () => {
     closeSheet();
     app.lang = lang;
-    if (saved && Object.keys(saved.values || {}).length) askResume(saved); else setLang(lang);
+    loadSaved(saved);
+    if (hasData(saved)) askResume(); else setLang(lang);
   } });
   sheet(h('div', { class: 'welcome' },
     h('img', { class: 'welcome-photo', src: OWNER.photo, alt: '', width: 84, height: 84 }),
@@ -438,13 +552,13 @@ function welcome(saved) {
     h('div', { class: 'two' }, langBtn('Ara', 'عربي'), langBtn('Kur', 'کوردی'))));
 }
 
-function askResume(saved) {
+function askResume() {
   const u = UI[app.lang];
   sheet(h('div', { class: 'msg' }, h('h2', { text: u.resumeTitle }), h('p', { text: u.resumeText }),
-    h('button', { class: 'btn primary wide', type: 'button', text: u.resume, onclick: () => {
-      app.values = saved.values || {}; app.open = saved.open || 'names'; closeSheet(); setLang(app.lang); } }),
+    h('button', { class: 'btn primary wide', type: 'button', text: u.resume, onclick: () => { closeSheet(); setLang(app.lang); } }),
     h('button', { class: 'btn ghost wide', type: 'button', text: u.startOver, onclick: () => {
-      app.values = {}; app.open = 'names'; closeSheet(); setLang(app.lang); } })));
+      if (!confirm(u.confirmNew)) return;
+      resetAll(); closeSheet(); setLang(app.lang); } })));
 }
 
 function start() {
@@ -452,8 +566,9 @@ function start() {
   if (saved && saved.lang) {
     app.lang = saved.lang;
     document.documentElement.lang = app.lang === 'Ara' ? 'ar' : 'ckb';
-    if (Object.keys(saved.values || {}).length) { renderForm(); askResume(saved); }
-    else renderForm();
+    loadSaved(saved);
+    renderForm();
+    if (hasData(saved)) askResume();
   } else {
     welcome(saved);
   }
