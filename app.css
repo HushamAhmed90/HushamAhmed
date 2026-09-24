@@ -101,6 +101,7 @@ svg { width: 20px; height: 20px; flex-shrink: 0; }
 .input.badin { border-color: var(--bad); background: #FFF5F4; }
 .request .btn.wa { margin-top: 16px; }
 .owner-card .btn.primary { margin-top: 12px; }
+.owner-card .btn.soft { margin-top: 0; }
 
 /* ---- section cards ---- */
 .cards, .review { max-width: 620px; margin: 0 auto; padding: 10px 14px 20px; }

@@ -262,6 +262,37 @@ function openRequest(preselect) {
   count('booking_open', { from: preselect || 'button' });
 }
 
+// ---------- save contact / share ----------
+async function saveContact() {
+  let photo = '';
+  try {
+    const buf = new Uint8Array(await (await fetch(OWNER.photo)).arrayBuffer());
+    let bin = '';
+    buf.forEach((b) => { bin += String.fromCharCode(b); });
+    photo = `PHOTO;ENCODING=b;TYPE=JPEG:${btoa(bin)}`;
+  } catch (e) { /* card without photo */ }
+  const name = OWNER.name.Ara.split(' ');
+  const card = [
+    'BEGIN:VCARD', 'VERSION:3.0',
+    `N:${name.slice(1).join(' ')};${name[0]};;;`, `FN:${OWNER.name.Ara}`,
+    `TEL;TYPE=CELL:+${OWNER.whatsapp}`,
+    `NOTE:${UI.Ara.contactNote}`,
+    `URL:${location.origin}`,
+    photo, 'END:VCARD',
+  ].filter(Boolean).join('\r\n');
+  await hand(new Blob([card], { type: 'text/vcard' }), 'husham-ahmed.vcf');
+  count('contact_saved');
+}
+async function shareApp() {
+  const text = t().shareText;
+  const url = location.origin;
+  count('app_shared');
+  if (navigator.share) {
+    try { await navigator.share({ title: t().appName, text, url }); return; } catch (e) { if (e.name === 'AbortError') return; }
+  }
+  window.open(`https://wa.me/?text=${encodeURIComponent(text + '\n' + url)}`, '_blank', 'noopener');
+}
+
 // ---------- sheets (bottom dialogs) ----------
 function sheet(content, { tall = false, onClose } = {}) {
   closeSheet();
@@ -459,7 +490,11 @@ function renderForm() {
         h('span', { class: 'fambar-btn' }, `${t().family} (${app.forms.length})`)),
       h('p', { id: 'progress-text' }),
       h('div', { class: 'track' }, h('div', { id: 'progress-bar', class: 'fill' }))),
-    h('main', { class: 'cards' }, SECTIONS.map(sectionCard), h('p', { class: 'disclaimer', text: t().disclaimer })),
+    h('main', { class: 'cards' }, SECTIONS.map(sectionCard),
+      h('div', { class: 'two' },
+        h('button', { class: 'btn ghost', type: 'button', text: t().saveContact, onclick: saveContact }),
+        h('button', { class: 'btn ghost', type: 'button', text: t().shareApp, onclick: shareApp })),
+      h('p', { class: 'disclaimer', text: t().disclaimer })),
     h('div', { class: 'dock' }, h('button', { class: 'btn primary wide big', type: 'button', text: t().review, onclick: goReview })),
   );
   refreshStatus();
@@ -514,6 +549,9 @@ async function renderReview() {
         h('button', { class: 'btn primary wide', type: 'button', text: u.reqButton, onclick: () => openRequest(null) }),
         h('p', { class: 'trust small', html: ICON.check }, u.noUpfront),
         h('a', { class: 'btn wa wide', href: waLink(u.waHello), target: '_blank', rel: 'noopener', html: ICON.wa, onclick: () => count('whatsapp_click', { place: 'review' }) }, u.whatsapp),
+        h('div', { class: 'two' },
+          h('button', { class: 'btn soft', type: 'button', text: u.saveContact, onclick: saveContact }),
+          h('button', { class: 'btn soft', type: 'button', text: u.shareApp, onclick: shareApp })),
         h('div', { class: 'two' },
           h('a', { class: 'btn fb', href: OWNER.facebook, target: '_blank', rel: 'noopener', html: ICON.fb, onclick: () => count('facebook_click', { place: 'review' }) }, u.facebook),
           h('a', { class: 'btn tt', href: OWNER.tiktok, target: '_blank', rel: 'noopener', html: ICON.tt, onclick: () => count('tiktok_click', { place: 'review' }) }, u.tiktok))),
