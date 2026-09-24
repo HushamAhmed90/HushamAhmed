@@ -1,0 +1,465 @@
+import { LISTS } from './lists.js';
+import { FIELDS, FIXED, SECTIONS, LABELS } from './schema.js';
+import { UI, OWNER } from './texts.js';
+import { drawSheet, sheetFontsReady } from './sheet.js';
+import { jpegPagePdf } from './pdf.js';
+
+const KEY = 'bitaqa.form.v1';
+const $ = (sel, root = document) => root.querySelector(sel);
+
+const app = {
+  lang: null,
+  values: {},        // raw values (codes for pick fields)
+  open: 'names',     // open section id
+  review: false,
+};
+
+// ---------- tiny DOM helper ----------
+function h(tag, props = {}, ...kids) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (v == null || v === false) continue;
+    if (k === 'class') node.className = v;
+    else if (k === 'text') node.textContent = v;
+    else if (k === 'html') node.innerHTML = v;
+    else if (k.startsWith('on')) node.addEventListener(k.slice(2), v);
+    else node.setAttribute(k, v === true ? '' : v);
+  }
+  for (const kid of kids.flat()) if (kid != null && kid !== false) node.append(kid);
+  return node;
+}
+
+const ICON = {
+  wa: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm4.6 14.1c-.2.6-1.2 1.1-1.7 1.2-.5.1-1.1.1-1.7-.1-.4-.1-.9-.3-1.5-.6-2.6-1.1-4.3-3.8-4.4-4-.1-.2-1-1.4-1-2.6s.6-1.9.9-2.1c.2-.3.5-.3.6-.3h.5c.2 0 .4 0 .6.4l.8 1.9c.1.1.1.3 0 .4l-.3.5-.4.4c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.1 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.8-1c.2-.2.4-.2.6-.1l1.8.9c.3.1.4.2.5.3.1.2.1.7-.1 1.2z"/></svg>',
+  fb: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.5h-1.3c-1.2 0-1.6.8-1.6 1.6V12h2.8l-.4 2.9h-2.4v7A10 10 0 0 0 22 12z"/></svg>',
+  tt: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M16.6 2h-3.3v13.3a2.9 2.9 0 1 1-2.9-2.9c.3 0 .6 0 .9.1V9.1a6.3 6.3 0 1 0 5.3 6.2V8.6a7.7 7.7 0 0 0 4.4 1.4V6.7a4.4 4.4 0 0 1-4.4-4.4z"/></svg>',
+  check: '<svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  chevron: '<svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/></svg>',
+};
+
+const t = () => UI[app.lang];
+const count = (name, data) => { try { window.va && window.va('event', { name, data: { lang: app.lang || '', ...(data || {}) } }); } catch (e) { /* ignore */ } };
+const waLink = (msg) => `https://wa.me/${OWNER.whatsapp}?text=${encodeURIComponent(msg)}`;
+
+// ---------- values ----------
+const latinDigits = (s) => s.replace(/[\u0660-\u0669]/g, (d) => d.charCodeAt(0) - 0x660)
+  .replace(/[\u06F0-\u06F9]/g, (d) => d.charCodeAt(0) - 0x6F0);
+const clean = (s) => latinDigits(String(s)).replace(/,/g, '\u060C').replace(/[\r\n]+/g, ' ');
+
+function listFor(key) {
+  const src = FIELDS[key].list;
+  if (src.startsWith('opt:')) return LISTS.options[app.lang][src.slice(4)] || LISTS.options.Ara[src.slice(4)];
+  return LISTS[src];
+}
+const labelOf = (key, code) => {
+  const hit = listFor(key).find((row) => row[0] === String(code));
+  return hit ? hit[1] : '';
+};
+function displayValues() {
+  const out = {};
+  for (const [k, f] of Object.entries(FIELDS)) {
+    const v = app.values[k];
+    if (!v) continue;
+    // Like the official printout, marital status and blood group print their stored value.
+    out[k] = f.type === 'pick' && !PRINT_RAW.has(k) ? labelOf(k, v) : v;
+  }
+  return out;
+}
+const PRINT_RAW = new Set(['a02mariage', 'a03bloodGroup']);
+const record = () => ({ ...FIXED, ...app.values });
+
+const missingIn = (sec) => sec.keys.filter((k) => FIELDS[k].req && !app.values[k]);
+const filledIn = (sec) => sec.keys.filter((k) => app.values[k]).length;
+
+function persist() {
+  try { localStorage.setItem(KEY, JSON.stringify({ lang: app.lang, values: app.values, open: app.open })); } catch (e) { /* private mode */ }
+}
+function restore() {
+  try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; }
+}
+
+// ---------- sheets (bottom dialogs) ----------
+function sheet(content, { tall = false, onClose } = {}) {
+  closeSheet();
+  const wrap = h('div', { class: 'veil', id: 'veil', onclick: (e) => { if (e.target.id === 'veil') closeSheet(); } },
+    h('div', { class: 'sheet' + (tall ? ' tall' : ''), role: 'dialog', 'aria-modal': 'true' }, h('div', { class: 'grip' }), content));
+  wrap._onClose = onClose;
+  document.body.append(wrap);
+  document.body.classList.add('locked');
+  requestAnimationFrame(() => wrap.classList.add('in'));
+}
+function closeSheet() {
+  const v = $('#veil');
+  if (!v) return;
+  v.remove();
+  document.body.classList.remove('locked');
+  if (v._onClose) v._onClose();
+}
+
+let toastTimer;
+function toast(msg) {
+  let el = $('#toast');
+  if (!el) { el = h('div', { id: 'toast', class: 'toast', role: 'status' }); document.body.append(el); }
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ---------- picker ----------
+function pick(key, done) {
+  const rows = listFor(key);
+  const input = h('input', { class: 'search', type: 'search', placeholder: t().search, autocomplete: 'off', 'aria-label': t().search });
+  const list = h('div', { class: 'options', role: 'listbox' });
+  const norm = (s) => (s || '').replace(/[\u0640\u200c]/g, '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىی]/g, 'ي').replace(/ک/g, 'ك').trim();
+  const draw = () => {
+    const q = norm(input.value);
+    const hits = q ? rows.filter((r) => norm(r[1]).includes(q)) : rows;
+    list.replaceChildren(...hits.slice(0, 150).map(([code, text]) => h('button', {
+      class: 'option' + (app.values[key] === code ? ' on' : ''), type: 'button', role: 'option',
+      onclick: () => { app.values[key] = code; persist(); closeSheet(); done(); },
+    }, text)));
+    if (!hits.length) list.append(h('p', { class: 'empty', text: t().noMatch }));
+    else if (hits.length > 150) list.append(h('p', { class: 'empty', text: t().typeMore }));
+  };
+  input.addEventListener('input', draw);
+  draw();
+  const big = rows.length > 8;
+  sheet(h('div', { class: 'picker' },
+    h('div', { class: 'picker-top' },
+      h('h2', { text: LABELS[app.lang][key] }),
+      h('button', { class: 'x', type: 'button', 'aria-label': t().close, onclick: closeSheet, text: '✕' })),
+    big ? input : null,
+    list,
+    app.values[key] && !FIELDS[key].req ? h('button', { class: 'btn ghost wide', type: 'button', text: t().clear,
+      onclick: () => { delete app.values[key]; persist(); closeSheet(); done(); } }) : null,
+  ), { tall: big });
+  if (big && !matchMedia('(pointer: coarse)').matches) input.focus();
+}
+
+// ---------- form ----------
+function field(key) {
+  const f = FIELDS[key];
+  const id = 'f_' + key;
+  const wrap = h('div', { class: 'field', 'data-key': key });
+  const label = h('label', { for: id }, LABELS[app.lang][key], f.req ? h('span', { class: 'req', 'aria-hidden': 'true', text: ' *' }) : null);
+  let control;
+  if (f.type === 'pick') {
+    const txt = app.values[key] ? labelOf(key, app.values[key]) : '';
+    control = h('button', { class: 'input pickbtn' + (txt ? '' : ' empty'), id, type: 'button',
+      onclick: () => pick(key, () => { wrap.replaceWith(field(key)); refreshStatus(); }) },
+      h('span', { text: txt || t().choose }), h('i', { html: ICON.chevron }));
+  } else if (f.type === 'date') {
+    control = h('input', { class: 'input', id, type: 'date', max: new Date().toISOString().slice(0, 10), value: app.values[key] || '' });
+    control.addEventListener('change', () => { setValue(key, control.value); });
+  } else {
+    control = h('input', { class: 'input', id, type: f.tel ? 'tel' : 'text', value: app.values[key] || '',
+      inputmode: f.type === 'num' ? 'numeric' : 'text', dir: f.type === 'num' ? 'ltr' : null, autocomplete: 'off', enterkeyhint: 'next' });
+    control.addEventListener('input', () => {
+      const v = clean(control.value);
+      if (v !== control.value) control.value = v;
+      setValue(key, v);
+    });
+    control.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      const all = [...document.querySelectorAll('.card.open .input')];
+      const next = all[all.indexOf(control) + 1];
+      if (next) next.focus(); else control.blur();
+    });
+  }
+  wrap.append(label, control);
+  const hint = t().hints[key];
+  if (hint) wrap.append(h('p', { class: 'hint', text: hint }));
+  return wrap;
+}
+
+function setValue(key, v) {
+  if (v) app.values[key] = v; else delete app.values[key];
+  const f = document.querySelector(`.field[data-key="${key}"]`);
+  if (f && v) f.classList.remove('bad');
+  persist();
+  refreshStatus();
+}
+
+function sectionCard(sec, index) {
+  const open = app.open === sec.id;
+  const miss = missingIn(sec).length;
+  const card = h('section', { class: 'card' + (open ? ' open' : ''), id: 'sec_' + sec.id });
+  const head = h('button', { class: 'card-head', type: 'button', 'aria-expanded': String(open),
+    onclick: () => { app.open = open ? null : sec.id; persist(); renderForm(); if (!open) scrollToCard(sec.id); } },
+    h('span', { class: 'num' + (miss === 0 && filledIn(sec) ? ' ok' : ''), html: miss === 0 && filledIn(sec) ? ICON.check : String(index + 1) }),
+    h('span', { class: 'card-title' }, h('b', { text: t().sections[sec.id] }), h('small', { class: 'status', 'data-sec': sec.id, text: statusText(sec) })),
+    h('i', { class: 'chev', html: ICON.chevron }));
+  card.append(head);
+  if (open) {
+    const body = h('div', { class: 'card-body' }, sec.keys.map(field));
+    const nextSec = SECTIONS[index + 1];
+    if (nextSec) body.append(h('button', { class: 'btn soft wide', type: 'button', text: t().next,
+      onclick: () => { app.open = nextSec.id; persist(); renderForm(); scrollToCard(nextSec.id); } }));
+    card.append(body);
+  }
+  return card;
+}
+function statusText(sec) {
+  const miss = missingIn(sec).length;
+  if (miss) return t().missing(miss);
+  return filledIn(sec) ? t().done : t().optional;
+}
+function refreshStatus() {
+  SECTIONS.forEach((sec) => {
+    const s = document.querySelector(`.status[data-sec="${sec.id}"]`);
+    if (s) s.textContent = statusText(sec);
+  });
+  const done = SECTIONS.filter((s) => !missingIn(s).length && filledIn(s)).length;
+  const p = $('#progress-text'); if (p) p.textContent = t().progress(done, SECTIONS.length);
+  const bar = $('#progress-bar'); if (bar) bar.style.width = (done / SECTIONS.length * 100) + '%';
+}
+function scrollToCard(id) {
+  requestAnimationFrame(() => { const el = document.getElementById('sec_' + id); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+}
+
+// ---------- header, promos ----------
+function header() {
+  const o = OWNER;
+  const head = h('header', { class: 'top' },
+    h('div', { class: 'top-row' },
+      h('h1', { text: t().appName }),
+      installBtn(),
+      h('button', { class: 'chip', type: 'button', text: t().otherLang, onclick: () => setLang(app.lang === 'Ara' ? 'Kur' : 'Ara') })),
+    h('div', { class: 'owner' },
+      h('a', { class: 'owner-who', href: waLink(t().waHello), target: '_blank', rel: 'noopener', onclick: () => count('whatsapp_click', { place: 'header' }) },
+        h('img', { src: o.photo, alt: '', width: 30, height: 30 }),
+        h('span', { text: `${t().by} ${o.name[app.lang]}` })),
+      social('tt', o.tiktok, 'TikTok', 'tiktok_click'),
+      social('fb', o.facebook, 'Facebook', 'facebook_click'),
+      social('wa', waLink(t().waHello), 'WhatsApp', 'whatsapp_click')));
+  return head;
+}
+function social(icon, href, label, ev) {
+  return h('a', { class: 'soc', href, target: '_blank', rel: 'noopener', 'aria-label': label, html: ICON[icon], onclick: () => count(ev, { place: 'header' }) });
+}
+
+let promoTimer;
+function promoBanner() {
+  const items = t().promos;
+  let i = 0;
+  const title = h('b'); const text = h('span');
+  const box = h('a', { class: 'promo', target: '_blank', rel: 'noopener', onclick: () => count(items[i].key + '_click', { place: 'banner' }) },
+    h('span', { class: 'promo-tag', text: '★' }), h('span', { class: 'promo-body' }, title, text));
+  const show = () => {
+    const p = items[i];
+    title.textContent = p.title; text.textContent = p.text; box.href = waLink(p.msg);
+    box.classList.remove('swap'); void box.offsetWidth; box.classList.add('swap');
+  };
+  show();
+  clearInterval(promoTimer);
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) promoTimer = setInterval(() => { i = (i + 1) % items.length; show(); }, 5000);
+  return box;
+}
+
+// ---------- screens ----------
+function renderForm() {
+  const root = $('#app');
+  root.replaceChildren(
+    header(),
+    promoBanner(),
+    h('div', { class: 'progress' },
+      h('p', { id: 'progress-text' }),
+      h('div', { class: 'track' }, h('div', { id: 'progress-bar', class: 'fill' }))),
+    h('main', { class: 'cards' }, SECTIONS.map(sectionCard), h('p', { class: 'disclaimer', text: t().disclaimer })),
+    h('div', { class: 'dock' }, h('button', { class: 'btn primary wide big', type: 'button', text: t().review, onclick: goReview })),
+  );
+  refreshStatus();
+}
+
+function goReview() {
+  for (const sec of SECTIONS) {
+    const miss = missingIn(sec);
+    if (miss.length) {
+      app.open = sec.id; persist(); renderForm();
+      requestAnimationFrame(() => {
+        miss.forEach((k) => { const f = document.querySelector(`.field[data-key="${k}"]`); if (f) { f.classList.add('bad'); if (!f.querySelector('.err')) f.append(h('p', { class: 'err', text: t().fillThis })); } });
+        const first = document.querySelector(`.field[data-key="${miss[0]}"]`);
+        if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+      if (navigator.vibrate) navigator.vibrate(30);
+      return;
+    }
+  }
+  count('form_completed');
+  app.review = true;
+  history.pushState({ review: true }, '');
+  renderReview();
+}
+
+let sheetCanvas = null;
+const emblem = new Image();
+emblem.src = 'img/emblem.png';
+
+async function paint(scale) {
+  await sheetFontsReady();
+  if (!emblem.complete) await new Promise((r) => { emblem.onload = emblem.onerror = r; });
+  const c = document.createElement('canvas');
+  drawSheet(c, { values: displayValues(), record: record(), lang: app.lang, emblem, scale });
+  return c;
+}
+
+async function renderReview() {
+  const u = t();
+  const preview = h('img', { class: 'paper', alt: u.reviewTitle });
+  const root = $('#app');
+  root.replaceChildren(
+    header(),
+    h('main', { class: 'review' },
+      h('h2', { text: u.reviewTitle }),
+      h('p', { class: 'note', text: u.reviewNote }),
+      h('button', { class: 'paper-btn', type: 'button', 'aria-label': u.tapZoom, onclick: zoom }, preview),
+      h('p', { class: 'hint center', text: u.tapZoom }),
+      h('div', { class: 'owner-card' },
+        h('div', { class: 'oc-head' }, h('img', { src: OWNER.photo, alt: '', width: 52, height: 52 }),
+          h('div', {}, h('b', { text: OWNER.name[app.lang] }), h('p', { text: u.helpTitle }))),
+        h('a', { class: 'btn wa wide', href: waLink(u.waHello), target: '_blank', rel: 'noopener', html: ICON.wa, onclick: () => count('whatsapp_click', { place: 'review' }) }, u.whatsapp),
+        h('div', { class: 'two' },
+          h('a', { class: 'btn fb', href: OWNER.facebook, target: '_blank', rel: 'noopener', html: ICON.fb, onclick: () => count('facebook_click', { place: 'review' }) }, u.facebook),
+          h('a', { class: 'btn tt', href: OWNER.tiktok, target: '_blank', rel: 'noopener', html: ICON.tt, onclick: () => count('tiktok_click', { place: 'review' }) }, u.tiktok))),
+      promoBanner(),
+      h('button', { class: 'btn ghost wide', type: 'button', text: u.newForm, onclick: () => {
+        if (!confirm(u.confirmNew)) return;
+        app.values = {}; app.open = 'names'; app.review = false; persist(); history.replaceState(null, ''); renderForm(); scrollTo(0, 0);
+      } }),
+      h('p', { class: 'disclaimer', text: u.disclaimer })),
+    h('div', { class: 'dock grid' },
+      h('button', { class: 'btn primary', type: 'button', text: u.saveImg, onclick: (e) => save('png', e.currentTarget) }),
+      h('button', { class: 'btn primary', type: 'button', text: u.savePdf, onclick: (e) => save('pdf', e.currentTarget) }),
+      h('button', { class: 'btn ghost', type: 'button', text: u.edit, onclick: () => history.back() }),
+      h('button', { class: 'btn ghost', type: 'button', text: u.print, onclick: doPrint })),
+  );
+  scrollTo(0, 0);
+  sheetCanvas = await paint(2);
+  preview.src = sheetCanvas.toDataURL('image/png');
+  $('#print-page').src = preview.src;
+}
+
+function zoom() {
+  if (!sheetCanvas) return;
+  sheet(h('div', { class: 'zoom' }, h('img', { src: sheetCanvas.toDataURL('image/png'), alt: '' }),
+    h('button', { class: 'btn primary wide', type: 'button', text: t().close, onclick: closeSheet })), { tall: true });
+}
+
+function fileName(ext) {
+  const n = [app.values.a07name1, app.values.a06name2, app.values.a09name3].filter(Boolean).join('-').replace(/[\\/:*?"<>|\s]+/g, '-');
+  return `${app.lang === 'Kur' ? 'فۆرمی-کارتی-نیشتمانی' : 'استمارة-البطاقة-الوطنية'}${n ? '-' + n : ''}.${ext}`;
+}
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+async function hand(blob, name) {
+  if (isIOS() && navigator.canShare) {
+    const file = new File([blob], name, { type: blob.type });
+    if (navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file] }); return true; } catch (e) { if (e.name === 'AbortError') return false; throw e; }
+    }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = h('a', { href: url, download: name });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  return true;
+}
+
+let busy = false;
+async function save(kind, btn) {
+  if (busy) return;
+  busy = true;
+  const label = btn.textContent;
+  btn.textContent = t().preparing; btn.disabled = true;
+  try {
+    const big = await paint(2.5);
+    const blob = await new Promise((res) => big.toBlob(res, kind === 'png' ? 'image/png' : 'image/jpeg', 0.92));
+    let ok;
+    if (kind === 'png') ok = await hand(blob, fileName('png'));
+    else ok = await hand(jpegPagePdf(new Uint8Array(await blob.arrayBuffer()), big.width, big.height), fileName('pdf'));
+    if (ok) { toast(t().saved); count(kind === 'png' ? 'saved_image' : 'saved_pdf'); }
+  } catch (e) {
+    console.error(e); toast(t().failed);
+  } finally {
+    busy = false; btn.textContent = label; btn.disabled = false;
+  }
+}
+
+async function doPrint() {
+  count('print');
+  const c = await paint(2.5);
+  const img = $('#print-page');
+  img.src = c.toDataURL('image/png');
+  await img.decode().catch(() => {});
+  window.print();
+}
+
+// ---------- language, install, start ----------
+function setLang(lang) {
+  app.lang = lang;
+  document.documentElement.lang = lang === 'Ara' ? 'ar' : 'ckb';
+  document.title = UI[lang].appName;
+  persist();
+  if (app.review) renderReview(); else renderForm();
+}
+
+let installEvent = null;
+function installBtn() {
+  const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  if (standalone || (!installEvent && !isIOS())) return null;
+  return h('button', { class: 'chip solid', type: 'button', text: t().install, onclick: async () => {
+    if (installEvent) { installEvent.prompt(); await installEvent.userChoice; installEvent = null; renderCurrent(); return; }
+    sheet(h('div', { class: 'msg' }, h('h2', { text: t().iosInstallTitle }), h('p', { text: t().iosInstall }),
+      h('button', { class: 'btn primary wide', type: 'button', text: t().close, onclick: closeSheet })));
+  } });
+}
+const renderCurrent = () => (app.review ? renderReview() : renderForm());
+addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvent = e; if (app.lang) renderCurrent(); });
+addEventListener('appinstalled', () => { installEvent = null; count('app_installed'); });
+
+addEventListener('popstate', () => {
+  if ($('#veil')) { closeSheet(); return; }
+  if (app.review) { app.review = false; renderForm(); scrollTo(0, 0); }
+});
+
+function welcome(saved) {
+  const langBtn = (lang, text) => h('button', { class: 'btn primary', type: 'button', text, onclick: () => {
+    closeSheet();
+    app.lang = lang;
+    if (saved && Object.keys(saved.values || {}).length) askResume(saved); else setLang(lang);
+  } });
+  sheet(h('div', { class: 'welcome' },
+    h('img', { class: 'welcome-photo', src: OWNER.photo, alt: '', width: 84, height: 84 }),
+    h('p', { class: 'muted', text: UI.Ara.freeBy }),
+    h('h2', { text: OWNER.name.Ara }),
+    h('p', { text: `${UI.Ara.pickLang} / ${UI.Kur.pickLang}` }),
+    h('div', { class: 'two' }, langBtn('Ara', 'عربي'), langBtn('Kur', 'کوردی'))));
+}
+
+function askResume(saved) {
+  const u = UI[app.lang];
+  sheet(h('div', { class: 'msg' }, h('h2', { text: u.resumeTitle }), h('p', { text: u.resumeText }),
+    h('button', { class: 'btn primary wide', type: 'button', text: u.resume, onclick: () => {
+      app.values = saved.values || {}; app.open = saved.open || 'names'; closeSheet(); setLang(app.lang); } }),
+    h('button', { class: 'btn ghost wide', type: 'button', text: u.startOver, onclick: () => {
+      app.values = {}; app.open = 'names'; closeSheet(); setLang(app.lang); } })));
+}
+
+function start() {
+  const saved = restore();
+  if (saved && saved.lang) {
+    app.lang = saved.lang;
+    document.documentElement.lang = app.lang === 'Ara' ? 'ar' : 'ckb';
+    if (Object.keys(saved.values || {}).length) { renderForm(); askResume(saved); }
+    else renderForm();
+  } else {
+    welcome(saved);
+  }
+}
+start();
+
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+}
