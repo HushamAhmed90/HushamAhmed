@@ -591,7 +591,7 @@ function cField(key) {
     return wrap;
   }
   // Only ask for what the chosen power-of-attorney text needs.
-  if (key === 'place' && v.purposeType !== 'records') return null;
+  if (key === 'place' && !['records', 'birthRecord'].includes(v.purposeType)) return null;
   if (key === 'passportNo' && !['lostTwice', 'damaged'].includes(v.purposeType)) return null;
   if (key === 'school' && v.purposeType !== 'education') return null;
   if (['childRel', 'child', 'childBirth'].includes(key) && !['birth', 'birthMarriage'].includes(v.purposeType)) return null;
