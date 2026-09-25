@@ -58,7 +58,14 @@ const ICON = {
 };
 
 const t = () => UI[app.lang];
-const count = (name, data) => { try { window.va && window.va('event', { name, data: { lang: app.lang || '', ...(data || {}) } }); } catch (e) { /* ignore */ } };
+// Vercel Web Analytics (Pro) keeps at most 2 properties per event, so the
+// event's own details go first and the language only fills a free slot.
+const count = (name, data) => {
+  try {
+    const props = Object.entries({ ...(data || {}), lang: app.lang || '' }).filter(([, v]) => v !== '' && v != null).slice(0, 2);
+    if (window.va) window.va('event', { name, data: Object.fromEntries(props) });
+  } catch (e) { /* ignore */ }
+};
 const waLink = (msg) => `https://wa.me/${OWNER.whatsapp}?text=${encodeURIComponent(msg)}`;
 
 // ---------- values ----------
@@ -793,7 +800,7 @@ function cGoReview() {
     const first = document.querySelector(`[data-c="${miss[0]}"]`); if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }
-  count('consular_form', { country: cState.country, city: cState.city, form: cState.form });
+  count('consular_form', { mission: `${cState.country} - ${cState.city}`, form: cState.form });
   app.cReview = true;
   history.pushState({ creview: true }, '');
   renderConsularReview();
