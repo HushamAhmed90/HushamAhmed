@@ -9,10 +9,11 @@ export const CONSULATES = ['frankfurt', 'berlin'];
 export const FORMS = ['poa', 'life'];
 
 // Purpose wording, based on special powers of attorney issued by the consulate.
-// {place} is replaced with the city/province in Iraq.
+// {place} is replaced with the city/province in Iraq, {passport} with a passport number.
 export const POA_PURPOSES = {
   records: 'مراجعة مديرية الأحوال المدنية ومديرية الجنسية وكافة دوائر وزارة الصحة وجميع الدوائر الرسمية ذات العلاقة في {place} لإصدار صورة القيد الإلكترونية وصورة القيد الشخصية عربي / إنكليزي والعائلية الإلكترونية وصورة قيد 57 وصورة قيد الولادة الخاصة بي واستلامها وتصديقها من وزارة الخارجية ومراجعة كافة الدوائر المختصة ذات العلاقة، وله الحق بتوكيل الغير نيابة عني، ولأجله وقعت.',
   record: 'مراجعة وزارة الداخلية / مديرية تحقيق الأدلة الجنائية لمتابعة وإصدار شهادة عدم محكومية العائدة لي، ومراجعة دوائر الأحوال المدنية وشؤون الجنسية لإصدار وتجديد شهادة الجنسية أو إصدار صورة قيد إلكترونية أو صورة قيد 1957 وتصديقها من وزارة الخارجية ومن كافة الدوائر ذات العلاقة والتوقيع نيابة عني فيما يخص ذلك، ومراجعة كافة الدوائر الرسمية وشبه الرسمية لمتابعة وإنجاز المعاملة أعلاه ولمراحلها النهائية، ولأجله وقعت.',
+  lostTwice: 'تقديم إخبار عن فاقد جواز مرتين، جواز السفر العراقي العائد لي والمرقم {passport} أمام المحاكم العراقية والجهات الإدارية بما في ذلك مديرية شؤون الجوازات، والمثول أمام القضاء العراقي بصفته وكيلاً عني وتنفيذ كل ما يتطلب إدارياً وقضائياً، كما خولته حق استلام الجواز الخاص بي، وله الحق بتوكيل الغير نيابة عني، ولأجله وقعت.',
   custom: '',
 };
 
@@ -35,8 +36,8 @@ export const REQUIRED = {
 
 // Which inputs each form needs.
 export const FIELDS = {
-  'frankfurt.poa': ['principal', 'agent', 'purposeType', 'place', 'purpose', 'latinName', 'street', 'plzCity', 'phone'],
-  'berlin.poa': ['principal', 'mother', 'agent', 'principalAddress', 'agentAddress', 'idInfo', 'natInfo', 'purposeType', 'place', 'purpose', 'phone'],
+  'frankfurt.poa': ['principal', 'agent', 'purposeType', 'place', 'passportNo', 'purpose', 'latinName', 'street', 'plzCity', 'phone'],
+  'berlin.poa': ['principal', 'mother', 'agent', 'principalAddress', 'agentAddress', 'idInfo', 'natInfo', 'purposeType', 'place', 'passportNo', 'purpose', 'phone'],
   'frankfurt.life': ['principal', 'agent', 'marital', 'month', 'year', 'latinName', 'street', 'plzCity', 'phone'],
   'berlin.life': ['principal', 'birthDate', 'street', 'plzCity', 'idPlaceDate', 'agent', 'phone'],
 };

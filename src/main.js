@@ -524,7 +524,7 @@ function cPrefill() {
 function purposeText() {
   const v = cState.values;
   const tpl = POA_PURPOSES[v.purposeType || 'records'] || '';
-  return tpl.replace('{place}', v.place || '..........');
+  return tpl.replace('{place}', v.place || '..........').replace('{passport}', v.passportNo || '..........');
 }
 function cValues() {
   const v = { ...cState.values };
@@ -572,12 +572,16 @@ function cField(key) {
     }
     return wrap;
   }
+  // Only ask for what the chosen power-of-attorney text needs.
+  if (key === 'place' && v.purposeType !== 'records') return null;
+  if (key === 'passportNo' && v.purposeType !== 'lostTwice') return null;
   const latin = ['latinName', 'street', 'plzCity'].includes(key);
   const type = key === 'birthDate' ? 'date' : key === 'phone' ? 'tel' : 'text';
   const inp = h('input', { class: 'input', id: 'c_' + key, type, dir: latin || key === 'phone' ? 'ltr' : null, autocomplete: 'off',
     inputmode: key === 'year' ? 'numeric' : null });
   inp.value = v[key] || '';
-  bind(inp, key === 'place' && v.purposeType !== 'custom' ? () => {
+  if (key === 'passportNo') inp.setAttribute('dir', 'ltr');
+  bind(inp, (key === 'place' || key === 'passportNo') && v.purposeType !== 'custom' ? () => {
     v.purpose = purposeText(); cSave();
     const ta = document.getElementById('c_purpose'); if (ta) ta.value = v.purpose;
   } : null);
