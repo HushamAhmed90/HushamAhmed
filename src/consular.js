@@ -6,7 +6,7 @@ export const PAGE_W = 794;
 export const PAGE_H = 1123;
 
 export const CONSULATES = ['frankfurt', 'berlin'];
-export const FORMS = ['poa', 'life'];
+export const FORMS = ['poa', 'life', 'apostille'];
 
 // Purpose wording, based on special powers of attorney issued by the consulate.
 // {place} is replaced with the city/province in Iraq, {passport} with a passport number.
@@ -32,6 +32,11 @@ export const REQUIRED = {
     ['سند عقار أو قسام شرعي لوكالة العقار', 'بەڵگەنامەی خاوەندارێتی موڵک یاخود دابەشنامەی یاسایی موڵک بۆ کڕین و فرۆشتن'],
     ['سنوية سيارة لوكالة السيارة', 'ساڵانەی ئۆتۆمبێل بۆ بەناوکردن یاخود فرۆشتن'],
   ],
+  apostille: [
+    ['أصل بيان الولادة الألماني (Geburtsurkunde)', 'ئەسڵی بڕوانامەی لەدایکبوونی ئەڵمانی'],
+    ['هذه الاستمارة مملوءة وموقّعة', 'ئەم فۆرمە پڕکراوە و واژووکراو'],
+    ['الرسوم تُدفع عند استلام البريد (Nachnahme)', 'کرێ لە کاتی وەرگرتنی پۆستە دەدرێت (Nachnahme)'],
+  ],
   life: [
     ['صور رسمية عدد 2', 'وێنەی کەسێتی 2 دانە'],
     ['نسخة ملونة من هوية الأحوال المدنية', 'کۆپی ڕەنگاوڕەنگ لە پێناسی باری شارستانی'],
@@ -49,6 +54,8 @@ export const FIELDS = {
   // Any other mission: an information sheet with everything a mission needs.
   'generic.poa': ['principal', 'mother', 'agent', 'agentAddress', 'homeAddress', 'phone', 'idInfo', 'natInfo', 'purposeType', 'place', 'passportNo', 'school', 'childRel', 'child', 'childBirth', 'spouse', 'spouseNat', 'purpose'],
   'generic.life': ['principal', 'birthDate', 'marital', 'agent', 'homeAddress', 'idPlaceDate', 'phone', 'month', 'year'],
+  // German Federal Foreign Office cover letter (legalisation of German documents for Iraq).
+  apostille: ['anrede', 'firstName', 'lastName', 'street', 'plzCity', 'email', 'phone', 'docCount', 'targetCountry', 'signPlace'],
 };
 
 export const MARITAL = ['أعزب', 'متزوج', 'مطلق', 'أرمل'];
@@ -323,6 +330,60 @@ function genericSheet(g, v, form, mission) {
   say('قد تطلب البعثة وثائق إضافية. التوقيع يتم أمام الموظف المختص.', x1 - 4, Math.min(y + 12, PAGE_H - 40), { size: 11, color: '#555' });
 }
 
+// ---------- Germany: cover letter to the Federal Office for Foreign Affairs ----------
+function apostilleLetter(g, v) {
+  const k = 794 / 983;                      // the blank form was measured at 983 px wide
+  const X = (x) => x * k, Y = (y) => y * k;
+  const F = (size, bold) => `${bold ? 'bold ' : ''}${size}px Arial, Helvetica, sans-serif`;
+  const t = (text, x, y, { size = 13.5, bold = false, color = '#000', align = 'left' } = {}) => {
+    if (!text) return 0;
+    g.font = F(size, bold); g.direction = 'ltr'; g.textAlign = align; g.fillStyle = color;
+    g.fillText(text, x, y);
+    return g.measureText(text).width;
+  };
+  const fill = (text, x, y) => t(text, x, y, { size: 13.5, bold: true, color: '#0b2a55' });
+  const up = (s) => String(s || '').toLocaleUpperCase('de-DE');
+
+  // salutation
+  [['Frau', 138], ['Herr', 206], ['Divers', 276], ['Firma', 356]].forEach(([word, x]) => {
+    g.save(); g.lineWidth = 1; g.strokeStyle = '#000'; g.strokeRect(X(x) - 15, Y(131) - 6, 11, 11); g.restore();
+    if (v.anrede === word) { g.save(); g.lineWidth = 1.6; g.beginPath(); g.moveTo(X(x) - 13, Y(131) - 4); g.lineTo(X(x) - 6, Y(131) + 3); g.moveTo(X(x) - 6, Y(131) - 4); g.lineTo(X(x) - 13, Y(131) + 3); g.stroke(); g.restore(); }
+    t(word, X(x), Y(131), { size: 14 });
+  });
+  const rows = [['Firma', 161, ''], ['Vorname', 193, up(v.firstName)], ['Nachname', 235, up(v.lastName)],
+    ['Straße', 272, up(v.street)], ['PLZ/Ort', 306, up(v.plzCity)], ['E-Mail', 342, v.email || '']];
+  rows.forEach(([label, y, val]) => { t(label, X(118), Y(y), { size: 14 }); fill(val, X(232), Y(y)); });
+  t('Für Rückfragen tagsüber erreichbar unter:', X(525), Y(193), { size: 14 });
+  t('Telefon', X(525), Y(235), { size: 14 });
+  fill(v.phone, X(525) + 58, Y(235));
+
+  t('BITTE IN DRUCKBUCHSTABEN', X(672), Y(388), { size: 15.5, bold: true, color: '#e0201a', align: 'center' });
+  t('LESBAR AUSFÜLLEN !', X(672), Y(412), { size: 15.5, bold: true, color: '#e0201a', align: 'center' });
+
+  ['Bundesamt für Auswärtige Angelegenheiten', 'Referat Apostillen und Forderungsmanagement', 'Team Apostillen und Endbeglaubigungen', 'Kirchhofstraße 1-2', '14776 Brandenburg']
+    .forEach((line, i) => t(line, X(118), Y(482 + i * 23), { size: 14, bold: true }));
+  t('Endbeglaubigung von deutschen öffentlichen Urkunden für Auslandszwecke', X(118), Y(666), { size: 14, bold: true });
+  t('Erteilung von Apostillen (nur auf Bundesurkunden) zur Verwendung im Ausland', X(118), Y(690), { size: 14, bold: true });
+  const w = t('Anzahl der beigefügten Urkunden:', X(118), Y(743), { size: 14, bold: true, color: '#e0201a' });
+  fill(v.docCount, X(118) + w + 10, Y(743));
+  t('Sehr geehrte Damen und Herren,', X(118), Y(796), { size: 14 });
+  t('es wird gebeten, beiliegende Urkunde(n) zu beglaubigen / mit einer Apostille zu versehen.', X(118), Y(849), { size: 14 });
+  t('Die Urkunde(n) wird/ werden zur Vorlage bei Behörden in', X(118), Y(901), { size: 14 });
+  t('Bezeichnung des Staates/ Landangabe (z.B. Syrien, China, Irak, Russische Föderation)', X(118), Y(924), { size: 14 });
+  g.save(); g.lineWidth = 1.6; g.strokeRect(X(118), Y(937), X(852) - X(118), Y(988) - Y(937)); g.restore();
+  t(up(v.targetCountry), X(132), Y(963), { size: 15, bold: true, color: '#0b2a55' });
+  t('benötigt.', X(118), Y(1022), { size: 14 });
+  t('Die Gebühr werde ich per Nachnahme begleichen.', X(118), Y(1072), { size: 14 });
+  t('Mit der Unterschrift bestätige ich, dass die Datenschutzhinweise zur Kenntnis genommen', X(118), Y(1118), { size: 14 });
+  t('wurden.', X(118), Y(1141), { size: 14 });
+  t('Mit freundlichen Grüßen', X(118), Y(1188), { size: 14 });
+  const d = new Date();
+  const date = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
+  fill(`${up(v.signPlace)}${v.signPlace ? ', ' : ''}${date}`, X(118), Y(1226));
+  g.save(); g.lineWidth = 1; g.beginPath(); g.moveTo(X(118), Y(1243)); g.lineTo(X(433), Y(1243)); g.stroke(); g.restore();
+  t('Ort, Datum / Unterschrift', X(118), Y(1266), { size: 14 });
+}
+
 export async function consularFontsReady() {
   if (!document.fonts) return;
   await Promise.all([document.fonts.load(AR(400, 12), 'ا'), document.fonts.load(AR(600, 12), 'ا')]);
@@ -331,7 +392,8 @@ export async function consularFontsReady() {
 export function drawConsular(canvas, { consulate, form, values, emblem, scale = 2 }) {
   const g = setup(canvas, scale);
   const key = `${consulate}.${form}`;
-  if (consulate === 'generic') genericSheet(g, values, form, values.__mission || '');
+  if (form === 'apostille') apostilleLetter(g, values);
+  else if (consulate === 'generic') genericSheet(g, values, form, values.__mission || '');
   else if (key === 'frankfurt.poa') frankfurtPoa(g, values, emblem);
   else if (key === 'frankfurt.life') frankfurtLife(g, values);
   else if (key === 'berlin.poa') berlinPoa(g, values);

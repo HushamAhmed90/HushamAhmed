@@ -525,6 +525,13 @@ function cPrefill() {
   if (!v.birthDate && f.a05birthDate) v.birthDate = f.a05birthDate;
   if (!v.month) { v.month = UI.Ara.cMonths[new Date().getMonth()]; v.year = String(new Date().getFullYear()); }
   if (!v.purposeType) v.purposeType = 'records';
+  if (!v.docCount) v.docCount = '1';
+  if (!v.targetCountry) v.targetCountry = 'Irak';
+  if (!v.firstName && !v.lastName && v.latinName) {
+    const parts = v.latinName.trim().split(/\s+/);
+    v.lastName = parts.length > 1 ? parts.pop() : '';
+    v.firstName = parts.join(' ');
+  }
   if (v.purpose === undefined) v.purpose = purposeText();
 }
 function purposeText() {
@@ -556,7 +563,7 @@ function cField(key) {
   const u = t();
   const v = cState.values;
   const label = u.cLabels[key];
-  const required = key === 'principal' || key === 'agent';
+  const required = cState.form === 'apostille' ? ['firstName', 'lastName', 'street', 'plzCity'].includes(key) : (key === 'principal' || key === 'agent');
   const wrap = h('div', { class: 'field', 'data-c': key });
   wrap.append(h('label', { for: 'c_' + key }, label, required ? h('span', { class: 'req', text: ' *' }) : null));
   const bind = (el, after) => el.addEventListener('input', () => { v[key] = el.value; cSave(); wrap.classList.remove('bad'); if (after) after(); });
@@ -567,6 +574,12 @@ function cField(key) {
         v.purposeType = id; v.purpose = id === 'custom' ? '' : purposeText(); cSave(); renderConsular(true);
       } })));
     wrap.append(chips);
+    return wrap;
+  }
+  if (key === 'anrede') {
+    wrap.append(h('div', { class: 'chips' }, Object.entries(u.cAnrede).map(([id, name]) => h('button', {
+      class: 'chipbtn' + (v.anrede === id ? ' on' : ''), type: 'button', text: name,
+      onclick: () => { v.anrede = id; cSave(); renderConsular(true); } }))));
     return wrap;
   }
   if (key === 'marital') {
@@ -602,10 +615,10 @@ function cField(key) {
       onclick: () => { v.childRel = rel; v.purpose = purposeText(); cSave(); renderConsular(true); } }))));
     return wrap;
   }
-  const latin = ['latinName', 'street', 'plzCity'].includes(key);
+  const latin = ['latinName', 'street', 'plzCity', 'firstName', 'lastName', 'email', 'targetCountry', 'signPlace', 'docCount'].includes(key);
   const type = key === 'birthDate' || key === 'childBirth' ? 'date' : key === 'phone' ? 'tel' : 'text';
   const inp = h('input', { class: 'input', id: 'c_' + key, type, dir: latin || key === 'phone' ? 'ltr' : null, autocomplete: 'off',
-    inputmode: key === 'year' ? 'numeric' : null });
+    inputmode: key === 'year' || key === 'docCount' ? 'numeric' : key === 'email' ? 'email' : null });
   inp.value = v[key] || '';
   if (key === 'passportNo') inp.setAttribute('dir', 'ltr');
   if (key === 'school') inp.setAttribute('placeholder', 'مثلاً: إعدادية الميثاق المسائية / نينوى');
@@ -647,7 +660,9 @@ function renderConsular(keepScroll) {
   cPrefill();
   const pick = (options, current, onPick) => h('div', { class: 'chips big' }, Object.entries(options).map(([id, name]) =>
     h('button', { class: 'chipbtn' + (current === id ? ' on' : ''), type: 'button', text: name, onclick: () => onPick(id) })));
-  const keys = C_FIELDS[`${cState.consulate}.${cState.form}`];
+  if (cState.form === 'apostille' && cState.country !== 'ألمانيا') cState.form = 'poa';
+  const keys = cState.form === 'apostille' ? C_FIELDS.apostille : C_FIELDS[`${cState.consulate}.${cState.form}`];
+  const formOptions = cState.country === 'ألمانيا' ? u.cForms : { poa: u.cForms.poa, life: u.cForms.life };
   const docs = C_REQUIRED[cState.form];
   $('#app').replaceChildren(
     header(), promoBanner(), tabs(),
@@ -655,11 +670,13 @@ function renderConsular(keepScroll) {
       h('p', { class: 'note', text: u.cIntro }),
       h('section', { class: 'card open' }, h('div', { class: 'card-body flat' },
         h('p', { class: 'qlabel', text: u.cCountry }), countrySelect(),
-        h('p', { class: 'qlabel', text: u.cMission }), missionSelect(),
-        noForm() ? h('p', { class: 'notice', text: u.cNoForm(currentMission()) })
+        cState.form === 'apostille' ? null : h('p', { class: 'qlabel', text: u.cMission }),
+        cState.form === 'apostille' ? null : missionSelect(),
+        cState.form === 'apostille' ? null : noForm() ? h('p', { class: 'notice', text: u.cNoForm(currentMission()) })
           : cState.consulate === 'generic' ? h('p', { class: 'hint', text: u.cGenericNote }) : null,
         h('p', { class: 'qlabel', text: u.cForm }),
-        pick(u.cForms, cState.form, (id) => { cState.form = id; cSave(); renderConsular(true); }))),
+        pick(formOptions, cState.form, (id) => { cState.form = id; cSave(); renderConsular(true); }),
+        cState.form === 'apostille' ? h('p', { class: 'notice', text: u.cApostilleNote }) : null)),
       h('section', { class: 'card open' }, h('div', { class: 'card-body flat' },
         h('p', { class: 'qlabel', text: u.cInfo }), keys.map(cField))),
       h('section', { class: 'card open' }, h('div', { class: 'card-body flat' },
@@ -673,7 +690,8 @@ function renderConsular(keepScroll) {
 }
 
 function cGoReview() {
-  const miss = ['principal', 'agent'].filter((k) => !(cState.values[k] || '').trim());
+  const need = cState.form === 'apostille' ? ['firstName', 'lastName', 'street', 'plzCity'] : ['principal', 'agent'];
+  const miss = need.filter((k) => !(cState.values[k] || '').trim());
   if (miss.length) {
     miss.forEach((k) => { const f = document.querySelector(`[data-c="${k}"]`); if (f) { f.classList.add('bad'); if (!f.querySelector('.err')) f.append(h('p', { class: 'err', text: t().fillThis })); } });
     const first = document.querySelector(`[data-c="${miss[0]}"]`); if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -699,9 +717,10 @@ let cCanvas = null;
 async function renderConsularReview() {
   const u = t();
   const preview = h('img', { class: 'paper', alt: u.cReviewTitle });
-  const service = cState.form === 'poa' ? 'poa' : 'life';
-  const formName = `${u.cForms[cState.form]} - ${currentMission()}`;
-  const fname = (ext) => `${UI.Ara.cForms[cState.form]}-${cState.city}-${(cState.values.principal || '').trim().replace(/\s+/g, '-')}.${ext}`;
+  const service = cState.form === 'poa' ? 'poa' : cState.form === 'apostille' ? 'legal' : 'life';
+  const formName = cState.form === 'apostille' ? u.cForms.apostille : `${u.cForms[cState.form]} - ${currentMission()}`;
+  const who = cState.form === 'apostille' ? [cState.values.firstName, cState.values.lastName].filter(Boolean).join('-') : (cState.values.principal || '').trim();
+  const fname = (ext) => `${UI.Ara.cForms[cState.form]}${cState.form === 'apostille' ? '' : '-' + cState.city}-${who.replace(/\s+/g, '-')}.${ext}`;
   $('#app').replaceChildren(
     header(),
     h('main', { class: 'review' },
@@ -717,7 +736,7 @@ async function renderConsularReview() {
         h('div', { class: 'oc-head' }, h('img', { src: OWNER.photo, alt: '', width: 52, height: 52 }),
           h('div', {}, h('b', { text: OWNER.name[app.lang] }), h('p', { text: u.helpTitle }))),
         h('button', { class: 'btn primary wide', type: 'button', text: u.cSubmit, onclick: () =>
-          openRequest(service, `${UI.Ara.cForms[cState.form]} - ${currentMission()}${cState.form === 'poa' && cState.values.purposeType !== 'custom' ? ' (' + UI.Ara.cPurposeTypes[cState.values.purposeType] + ')' : ''}، الوكيل: ${cState.values.agent || ''}`) }),
+          openRequest(service, cState.form === 'apostille' ? `${UI.Ara.cForms.apostille} (الخارجية الألمانية)` : `${UI.Ara.cForms[cState.form]} - ${currentMission()}${cState.form === 'poa' && cState.values.purposeType !== 'custom' ? ' (' + UI.Ara.cPurposeTypes[cState.values.purposeType] + ')' : ''}، الوكيل: ${cState.values.agent || ''}`) }),
         h('p', { class: 'trust small', html: ICON.check }, u.noUpfront))),
     h('div', { class: 'dock grid' },
       h('button', { class: 'btn primary', type: 'button', text: u.saveImg, onclick: (e) => cExport('png', e.currentTarget, fname) }),
