@@ -719,6 +719,7 @@ function renderConsular(keepScroll) {
         cState.form === 'apostille' ? h('p', { class: 'notice', text: u.cApostilleNote }) : null)),
       h('section', { class: 'card open' }, h('div', { class: 'card-body flat' },
         h('p', { class: 'qlabel', text: u.cInfo }), keys.map(cField))),
+      cState.form === 'apostille' ? null : bookingCard(),
       h('section', { class: 'card open' }, h('div', { class: 'card-body flat' },
         h('p', { class: 'qlabel', text: u.cRequired }),
         h('ul', { class: 'docs' }, docs.map(([ar, ku]) => h('li', { text: app.lang === 'Kur' ? ku : ar }))),
@@ -727,6 +728,50 @@ function renderConsular(keepScroll) {
     h('div', { class: 'dock' }, h('button', { class: 'btn primary wide big', type: 'button', text: noForm() ? u.cOptionalSheet : u.review, onclick: cGoReview })),
   );
   if (keepScroll) scrollTo(0, y);
+}
+
+// ---------- booking assistant (the person books on the official site) ----------
+const ICASS_URL = 'https://icass.mofa.gov.iq/#/';
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch (e) {
+    const ta = h('textarea', { class: 'offscreen' }); ta.value = text; document.body.append(ta); ta.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch (err) { /* ignore */ }
+    ta.remove(); return ok;
+  }
+}
+function bookingCard() {
+  const u = t();
+  const v = cState.values;
+  const f = app.values || {};
+  if (!v.gender && (f.a01gender === 'm' || f.a01gender === 'f')) v.gender = f.a01gender;
+  const birth = v.birthDate || f.a05birthDate || '';
+  const address = v.homeAddress || [v.street, v.plzCity].filter(Boolean).join('، ') || v.principalAddress || '';
+  const mission = currentMission();
+  const items = [
+    ['name', v.principal], ['mother', v.mother], ['gender', v.gender ? u.bkGender[v.gender] : ''],
+    ['birth', birth ? birth.split('-').reverse().join('/') : ''], ['email', v.bookingEmail], ['address', address],
+  ];
+  const email = h('input', { class: 'input', id: 'c_bookingEmail', type: 'email', dir: 'ltr', autocomplete: 'email', inputmode: 'email' });
+  email.value = v.bookingEmail || '';
+  email.addEventListener('change', () => { v.bookingEmail = email.value.trim(); cSave(); renderConsular(true); });
+  const genderChips = h('div', { class: 'chips' }, Object.entries(u.bkGender).map(([id, name]) => h('button', {
+    class: 'chipbtn' + (v.gender === id ? ' on' : ''), type: 'button', text: name,
+    onclick: () => { v.gender = id; cSave(); renderConsular(true); } })));
+  return h('section', { class: 'card open booking' }, h('div', { class: 'card-body flat' },
+    h('p', { class: 'qlabel', text: u.bkTitle }),
+    h('p', { class: 'hint', text: u.bkIntro }),
+    h('ol', { class: 'steps' }, u.bkSteps.map((st) => h('li', { text: typeof st === 'function' ? st(mission) : st }))),
+    h('a', { class: 'btn primary wide', href: ICASS_URL, target: '_blank', rel: 'noopener', onclick: () => count('booking_site_open', { city: cState.city }) }, u.bkOpen),
+    h('div', { class: 'field' }, h('label', { text: u.bkLabels.gender }), genderChips),
+    h('div', { class: 'field' }, h('label', { for: 'c_bookingEmail', text: u.bkEmail }), email),
+    h('p', { class: 'qlabel', text: u.bkCopyTitle }),
+    h('div', { class: 'copylist' }, items.map(([key, value]) => h('div', { class: 'copyrow' },
+      h('div', { class: 'copytext' }, h('small', { text: u.bkLabels[key] }), h('b', { text: value || u.bkEmpty, class: value ? '' : 'none' })),
+      value ? h('button', { class: 'btn soft copybtn', type: 'button', text: u.bkCopy, onclick: async () => {
+        if (await copyText(value)) { toast(u.bkCopied); count('booking_copy', { field: key }); }
+      } }) : null))),
+    h('button', { class: 'btn ghost wide', type: 'button', text: u.bkHelp, onclick: () => openRequest(cState.form === 'life' ? 'life' : 'poa', UI.Ara.bkHelpNote(mission)) }),
+  ));
 }
 
 function cGoReview() {

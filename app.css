@@ -117,6 +117,17 @@ html.big #app, html.big .veil, html.big .toast { zoom: 1.2; }
 .input.area.tall { min-height: 170px; }
 select.input.select { appearance: auto; -webkit-appearance: menulist; }
 .notice { background: var(--gold-tint); border: 1px solid #EFD9A3; color: var(--gold-ink); border-radius: 12px; padding: 10px 12px; font-size: 14px; line-height: 1.8; margin: 10px 0 0; font-weight: 600; }
+.steps { margin: 4px 0 12px; padding: 0 22px 0 0; line-height: 1.9; font-size: 14.5px; }
+.steps li { margin-bottom: 4px; }
+.booking .btn.primary.wide { margin: 4px 0 6px; }
+.copylist { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.copyrow { display: flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; background: #FAFBFC; }
+.copytext { flex: 1; display: flex; flex-direction: column; min-width: 0; line-height: 1.5; }
+.copytext small { color: var(--muted); font-size: 12.5px; }
+.copytext b { font-size: 15.5px; overflow-wrap: anywhere; }
+.copytext b.none { color: var(--muted); font-weight: 400; }
+.copybtn { min-height: 40px; padding: 0 14px; margin: 0 !important; font-size: 14px; flex-shrink: 0; }
+.offscreen { position: fixed; left: -9999px; top: 0; opacity: 0; }
 .docs { margin: 0; padding: 0 20px 0 0; line-height: 1.9; font-size: 15px; }
 
 /* ---- section cards ---- */
