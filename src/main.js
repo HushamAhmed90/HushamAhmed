@@ -574,7 +574,7 @@ function cField(key) {
   }
   // Only ask for what the chosen power-of-attorney text needs.
   if (key === 'place' && v.purposeType !== 'records') return null;
-  if (key === 'passportNo' && v.purposeType !== 'lostTwice') return null;
+  if (key === 'passportNo' && !['lostTwice', 'damaged'].includes(v.purposeType)) return null;
   const latin = ['latinName', 'street', 'plzCity'].includes(key);
   const type = key === 'birthDate' ? 'date' : key === 'phone' ? 'tel' : 'text';
   const inp = h('input', { class: 'input', id: 'c_' + key, type, dir: latin || key === 'phone' ? 'ltr' : null, autocomplete: 'off',
