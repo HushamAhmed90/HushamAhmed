@@ -45,6 +45,9 @@ export const FIELDS = {
   'berlin.poa': ['principal', 'mother', 'agent', 'principalAddress', 'agentAddress', 'idInfo', 'natInfo', 'purposeType', 'place', 'passportNo', 'school', 'childRel', 'child', 'childBirth', 'spouse', 'spouseNat', 'purpose', 'phone'],
   'frankfurt.life': ['principal', 'agent', 'marital', 'month', 'year', 'latinName', 'street', 'plzCity', 'phone'],
   'berlin.life': ['principal', 'birthDate', 'street', 'plzCity', 'idPlaceDate', 'agent', 'phone'],
+  // Any other mission: an information sheet with everything a mission needs.
+  'generic.poa': ['principal', 'mother', 'agent', 'agentAddress', 'homeAddress', 'phone', 'idInfo', 'natInfo', 'purposeType', 'place', 'passportNo', 'school', 'childRel', 'child', 'childBirth', 'spouse', 'spouseNat', 'purpose'],
+  'generic.life': ['principal', 'birthDate', 'marital', 'agent', 'homeAddress', 'idPlaceDate', 'phone', 'month', 'year'],
 };
 
 export const MARITAL = ['أعزب', 'متزوج', 'مطلق', 'أرمل'];
@@ -69,7 +72,8 @@ function helpers(g) {
   const say = (text, x, y, { size = 13, weight = 400, align = 'right', latin = false, color = '#000' } = {}) => {
     if (!text) return 0;
     g.font = latin ? LAT(size) : AR(weight, size);
-    g.direction = latin ? 'ltr' : 'rtl';
+    // Phone numbers, passport numbers and other Latin-only text keep their order.
+    g.direction = latin || /^[\x00-\x7F]*$/.test(String(text)) ? 'ltr' : 'rtl';
     g.textAlign = align;
     g.fillStyle = color;
     g.fillText(text, x, y);
@@ -255,6 +259,69 @@ function berlinPoa(g, v) {
   });
 }
 
+// ---------- Any mission: information sheet (not an official form) ----------
+function genericSheet(g, v, form, mission) {
+  const { say, wrap, rect, line } = helpers(g);
+  const EN = (size) => `${size}px Helvetica, Arial, sans-serif`;
+  const en = (text, x, y, size = 10.5) => { g.font = EN(size); g.direction = 'ltr'; g.textAlign = 'right'; g.fillStyle = '#444'; g.fillText(text, x, y); };
+  const title = form === 'poa' ? 'معلومات طلب وكالة خاصة' : 'معلومات طلب شهادة حياة';
+  const titleEn = form === 'poa' ? 'Special Power of Attorney: Applicant Information' : 'Life Certificate: Applicant Information';
+  say(title, 397, 52, { size: 18, weight: 600, align: 'center' });
+  g.font = EN(12); g.direction = 'ltr'; g.textAlign = 'center'; g.fillStyle = '#333'; g.fillText(titleEn, 397, 76);
+  say(mission, 397, 104, { size: 14, weight: 600, align: 'center' });
+  say('ورقة معلومات لتسهيل تقديم الطلب، وليست استمارة رسمية صادرة عن البعثة.', 397, 128, { size: 10.5, align: 'center', color: '#555' });
+
+  const rows = form === 'poa' ? [
+    ['الاسم الثلاثي واللقب للموكل', 'Full name (principal)', v.principal],
+    ['الاسم الثلاثي للأم', "Mother's full name", v.mother],
+    ['الاسم الثلاثي للوكيل', 'Full name (agent in Iraq)', v.agent],
+    ['عنوان الوكيل في العراق', "Agent's address in Iraq", v.agentAddress],
+    ['العنوان في بلد الإقامة', 'Address abroad', v.homeAddress],
+    ['رقم الهاتف', 'Phone', v.phone],
+    ['رقم وتاريخ هوية الأحوال المدنية', 'Civil ID number and date', v.idInfo],
+    ['رقم وتاريخ شهادة الجنسية', 'Nationality certificate number and date', v.natInfo],
+  ] : [
+    ['الاسم الثلاثي واللقب', 'Full name', v.principal],
+    ['تاريخ الميلاد', 'Date of birth', v.birthDate],
+    ['الحالة الاجتماعية', 'Marital status', v.marital],
+    ['الاسم الثلاثي للوكيل داخل العراق', 'Agent in Iraq', v.agent],
+    ['العنوان الدائم في بلد الإقامة', 'Permanent address abroad', v.homeAddress],
+    ['مكان وتاريخ إصدار هوية الأحوال المدنية', 'Civil ID place and date of issue', v.idPlaceDate],
+    ['رقم الهاتف', 'Phone', v.phone],
+    ['الشهر والسنة', 'Month and year', [v.month, v.year].filter(Boolean).join(' ')],
+  ];
+  const x0 = 48, x1 = 746, split = 420;
+  let y = 150;
+  for (const [ar, enLabel, value] of rows) {
+    const lines = wrap(value || '', split - x0 - 16, AR(600, 12.5));
+    const h = Math.max(46, lines.length * 20 + 16);
+    rect(x0, y, x1 - x0, h);
+    line(split + 0.5, y, split + 0.5, y + h);
+    say(ar, x1 - 8, y + 16, { size: 12.5, weight: 600 });
+    en(enLabel, x1 - 8, y + 34);
+    lines.forEach((l, i) => say(l, split - 8, y + h / 2 - (lines.length - 1) * 10 + i * 20, { size: 12.5, weight: 600 }));
+    y += h;
+  }
+  if (form === 'poa') {
+    const lines = wrap(v.purpose || '', x1 - x0 - 24, AR(400, 12.5));
+    const h = Math.max(120, lines.length * 22 + 52);
+    rect(x0, y, x1 - x0, h);
+    say('غرض الوكالة', x1 - 8, y + 16, { size: 12.5, weight: 600 });
+    en('Purpose of the power of attorney', x1 - 8, y + 34);
+    lines.forEach((l, i) => say(l, x1 - 12, y + 60 + i * 22, { size: 12.5 }));
+    y += h;
+  }
+  y += 22;
+  say('المستمسكات المطلوبة عادةً:', x1 - 4, y, { size: 13, weight: 600 });
+  y += 26;
+  for (const [ar] of REQUIRED[form]) {
+    g.beginPath(); g.arc(x1 - 10, y, 2.2, 0, Math.PI * 2); g.fillStyle = '#000'; g.fill();
+    say(ar, x1 - 22, y, { size: 12 });
+    y += 22;
+  }
+  say('قد تطلب البعثة وثائق إضافية. التوقيع يتم أمام الموظف المختص.', x1 - 4, Math.min(y + 12, PAGE_H - 40), { size: 11, color: '#555' });
+}
+
 export async function consularFontsReady() {
   if (!document.fonts) return;
   await Promise.all([document.fonts.load(AR(400, 12), 'ا'), document.fonts.load(AR(600, 12), 'ا')]);
@@ -263,7 +330,8 @@ export async function consularFontsReady() {
 export function drawConsular(canvas, { consulate, form, values, emblem, scale = 2 }) {
   const g = setup(canvas, scale);
   const key = `${consulate}.${form}`;
-  if (key === 'frankfurt.poa') frankfurtPoa(g, values, emblem);
+  if (consulate === 'generic') genericSheet(g, values, form, values.__mission || '');
+  else if (key === 'frankfurt.poa') frankfurtPoa(g, values, emblem);
   else if (key === 'frankfurt.life') frankfurtLife(g, values);
   else if (key === 'berlin.poa') berlinPoa(g, values);
   else berlinLife(g, values);

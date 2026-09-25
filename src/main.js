@@ -3,6 +3,7 @@ import { FIELDS, FIXED, SECTIONS, LABELS } from './schema.js';
 import { UI, OWNER, SERVICES } from './texts.js';
 import { drawSheet, sheetFontsReady } from './sheet.js';
 import { jpegPagePdf } from './pdf.js';
+import { MISSIONS, OWN_FORMS, missionTitle, findMission } from './missions.js';
 import { FIELDS as C_FIELDS, POA_PURPOSES, REQUIRED as C_REQUIRED, MARITAL, drawConsular, consularFontsReady } from './consular.js';
 
 const KEY = 'bitaqa.forms.v2';
@@ -502,7 +503,12 @@ const C_KEY = 'bitaqa.consular.v1';
 const cState = (() => {
   try { return JSON.parse(localStorage.getItem(C_KEY) || 'null') || {}; } catch (e) { return {}; }
 })();
-cState.consulate = cState.consulate || 'frankfurt';
+if (!cState.country) {  // earlier versions only knew Frankfurt/Berlin
+  cState.country = 'ألمانيا';
+  cState.city = cState.consulate === 'berlin' ? 'برلين' : 'فرانكفورت';
+}
+const templateOf = () => OWN_FORMS[`${cState.country}|${cState.city}`] || 'generic';
+cState.consulate = templateOf();
 cState.form = cState.form || 'poa';
 cState.values = cState.values || {};
 const cSave = () => { try { localStorage.setItem(C_KEY, JSON.stringify(cState)); } catch (e) { /* ignore */ } };
@@ -533,8 +539,12 @@ function purposeText() {
     .replace('{spouseNat}', v.spouseNat ? `${v.spouseNat} الجنسية` : '')
     .replace(/\s+([،,])/g, '$1').replace(/ {2,}/g, ' ');
 }
+const currentMission = () => {
+  const m = findMission(cState.country, cState.city);
+  return m ? missionTitle(m.country, m.city, m.type) : '';
+};
 function cValues() {
-  const v = { ...cState.values };
+  const v = { ...cState.values, __mission: currentMission() };
   if (cState.consulate === 'berlin' && cState.form === 'poa') {
     if (!v.principalAddress) v.principalAddress = ['ألمانيا', v.street, v.plzCity].filter(Boolean).join('، ');
   }
@@ -607,6 +617,29 @@ function cField(key) {
   return wrap;
 }
 
+function countrySelect() {
+  const sel = h('select', { class: 'input select', id: 'c_country', 'aria-label': t().cCountry },
+    MISSIONS.map(([country]) => h('option', { value: country, text: country })));
+  sel.value = cState.country;
+  sel.addEventListener('change', () => {
+    cState.country = sel.value;
+    const c = MISSIONS.find(([n]) => n === sel.value);
+    cState.city = c ? c[1][0][0] : '';
+    cState.consulate = templateOf(); cSave(); renderConsular(true);
+  });
+  return sel;
+}
+function missionSelect() {
+  const u = t();
+  const c = MISSIONS.find(([n]) => n === cState.country);
+  const list = c ? c[1] : [];
+  const sel = h('select', { class: 'input select', id: 'c_city', 'aria-label': u.cMission },
+    list.map(([city, type]) => h('option', { value: city, text: `${type === 'C' ? u.cConsulateGen : u.cEmbassy} - ${city}` })));
+  sel.value = cState.city;
+  sel.addEventListener('change', () => { cState.city = sel.value; cState.consulate = templateOf(); cSave(); renderConsular(true); });
+  return sel;
+}
+
 function renderConsular(keepScroll) {
   const u = t();
   const y = scrollY;
@@ -620,8 +653,9 @@ function renderConsular(keepScroll) {
     h('main', { class: 'cards consular' },
       h('p', { class: 'note', text: u.cIntro }),
       h('section', { class: 'card open' }, h('div', { class: 'card-body flat' },
-        h('p', { class: 'qlabel', text: u.cConsulate }),
-        pick(u.cPlaces, cState.consulate, (id) => { cState.consulate = id; cSave(); renderConsular(true); }),
+        h('p', { class: 'qlabel', text: u.cCountry }), countrySelect(),
+        h('p', { class: 'qlabel', text: u.cMission }), missionSelect(),
+        cState.consulate === 'generic' ? h('p', { class: 'hint', text: u.cGenericNote }) : null,
         h('p', { class: 'qlabel', text: u.cForm }),
         pick(u.cForms, cState.form, (id) => { cState.form = id; cSave(); renderConsular(true); }))),
       h('section', { class: 'card open' }, h('div', { class: 'card-body flat' },
@@ -643,7 +677,7 @@ function cGoReview() {
     const first = document.querySelector(`[data-c="${miss[0]}"]`); if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }
-  count('consular_form', { consulate: cState.consulate, form: cState.form });
+  count('consular_form', { country: cState.country, city: cState.city, form: cState.form });
   app.cReview = true;
   history.pushState({ creview: true }, '');
   renderConsularReview();
@@ -664,8 +698,8 @@ async function renderConsularReview() {
   const u = t();
   const preview = h('img', { class: 'paper', alt: u.cReviewTitle });
   const service = cState.form === 'poa' ? 'poa' : 'life';
-  const formName = `${u.cForms[cState.form]} - ${u.cPlaces[cState.consulate]}`;
-  const fname = (ext) => `${UI.Ara.cForms[cState.form]}-${UI.Ara.cPlaces[cState.consulate]}-${(cState.values.principal || '').trim().replace(/\s+/g, '-')}.${ext}`;
+  const formName = `${u.cForms[cState.form]} - ${currentMission()}`;
+  const fname = (ext) => `${UI.Ara.cForms[cState.form]}-${cState.city}-${(cState.values.principal || '').trim().replace(/\s+/g, '-')}.${ext}`;
   $('#app').replaceChildren(
     header(),
     h('main', { class: 'review' },
@@ -681,7 +715,7 @@ async function renderConsularReview() {
         h('div', { class: 'oc-head' }, h('img', { src: OWNER.photo, alt: '', width: 52, height: 52 }),
           h('div', {}, h('b', { text: OWNER.name[app.lang] }), h('p', { text: u.helpTitle }))),
         h('button', { class: 'btn primary wide', type: 'button', text: u.cSubmit, onclick: () =>
-          openRequest(service, `${UI.Ara.cForms[cState.form]} - ${cState.consulate === 'berlin' ? 'سفارة' : 'قنصلية'} ${UI.Ara.cPlaces[cState.consulate]}${cState.form === 'poa' && cState.values.purposeType !== 'custom' ? ' (' + UI.Ara.cPurposeTypes[cState.values.purposeType] + ')' : ''}، الوكيل: ${cState.values.agent || ''}`) }),
+          openRequest(service, `${UI.Ara.cForms[cState.form]} - ${currentMission()}${cState.form === 'poa' && cState.values.purposeType !== 'custom' ? ' (' + UI.Ara.cPurposeTypes[cState.values.purposeType] + ')' : ''}، الوكيل: ${cState.values.agent || ''}`) }),
         h('p', { class: 'trust small', html: ICON.check }, u.noUpfront))),
     h('div', { class: 'dock grid' },
       h('button', { class: 'btn primary', type: 'button', text: u.saveImg, onclick: (e) => cExport('png', e.currentTarget, fname) }),
