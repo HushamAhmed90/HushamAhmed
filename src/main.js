@@ -505,7 +505,6 @@ const cState = (() => {
 cState.consulate = cState.consulate || 'frankfurt';
 cState.form = cState.form || 'poa';
 cState.values = cState.values || {};
-if (cState.values.purposeType === 'birthMarriage') cState.values.purposeType = 'birth';
 const cSave = () => { try { localStorage.setItem(C_KEY, JSON.stringify(cState)); } catch (e) { /* ignore */ } };
 
 function cPrefill() {
@@ -584,8 +583,8 @@ function cField(key) {
   if (key === 'place' && v.purposeType !== 'records') return null;
   if (key === 'passportNo' && !['lostTwice', 'damaged'].includes(v.purposeType)) return null;
   if (key === 'school' && v.purposeType !== 'education') return null;
-  if (['childRel', 'child', 'childBirth'].includes(key) && v.purposeType !== 'birth') return null;
-  if (['spouse', 'spouseNat'].includes(key) && v.purposeType !== 'marriage') return null;
+  if (['childRel', 'child', 'childBirth'].includes(key) && !['birth', 'birthMarriage'].includes(v.purposeType)) return null;
+  if (['spouse', 'spouseNat'].includes(key) && !['marriage', 'birthMarriage'].includes(v.purposeType)) return null;
   if (key === 'childRel') {
     wrap.append(h('div', { class: 'chips' }, ['ابنتي', 'ابني'].map((rel) => h('button', {
       class: 'chipbtn' + ((v.childRel || 'ابنتي') === rel ? ' on' : ''), type: 'button', text: rel,
