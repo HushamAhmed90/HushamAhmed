@@ -525,7 +525,13 @@ function purposeText() {
   const v = cState.values;
   const tpl = POA_PURPOSES[v.purposeType || 'records'] || '';
   return tpl.replace('{place}', v.place || '..........').replace('{passport}', v.passportNo || '..........')
-    .replace('{school}', v.school ? `كافة منها ${v.school}` : 'كافة');
+    .replace('{school}', v.school ? `كافة منها ${v.school}` : 'كافة')
+    .replaceAll('{childRel}', v.childRel || 'ابنتي')
+    .replaceAll('{child}', v.child || '..........')
+    .replaceAll('{childBirth}', v.childBirth ? v.childBirth.split('-').reverse().map((n) => String(+n)).join('-') : '')
+    .replace('{spouse}', v.spouse || '..........')
+    .replace('{spouseNat}', v.spouseNat ? `${v.spouseNat} الجنسية` : '')
+    .replace(/\s+([،,])/g, '$1').replace(/ {2,}/g, ' ');
 }
 function cValues() {
   const v = { ...cState.values };
@@ -577,14 +583,22 @@ function cField(key) {
   if (key === 'place' && v.purposeType !== 'records') return null;
   if (key === 'passportNo' && !['lostTwice', 'damaged'].includes(v.purposeType)) return null;
   if (key === 'school' && v.purposeType !== 'education') return null;
+  if (['childRel', 'child', 'childBirth', 'spouse', 'spouseNat'].includes(key) && v.purposeType !== 'birthMarriage') return null;
+  if (key === 'childRel') {
+    wrap.append(h('div', { class: 'chips' }, ['ابنتي', 'ابني'].map((rel) => h('button', {
+      class: 'chipbtn' + ((v.childRel || 'ابنتي') === rel ? ' on' : ''), type: 'button', text: rel,
+      onclick: () => { v.childRel = rel; v.purpose = purposeText(); cSave(); renderConsular(true); } }))));
+    return wrap;
+  }
   const latin = ['latinName', 'street', 'plzCity'].includes(key);
-  const type = key === 'birthDate' ? 'date' : key === 'phone' ? 'tel' : 'text';
+  const type = key === 'birthDate' || key === 'childBirth' ? 'date' : key === 'phone' ? 'tel' : 'text';
   const inp = h('input', { class: 'input', id: 'c_' + key, type, dir: latin || key === 'phone' ? 'ltr' : null, autocomplete: 'off',
     inputmode: key === 'year' ? 'numeric' : null });
   inp.value = v[key] || '';
   if (key === 'passportNo') inp.setAttribute('dir', 'ltr');
   if (key === 'school') inp.setAttribute('placeholder', 'مثلاً: إعدادية الميثاق المسائية / نينوى');
-  bind(inp, ['place', 'passportNo', 'school'].includes(key) && v.purposeType !== 'custom' ? () => {
+  if (key === 'spouseNat') inp.setAttribute('placeholder', 'مثلاً: بريطانية');
+  bind(inp, ['place', 'passportNo', 'school', 'child', 'childBirth', 'spouse', 'spouseNat'].includes(key) && v.purposeType !== 'custom' ? () => {
     v.purpose = purposeText(); cSave();
     const ta = document.getElementById('c_purpose'); if (ta) ta.value = v.purpose;
   } : null);
