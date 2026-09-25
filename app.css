@@ -215,6 +215,8 @@ input[dir="ltr"].input { text-align: right; }
 .options { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .option { display: block; width: 100%; text-align: right; padding: 13px 6px; border: 0; border-bottom: 1px solid #E8EDF2; background: none; font-size: 16px; cursor: pointer; }
 .option.on { color: var(--navy); font-weight: 700; background: var(--navy-tint); border-radius: 8px; }
+.option.country { display: flex; flex-direction: column; gap: 2px; }
+.option.country small { color: var(--muted); font-size: 13px; font-weight: 400; }
 .empty { text-align: center; color: var(--muted); font-size: 14px; }
 .zoom { overflow: auto; flex: 1; }
 .zoom img { width: 794px; max-width: none; display: block; margin-bottom: 12px; }

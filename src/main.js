@@ -696,17 +696,43 @@ function cField(key) {
   return wrap;
 }
 
+// Searchable country picker (matches country or mission city names).
 function countrySelect() {
-  const sel = h('select', { class: 'input select', id: 'c_country', 'aria-label': t().cCountry },
-    MISSIONS.map(([country]) => h('option', { value: country, text: country })));
-  sel.value = cState.country;
-  sel.addEventListener('change', () => {
-    cState.country = sel.value;
-    const c = MISSIONS.find(([n]) => n === sel.value);
-    cState.city = c ? c[1][0][0] : '';
-    cState.consulate = templateOf(); cSave(); renderConsular(true);
-  });
-  return sel;
+  const u = t();
+  return h('button', { class: 'input pickbtn', id: 'c_country', type: 'button', 'aria-haspopup': 'listbox', onclick: openCountryPicker },
+    h('span', { text: cState.country }), h('i', { html: ICON.chevron }));
+}
+function openCountryPicker() {
+  const u = t();
+  const norm = (x) => (x || '').replace(/[\u0640\u200c]/g, '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىی]/g, 'ي').trim();
+  const input = h('input', { class: 'search', type: 'search', placeholder: u.cCountrySearch, autocomplete: 'off', 'aria-label': u.cCountrySearch });
+  const list = h('div', { class: 'options', role: 'listbox' });
+  const choose = (country, city) => {
+    cState.country = country;
+    const c = MISSIONS.find(([n]) => n === country);
+    cState.city = city || (c ? c[1][0][0] : '');
+    cState.consulate = templateOf(); cSave(); closeSheet(); renderConsular(true);
+  };
+  const draw = () => {
+    const q = norm(input.value);
+    const rows = [];
+    for (const [country, cities] of MISSIONS) {
+      const byCountry = !q || norm(country).includes(q);
+      const hitCity = q ? cities.find(([city]) => norm(city).includes(q)) : null;
+      if (!byCountry && !hitCity) continue;
+      rows.push(h('button', { class: 'option country' + (country === cState.country ? ' on' : ''), type: 'button', role: 'option',
+        onclick: () => choose(country, hitCity && !byCountry ? hitCity[0] : null) },
+        h('b', { text: country }), h('small', { text: cities.map(([c]) => c).join('، ') })));
+    }
+    list.replaceChildren(...rows);
+    if (!rows.length) list.append(h('p', { class: 'empty', text: u.noMatch }));
+  };
+  input.addEventListener('input', draw);
+  draw();
+  sheet(h('div', { class: 'picker' },
+    h('div', { class: 'picker-top' }, h('h2', { text: u.cCountry }), h('button', { class: 'x', type: 'button', 'aria-label': u.close, onclick: closeSheet, text: '✕' })),
+    input, list), { tall: true });
+  if (!matchMedia('(pointer: coarse)').matches) input.focus();
 }
 function missionSelect() {
   const u = t();
