@@ -513,27 +513,43 @@ function withMic(input, { append = false } = {}) {
   if (!Speech) return input;
   const btn = h('button', { class: 'mic', type: 'button', 'aria-label': t().mic,
     html: '<svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3"/></svg>' });
-  btn.addEventListener('click', () => {
-    if (activeRec) { activeRec.stop(); return; }
+  const LANGS = ['ar-IQ', 'ar-SA', 'ar'];   // fall back if a phone lacks the Iraqi variant
+  const listen = (langIndex) => {
     const rec = new Speech();
-    rec.lang = 'ar-IQ';
+    rec.lang = LANGS[langIndex];
     rec.interimResults = false;
+    rec.continuous = false;
     rec.maxAlternatives = 1;
     activeRec = rec;
     btn.classList.add('on');
-    toast(micNoted ? t().listening : `${t().listening} ${t().micNote}`);
-    micNoted = true;
     let heard = false;
+    let failed = '';
     rec.onresult = (e) => {
+      const r = e.results && e.results[e.results.length - 1];
+      const said = r && r[0] && r[0].transcript ? r[0].transcript.trim().replace(/[.،,]+$/, '') : '';
+      if (!said) return;
       heard = true;
-      const said = e.results[0][0].transcript.trim().replace(/[.،,]+$/, '');
       input.value = append && input.value ? `${input.value} ${said}` : said;
       input.dispatchEvent(new Event('input', { bubbles: true }));
-      count('voice_used');
+      count('voice_used', { lang: rec.lang });
     };
-    rec.onerror = (e) => { if (e.error === 'not-allowed' || e.error === 'service-not-allowed') toast(t().micDenied); };
-    rec.onend = () => { btn.classList.remove('on'); activeRec = null; if (!heard) { /* nothing said */ } };
-    try { rec.start(); } catch (err) { btn.classList.remove('on'); activeRec = null; }
+    rec.onerror = (e) => { failed = e.error || 'unknown'; };
+    rec.onend = () => {
+      btn.classList.remove('on');
+      activeRec = null;
+      if (heard) return;
+      if (failed === 'language-not-supported' && langIndex < LANGS.length - 1) { listen(langIndex + 1); return; }
+      if (failed === 'aborted') return;
+      if (failed === 'not-allowed') { toast(t().micDenied); return; }
+      toast((t().micErrors || {})[failed] || t().micFailed);
+      count('voice_failed', { error: failed || 'nothing' });
+    };
+    try { rec.start(); } catch (err) { btn.classList.remove('on'); activeRec = null; toast(t().micFailed); }
+  };
+  btn.addEventListener('click', () => {
+    if (activeRec) { activeRec.stop(); return; }
+    if (!micNoted) { toast(`${t().listening} ${t().micNote}`); micNoted = true; } else toast(t().listening);
+    listen(0);
   });
   return h('div', { class: 'with-mic' + (input.tagName === 'TEXTAREA' ? ' area' : '') }, input, btn);
 }
