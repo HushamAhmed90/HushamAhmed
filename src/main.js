@@ -259,7 +259,7 @@ function openRequest(preselect, prefillNote) {
     h('p', { class: 'trust', html: ICON.check }, u.noUpfront),
     h('p', { class: 'note', text: u.reqNote }),
     h('p', { class: 'qlabel', text: u.reqWhat }), chips, err,
-    h('div', { class: 'field' }, h('label', { for: 'rq_name' }, u.reqName, h('span', { class: 'req', text: ' *' })), withMic(name)),
+    h('div', { class: 'field' }, h('label', { for: 'rq_name' }, u.reqName, h('span', { class: 'req', text: ' *' })), name),
     h('div', { class: 'field' }, h('label', { for: 'rq_city', text: u.reqCity }), city),
     h('div', { class: 'field' }, h('label', { text: u.reqCount }),
       h('div', { class: 'stepper' },
@@ -267,7 +267,7 @@ function openRequest(preselect, prefillNote) {
         countOut,
         h('button', { class: 'stepbtn', type: 'button', 'aria-label': '-', text: '−', onclick: () => step(-1) }))),
     h('div', { class: 'field' }, h('label', { text: u.reqTime }), times),
-    h('div', { class: 'field' }, h('label', { for: 'rq_notes', text: u.reqNotes }), withMic(notes, { append: true })),
+    h('div', { class: 'field' }, h('label', { for: 'rq_notes', text: u.reqNotes }), notes),
     h('button', { class: 'btn wa wide big', type: 'button', html: ICON.wa, onclick: send }, u.reqSend),
   ), { tall: true });
   count('booking_open', { from: preselect || 'button' });
@@ -394,8 +394,7 @@ function field(key) {
       if (next) next.focus(); else control.blur();
     });
   }
-  const voice = f.type === 'text' ? withMic(control) : control;
-  wrap.append(label, voice);
+  wrap.append(label, control);
   const hint = t().hints[key];
   if (hint) wrap.append(h('p', { class: 'hint', text: hint }));
   return wrap;
@@ -491,7 +490,7 @@ function promoBanner() {
   return box;
 }
 
-// ---------- bigger text & voice input (for everyone) ----------
+// ---------- bigger text (for everyone) ----------
 const BIG_KEY = 'bitaqa.bigText';
 function applyBig(on) {
   document.documentElement.classList.toggle('big', on);
@@ -502,56 +501,6 @@ function bigBtn() {
   const on = document.documentElement.classList.contains('big');
   return h('button', { class: 'chip', type: 'button', 'aria-pressed': String(on), 'aria-label': on ? t().normalText : t().bigText,
     onclick: () => { applyBig(!on); if (!on) count('big_text_on'); renderCurrent(); } }, on ? 'A−' : 'A+');
-}
-
-const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
-let micNoted = false;
-let activeRec = null;
-// Adds a microphone button to a text input or textarea. Speech is turned
-// into Arabic text by the browser's own recognition service.
-function withMic(input, { append = false } = {}) {
-  if (!Speech) return input;
-  const btn = h('button', { class: 'mic', type: 'button', 'aria-label': t().mic,
-    html: '<svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3"/></svg>' });
-  const LANGS = ['ar-IQ', 'ar-SA', 'ar'];   // fall back if a phone lacks the Iraqi variant
-  const listen = (langIndex) => {
-    const rec = new Speech();
-    rec.lang = LANGS[langIndex];
-    rec.interimResults = false;
-    rec.continuous = false;
-    rec.maxAlternatives = 1;
-    activeRec = rec;
-    btn.classList.add('on');
-    let heard = false;
-    let failed = '';
-    rec.onresult = (e) => {
-      const r = e.results && e.results[e.results.length - 1];
-      const said = r && r[0] && r[0].transcript ? r[0].transcript.trim().replace(/[.،,]+$/, '') : '';
-      if (!said) return;
-      heard = true;
-      input.value = append && input.value ? `${input.value} ${said}` : said;
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-      count('voice_used', { lang: rec.lang });
-    };
-    rec.onerror = (e) => { failed = e.error || 'unknown'; };
-    rec.onend = () => {
-      btn.classList.remove('on');
-      activeRec = null;
-      if (heard) return;
-      if (failed === 'language-not-supported' && langIndex < LANGS.length - 1) { listen(langIndex + 1); return; }
-      if (failed === 'aborted') return;
-      if (failed === 'not-allowed') { toast(t().micDenied); return; }
-      toast((t().micErrors || {})[failed] || t().micFailed);
-      count('voice_failed', { error: failed || 'nothing' });
-    };
-    try { rec.start(); } catch (err) { btn.classList.remove('on'); activeRec = null; toast(t().micFailed); }
-  };
-  btn.addEventListener('click', () => {
-    if (activeRec) { activeRec.stop(); return; }
-    if (!micNoted) { toast(`${t().listening} ${t().micNote}`); micNoted = true; } else toast(t().listening);
-    listen(0);
-  });
-  return h('div', { class: 'with-mic' + (input.tagName === 'TEXTAREA' ? ' area' : '') }, input, btn);
 }
 
 // ---------- tabs ----------
@@ -664,7 +613,7 @@ function cField(key) {
       const ta = h('textarea', { class: 'input area tall', id: 'c_purpose', rows: 7 });
       ta.value = v.purpose || '';
       bind(ta);
-      wrap.append(withMic(ta, { append: true }), h('p', { class: 'hint', text: u.cPurposeNote }));
+      wrap.append(ta, h('p', { class: 'hint', text: u.cPurposeNote }));
     }
     return wrap;
   }
@@ -692,7 +641,7 @@ function cField(key) {
     v.purpose = purposeText(); cSave();
     const ta = document.getElementById('c_purpose'); if (ta) ta.value = v.purpose;
   } : null);
-  wrap.append(latin || type !== 'text' || key === 'passportNo' ? inp : withMic(inp));
+  wrap.append(inp);
   return wrap;
 }
 

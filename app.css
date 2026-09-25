@@ -104,16 +104,8 @@ svg { width: 20px; height: 20px; flex-shrink: 0; }
 .owner-card .btn.primary { margin-top: 12px; }
 .owner-card .btn.soft { margin-top: 0; }
 
-/* ---- voice input & bigger text ---- */
-.with-mic { position: relative; }
-.with-mic .input { padding-left: 54px; }
-.mic { position: absolute; left: 6px; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; border-radius: 50%;
-  border: 0; background: var(--navy-tint); color: var(--navy); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
-.with-mic.area .mic { top: 8px; transform: none; }
-.mic.on { background: var(--bad); color: #fff; animation: mic-pulse 1s ease-in-out infinite; }
-@keyframes mic-pulse { 50% { box-shadow: 0 0 0 8px rgba(180, 35, 24, .18); } }
+/* ---- bigger text ---- */
 html.big #app, html.big .veil, html.big .toast { zoom: 1.2; }
-@media (prefers-reduced-motion: reduce) { .mic.on { animation: none; } }
 
 /* ---- tabs & consular ---- */
 .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; max-width: 620px; margin: 12px auto 0; padding: 0 14px; }
