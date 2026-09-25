@@ -3,6 +3,7 @@ import { FIELDS, FIXED, SECTIONS, LABELS } from './schema.js';
 import { UI, OWNER, SERVICES } from './texts.js';
 import { drawSheet, sheetFontsReady } from './sheet.js';
 import { jpegPagePdf } from './pdf.js';
+import { FIELDS as C_FIELDS, POA_PURPOSES, REQUIRED as C_REQUIRED, MARITAL, drawConsular, consularFontsReady } from './consular.js';
 
 const KEY = 'bitaqa.forms.v2';
 const OLD_KEY = 'bitaqa.form.v1';
@@ -15,6 +16,8 @@ const app = {
   values: {},        // raw values of the current form (codes for pick fields)
   open: 'names',     // open section id
   review: false,
+  view: 'nid',       // 'nid' | 'consular'
+  cReview: false,
 };
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const currentForm = () => app.forms.find((f) => f.id === app.current);
@@ -198,7 +201,7 @@ function openFamily() {
 
 // ---------- service request (booking / lawyer) ----------
 const REQ_KEY = 'bitaqa.request.v1';
-function openRequest(preselect) {
+function openRequest(preselect, prefillNote) {
   const u = t();
   let last = {};
   try { last = JSON.parse(localStorage.getItem(REQ_KEY) || '{}'); } catch (e) { /* ignore */ }
@@ -228,6 +231,7 @@ function openRequest(preselect) {
     return b;
   }));
   const notes = h('textarea', { class: 'input area', id: 'rq_notes', rows: 3 });
+  if (prefillNote) notes.value = prefillNote;
 
   const send = () => {
     if (!chosen.size) { err.textContent = u.reqPickOne; chips.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
@@ -484,12 +488,215 @@ function promoBanner() {
   return box;
 }
 
+// ---------- tabs ----------
+function tabs() {
+  const u = t();
+  const tab = (id, label) => h('button', { class: 'tab' + (app.view === id ? ' on' : ''), type: 'button', 'aria-pressed': String(app.view === id),
+    onclick: () => { if (app.view === id) return; app.view = id; persistView(); renderCurrent(); scrollTo(0, 0); } }, label);
+  return h('nav', { class: 'tabs', 'aria-label': u.appName }, tab('nid', u.tabNid), tab('consular', u.tabConsular));
+}
+function persistView() { try { localStorage.setItem('bitaqa.view', app.view); } catch (e) { /* ignore */ } }
+
+// ---------- consular forms ----------
+const C_KEY = 'bitaqa.consular.v1';
+const cState = (() => {
+  try { return JSON.parse(localStorage.getItem(C_KEY) || 'null') || {}; } catch (e) { return {}; }
+})();
+cState.consulate = cState.consulate || 'frankfurt';
+cState.form = cState.form || 'poa';
+cState.values = cState.values || {};
+const cSave = () => { try { localStorage.setItem(C_KEY, JSON.stringify(cState)); } catch (e) { /* ignore */ } };
+
+function cPrefill() {
+  const v = cState.values;
+  const f = app.values || {};
+  if (!v.principal) {
+    const full = [f.a07name1, f.a06name2, f.a09name3, f.a08name4].filter(Boolean).join(' ');
+    if (full) v.principal = full;
+  }
+  if (!v.mother && f.a11motherName) v.mother = [f.a11motherName, f.a10motherFatherName].filter(Boolean).join(' ');
+  if (!v.phone && f.a40phone) v.phone = f.a40phone;
+  if (!v.birthDate && f.a05birthDate) v.birthDate = f.a05birthDate;
+  if (!v.month) { v.month = UI.Ara.cMonths[new Date().getMonth()]; v.year = String(new Date().getFullYear()); }
+  if (!v.purposeType) v.purposeType = 'records';
+  if (v.purpose === undefined) v.purpose = purposeText();
+}
+function purposeText() {
+  const v = cState.values;
+  const tpl = POA_PURPOSES[v.purposeType || 'records'] || '';
+  return tpl.replace('{place}', v.place || '..........');
+}
+function cValues() {
+  const v = { ...cState.values };
+  if (cState.consulate === 'berlin' && cState.form === 'poa') {
+    if (!v.principalAddress) v.principalAddress = ['ألمانيا', v.street, v.plzCity].filter(Boolean).join('، ');
+  }
+  return v;
+}
+
+function cField(key) {
+  const u = t();
+  const v = cState.values;
+  const label = u.cLabels[key];
+  const required = key === 'principal' || key === 'agent';
+  const wrap = h('div', { class: 'field', 'data-c': key });
+  wrap.append(h('label', { for: 'c_' + key }, label, required ? h('span', { class: 'req', text: ' *' }) : null));
+  const bind = (el, after) => el.addEventListener('input', () => { v[key] = el.value; cSave(); wrap.classList.remove('bad'); if (after) after(); });
+
+  if (key === 'purposeType') {
+    const chips = h('div', { class: 'chips' }, Object.entries(u.cPurposeTypes).map(([id, name]) =>
+      h('button', { class: 'chipbtn' + (v.purposeType === id ? ' on' : ''), type: 'button', text: name, onclick: () => {
+        v.purposeType = id; v.purpose = id === 'custom' ? '' : purposeText(); cSave(); renderConsular(true);
+      } })));
+    wrap.append(chips);
+    return wrap;
+  }
+  if (key === 'marital') {
+    wrap.append(h('div', { class: 'chips' }, MARITAL.map((m) => h('button', { class: 'chipbtn' + (v.marital === m ? ' on' : ''), type: 'button', text: m,
+      onclick: () => { v.marital = m; cSave(); renderConsular(true); } }))));
+    return wrap;
+  }
+  if (key === 'month') {
+    const sel = h('select', { class: 'input select', id: 'c_month' }, UI.Ara.cMonths.map((m, i) => h('option', { value: m, text: u.cMonths[i] })));
+    sel.value = v.month || '';
+    sel.addEventListener('change', () => { v.month = sel.value; cSave(); });
+    wrap.append(sel);
+    return wrap;
+  }
+  if (key === 'purpose') {
+    if (v.purposeType === 'custom' || true) {
+      const ta = h('textarea', { class: 'input area tall', id: 'c_purpose', rows: 7 });
+      ta.value = v.purpose || '';
+      bind(ta);
+      wrap.append(ta, h('p', { class: 'hint', text: u.cPurposeNote }));
+    }
+    return wrap;
+  }
+  const latin = ['latinName', 'street', 'plzCity'].includes(key);
+  const type = key === 'birthDate' ? 'date' : key === 'phone' ? 'tel' : 'text';
+  const inp = h('input', { class: 'input', id: 'c_' + key, type, dir: latin || key === 'phone' ? 'ltr' : null, autocomplete: 'off',
+    inputmode: key === 'year' ? 'numeric' : null });
+  inp.value = v[key] || '';
+  bind(inp, key === 'place' && v.purposeType !== 'custom' ? () => {
+    v.purpose = purposeText(); cSave();
+    const ta = document.getElementById('c_purpose'); if (ta) ta.value = v.purpose;
+  } : null);
+  wrap.append(inp);
+  return wrap;
+}
+
+function renderConsular(keepScroll) {
+  const u = t();
+  const y = scrollY;
+  cPrefill();
+  const pick = (options, current, onPick) => h('div', { class: 'chips big' }, Object.entries(options).map(([id, name]) =>
+    h('button', { class: 'chipbtn' + (current === id ? ' on' : ''), type: 'button', text: name, onclick: () => onPick(id) })));
+  const keys = C_FIELDS[`${cState.consulate}.${cState.form}`];
+  const docs = C_REQUIRED[cState.form];
+  $('#app').replaceChildren(
+    header(), promoBanner(), tabs(),
+    h('main', { class: 'cards consular' },
+      h('p', { class: 'note', text: u.cIntro }),
+      h('section', { class: 'card open' }, h('div', { class: 'card-body flat' },
+        h('p', { class: 'qlabel', text: u.cConsulate }),
+        pick(u.cPlaces, cState.consulate, (id) => { cState.consulate = id; cSave(); renderConsular(true); }),
+        h('p', { class: 'qlabel', text: u.cForm }),
+        pick(u.cForms, cState.form, (id) => { cState.form = id; cSave(); renderConsular(true); }))),
+      h('section', { class: 'card open' }, h('div', { class: 'card-body flat' },
+        h('p', { class: 'qlabel', text: u.cInfo }), keys.map(cField))),
+      h('section', { class: 'card open' }, h('div', { class: 'card-body flat' },
+        h('p', { class: 'qlabel', text: u.cRequired }),
+        h('ul', { class: 'docs' }, docs.map(([ar, ku]) => h('li', { text: app.lang === 'Kur' ? ku : ar }))),
+        h('p', { class: 'hint', text: u.cRequiredNote }))),
+      h('p', { class: 'disclaimer', text: u.disclaimer })),
+    h('div', { class: 'dock' }, h('button', { class: 'btn primary wide big', type: 'button', text: u.review, onclick: cGoReview })),
+  );
+  if (keepScroll) scrollTo(0, y);
+}
+
+function cGoReview() {
+  const miss = ['principal', 'agent'].filter((k) => !(cState.values[k] || '').trim());
+  if (miss.length) {
+    miss.forEach((k) => { const f = document.querySelector(`[data-c="${k}"]`); if (f) { f.classList.add('bad'); if (!f.querySelector('.err')) f.append(h('p', { class: 'err', text: t().fillThis })); } });
+    const first = document.querySelector(`[data-c="${miss[0]}"]`); if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  count('consular_form', { consulate: cState.consulate, form: cState.form });
+  app.cReview = true;
+  history.pushState({ creview: true }, '');
+  renderConsularReview();
+}
+
+const iraqEmblem = new Image();
+iraqEmblem.src = 'img/iraq-emblem.png';
+async function cPaint(scale) {
+  await consularFontsReady();
+  if (!iraqEmblem.complete) await new Promise((r) => { iraqEmblem.onload = iraqEmblem.onerror = r; });
+  const c = document.createElement('canvas');
+  drawConsular(c, { consulate: cState.consulate, form: cState.form, values: cValues(), emblem: iraqEmblem, scale });
+  return c;
+}
+
+let cCanvas = null;
+async function renderConsularReview() {
+  const u = t();
+  const preview = h('img', { class: 'paper', alt: u.cReviewTitle });
+  const service = cState.form === 'poa' ? 'poa' : 'life';
+  const formName = `${u.cForms[cState.form]} - ${u.cPlaces[cState.consulate]}`;
+  const fname = (ext) => `${UI.Ara.cForms[cState.form]}-${UI.Ara.cPlaces[cState.consulate]}-${(cState.values.principal || '').trim().replace(/\s+/g, '-')}.${ext}`;
+  $('#app').replaceChildren(
+    header(),
+    h('main', { class: 'review' },
+      h('h2', { text: u.cReviewTitle }),
+      h('p', { class: 'note', text: `${formName}. ${u.cReviewNote}` }),
+      h('button', { class: 'paper-btn', type: 'button', 'aria-label': u.tapZoom, onclick: () => {
+        if (!cCanvas) return;
+        sheet(h('div', { class: 'zoom' }, h('img', { src: cCanvas.toDataURL('image/png'), alt: '' }),
+          h('button', { class: 'btn primary wide', type: 'button', text: u.close, onclick: closeSheet })), { tall: true });
+      } }, preview),
+      h('p', { class: 'hint center', text: u.tapZoom }),
+      h('div', { class: 'owner-card' },
+        h('div', { class: 'oc-head' }, h('img', { src: OWNER.photo, alt: '', width: 52, height: 52 }),
+          h('div', {}, h('b', { text: OWNER.name[app.lang] }), h('p', { text: u.helpTitle }))),
+        h('button', { class: 'btn primary wide', type: 'button', text: u.cSubmit, onclick: () =>
+          openRequest(service, `${UI.Ara.cForms[cState.form]} - قنصلية ${UI.Ara.cPlaces[cState.consulate]}${cState.form === 'poa' && cState.values.purposeType !== 'custom' ? ' (' + UI.Ara.cPurposeTypes[cState.values.purposeType] + ')' : ''}، الوكيل: ${cState.values.agent || ''}`) }),
+        h('p', { class: 'trust small', html: ICON.check }, u.noUpfront))),
+    h('div', { class: 'dock grid' },
+      h('button', { class: 'btn primary', type: 'button', text: u.saveImg, onclick: (e) => cExport('png', e.currentTarget, fname) }),
+      h('button', { class: 'btn primary', type: 'button', text: u.savePdf, onclick: (e) => cExport('pdf', e.currentTarget, fname) }),
+      h('button', { class: 'btn ghost', type: 'button', text: u.edit, onclick: () => history.back() }),
+      h('button', { class: 'btn ghost', type: 'button', text: u.print, onclick: async () => {
+        count('consular_print'); const c = await cPaint(2.5); const img = $('#print-page'); img.src = c.toDataURL('image/png');
+        await img.decode().catch(() => {}); window.print(); } })),
+  );
+  scrollTo(0, 0);
+  cCanvas = await cPaint(2);
+  preview.src = cCanvas.toDataURL('image/png');
+  $('#print-page').src = preview.src;
+}
+
+async function cExport(kind, btn, fname) {
+  if (busy) return;
+  busy = true;
+  const label = btn.textContent;
+  btn.textContent = t().preparing; btn.disabled = true;
+  try {
+    const big = await cPaint(2.5);
+    const blob = await new Promise((res) => big.toBlob(res, kind === 'png' ? 'image/png' : 'image/jpeg', 0.92));
+    const ok = kind === 'png' ? await hand(blob, fname('png'))
+      : await hand(jpegPagePdf(new Uint8Array(await blob.arrayBuffer()), big.width, big.height), fname('pdf'));
+    if (ok) { toast(t().saved); count('consular_saved', { kind, form: cState.form }); }
+  } catch (e) { console.error(e); toast(t().failed); }
+  finally { busy = false; btn.textContent = label; btn.disabled = false; }
+}
+
 // ---------- screens ----------
 function renderForm() {
   const root = $('#app');
   root.replaceChildren(
     header(),
     promoBanner(),
+    tabs(),
     h('div', { class: 'progress' },
       h('button', { class: 'fambar', type: 'button', onclick: openFamily },
         h('span', { class: 'fambar-who' }, h('small', { text: t().editing }), h('b', { text: personName(app.values) })),
@@ -637,7 +844,7 @@ function setLang(lang) {
   document.documentElement.lang = lang === 'Ara' ? 'ar' : 'ckb';
   document.title = UI[lang].appName;
   persist();
-  if (app.review) renderReview(); else renderForm();
+  renderCurrent();
 }
 
 let installEvent = null;
@@ -650,12 +857,16 @@ function installBtn() {
       h('button', { class: 'btn primary wide', type: 'button', text: t().close, onclick: closeSheet })));
   } });
 }
-const renderCurrent = () => (app.review ? renderReview() : renderForm());
+const renderCurrent = () => {
+  if (app.view === 'consular') return app.cReview ? renderConsularReview() : renderConsular();
+  return app.review ? renderReview() : renderForm();
+};
 addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvent = e; if (app.lang) renderCurrent(); });
 addEventListener('appinstalled', () => { installEvent = null; count('app_installed'); });
 
 addEventListener('popstate', () => {
   if ($('#veil')) { closeSheet(); return; }
+  if (app.cReview) { app.cReview = false; renderConsular(); scrollTo(0, 0); return; }
   if (app.review) { app.review = false; renderForm(); scrollTo(0, 0); }
 });
 
@@ -684,13 +895,14 @@ function askResume() {
 }
 
 function start() {
+  try { app.view = localStorage.getItem('bitaqa.view') === 'consular' ? 'consular' : 'nid'; } catch (e) { /* ignore */ }
   const saved = restore();
   if (saved && saved.lang) {
     app.lang = saved.lang;
     document.documentElement.lang = app.lang === 'Ara' ? 'ar' : 'ckb';
     loadSaved(saved);
-    renderForm();
-    if (hasData(saved)) askResume();
+    renderCurrent();
+    if (hasData(saved) && app.view === 'nid') askResume();
   } else {
     welcome(saved);
   }
