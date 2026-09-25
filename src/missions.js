@@ -80,6 +80,9 @@ export const MISSIONS = [
 // Missions whose own request forms are built in.
 export const OWN_FORMS = { 'ألمانيا|فرانكفورت': 'frankfurt', 'ألمانيا|برلين': 'berlin' };
 
+// Missions that take the request without a pre-filled application form.
+export const NO_FORM = new Set(['بلجيكا|بروكسل']);
+
 export const missionTitle = (country, city, type) =>
   `${type === 'C' ? 'القنصلية العامة لجمهورية العراق' : 'سفارة جمهورية العراق'} في ${city}`;
 

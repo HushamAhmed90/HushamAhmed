@@ -3,7 +3,7 @@ import { FIELDS, FIXED, SECTIONS, LABELS } from './schema.js';
 import { UI, OWNER, SERVICES } from './texts.js';
 import { drawSheet, sheetFontsReady } from './sheet.js';
 import { jpegPagePdf } from './pdf.js';
-import { MISSIONS, OWN_FORMS, missionTitle, findMission } from './missions.js';
+import { MISSIONS, OWN_FORMS, NO_FORM, missionTitle, findMission } from './missions.js';
 import { FIELDS as C_FIELDS, POA_PURPOSES, REQUIRED as C_REQUIRED, MARITAL, drawConsular, consularFontsReady } from './consular.js';
 
 const KEY = 'bitaqa.forms.v2';
@@ -539,6 +539,7 @@ function purposeText() {
     .replace('{spouseNat}', v.spouseNat ? `${v.spouseNat} الجنسية` : '')
     .replace(/\s+([،,])/g, '$1').replace(/ {2,}/g, ' ');
 }
+const noForm = () => NO_FORM.has(`${cState.country}|${cState.city}`);
 const currentMission = () => {
   const m = findMission(cState.country, cState.city);
   return m ? missionTitle(m.country, m.city, m.type) : '';
@@ -655,7 +656,8 @@ function renderConsular(keepScroll) {
       h('section', { class: 'card open' }, h('div', { class: 'card-body flat' },
         h('p', { class: 'qlabel', text: u.cCountry }), countrySelect(),
         h('p', { class: 'qlabel', text: u.cMission }), missionSelect(),
-        cState.consulate === 'generic' ? h('p', { class: 'hint', text: u.cGenericNote }) : null,
+        noForm() ? h('p', { class: 'notice', text: u.cNoForm(currentMission()) })
+          : cState.consulate === 'generic' ? h('p', { class: 'hint', text: u.cGenericNote }) : null,
         h('p', { class: 'qlabel', text: u.cForm }),
         pick(u.cForms, cState.form, (id) => { cState.form = id; cSave(); renderConsular(true); }))),
       h('section', { class: 'card open' }, h('div', { class: 'card-body flat' },
@@ -665,7 +667,7 @@ function renderConsular(keepScroll) {
         h('ul', { class: 'docs' }, docs.map(([ar, ku]) => h('li', { text: app.lang === 'Kur' ? ku : ar }))),
         h('p', { class: 'hint', text: u.cRequiredNote }))),
       h('p', { class: 'disclaimer', text: u.disclaimer })),
-    h('div', { class: 'dock' }, h('button', { class: 'btn primary wide big', type: 'button', text: u.review, onclick: cGoReview })),
+    h('div', { class: 'dock' }, h('button', { class: 'btn primary wide big', type: 'button', text: noForm() ? u.cOptionalSheet : u.review, onclick: cGoReview })),
   );
   if (keepScroll) scrollTo(0, y);
 }

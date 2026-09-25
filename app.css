@@ -113,6 +113,7 @@ svg { width: 20px; height: 20px; flex-shrink: 0; }
 .chips.big .chipbtn { padding: 9px 20px; font-size: 15.5px; }
 .input.area.tall { min-height: 170px; }
 select.input.select { appearance: auto; -webkit-appearance: menulist; }
+.notice { background: var(--gold-tint); border: 1px solid #EFD9A3; color: var(--gold-ink); border-radius: 12px; padding: 10px 12px; font-size: 14px; line-height: 1.8; margin: 10px 0 0; font-weight: 600; }
 .docs { margin: 0; padding: 0 20px 0 0; line-height: 1.9; font-size: 15px; }
 
 /* ---- section cards ---- */
