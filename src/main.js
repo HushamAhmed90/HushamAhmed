@@ -527,9 +527,14 @@ cState.form = cState.form || 'poa';
 cState.values = cState.values || {};
 const cSave = () => { try { localStorage.setItem(C_KEY, JSON.stringify(cState)); } catch (e) { /* ignore */ } };
 
+function cClear() {
+  // Start a fresh form: keep nothing personal, and don't copy the ID form in again.
+  cState.values = { __fresh: true };
+  cSave();
+}
 function cPrefill() {
   const v = cState.values;
-  const f = app.values || {};
+  const f = v.__fresh ? {} : (app.values || {});
   if (!v.principal) {
     const full = [f.a07name1, f.a06name2, f.a09name3, f.a08name4].filter(Boolean).join(' ');
     if (full) v.principal = full;
@@ -718,7 +723,13 @@ function renderConsular(keepScroll) {
         pick(formOptions, cState.form, (id) => { cState.form = id; cSave(); renderConsular(true); }),
         cState.form === 'apostille' ? h('p', { class: 'notice', text: u.cApostilleNote }) : null)),
       h('section', { class: 'card open' }, h('div', { class: 'card-body flat' },
-        h('p', { class: 'qlabel', text: u.cInfo }), keys.map(cField))),
+        h('div', { class: 'qhead' },
+          h('p', { class: 'qlabel', text: u.cInfo }),
+          h('button', { class: 'btn ghost small', type: 'button', text: u.cClear, onclick: () => {
+            if (!confirm(u.cConfirmClear)) return;
+            cClear(); renderConsular(true); toast(u.cCleared); count('consular_clear');
+          } })),
+        keys.map(cField))),
       cState.form === 'apostille' ? null : bookingCard(),
       h('section', { class: 'card open' }, h('div', { class: 'card-body flat' },
         h('p', { class: 'qlabel', text: u.cRequired }),
@@ -822,7 +833,11 @@ async function renderConsularReview() {
           h('div', {}, h('b', { text: OWNER.name[app.lang] }), h('p', { text: u.helpTitle }))),
         h('button', { class: 'btn primary wide', type: 'button', text: u.cSubmit, onclick: () =>
           openRequest(service, cState.form === 'apostille' ? `${UI.Ara.cForms.apostille} (الخارجية الألمانية)` : `${UI.Ara.cForms[cState.form]} - ${currentMission()}${cState.form === 'poa' && cState.values.purposeType !== 'custom' ? ' (' + UI.Ara.cPurposeTypes[cState.values.purposeType] + ')' : ''}، الوكيل: ${cState.values.agent || ''}`) }),
-        h('p', { class: 'trust small', html: ICON.check }, u.noUpfront))),
+        h('p', { class: 'trust small', html: ICON.check }, u.noUpfront)),
+      h('button', { class: 'btn soft wide', type: 'button', text: u.cNew, onclick: () => {
+        if (!confirm(u.cConfirmClear)) return;
+        cClear(); app.cReview = false; history.replaceState(null, ''); renderConsular(); scrollTo(0, 0); toast(u.cCleared);
+      } })),
     h('div', { class: 'dock grid' },
       h('button', { class: 'btn primary', type: 'button', text: u.saveImg, onclick: (e) => cExport('png', e.currentTarget, fname) }),
       h('button', { class: 'btn primary', type: 'button', text: u.savePdf, onclick: (e) => cExport('pdf', e.currentTarget, fname) }),
