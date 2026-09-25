@@ -524,7 +524,8 @@ function cPrefill() {
 function purposeText() {
   const v = cState.values;
   const tpl = POA_PURPOSES[v.purposeType || 'records'] || '';
-  return tpl.replace('{place}', v.place || '..........').replace('{passport}', v.passportNo || '..........');
+  return tpl.replace('{place}', v.place || '..........').replace('{passport}', v.passportNo || '..........')
+    .replace('{school}', v.school ? `كافة منها ${v.school}` : 'كافة');
 }
 function cValues() {
   const v = { ...cState.values };
@@ -575,13 +576,15 @@ function cField(key) {
   // Only ask for what the chosen power-of-attorney text needs.
   if (key === 'place' && v.purposeType !== 'records') return null;
   if (key === 'passportNo' && !['lostTwice', 'damaged'].includes(v.purposeType)) return null;
+  if (key === 'school' && v.purposeType !== 'education') return null;
   const latin = ['latinName', 'street', 'plzCity'].includes(key);
   const type = key === 'birthDate' ? 'date' : key === 'phone' ? 'tel' : 'text';
   const inp = h('input', { class: 'input', id: 'c_' + key, type, dir: latin || key === 'phone' ? 'ltr' : null, autocomplete: 'off',
     inputmode: key === 'year' ? 'numeric' : null });
   inp.value = v[key] || '';
   if (key === 'passportNo') inp.setAttribute('dir', 'ltr');
-  bind(inp, (key === 'place' || key === 'passportNo') && v.purposeType !== 'custom' ? () => {
+  if (key === 'school') inp.setAttribute('placeholder', 'مثلاً: إعدادية الميثاق المسائية / نينوى');
+  bind(inp, ['place', 'passportNo', 'school'].includes(key) && v.purposeType !== 'custom' ? () => {
     v.purpose = purposeText(); cSave();
     const ta = document.getElementById('c_purpose'); if (ta) ta.value = v.purpose;
   } : null);
@@ -663,7 +666,7 @@ async function renderConsularReview() {
         h('div', { class: 'oc-head' }, h('img', { src: OWNER.photo, alt: '', width: 52, height: 52 }),
           h('div', {}, h('b', { text: OWNER.name[app.lang] }), h('p', { text: u.helpTitle }))),
         h('button', { class: 'btn primary wide', type: 'button', text: u.cSubmit, onclick: () =>
-          openRequest(service, `${UI.Ara.cForms[cState.form]} - قنصلية ${UI.Ara.cPlaces[cState.consulate]}${cState.form === 'poa' && cState.values.purposeType !== 'custom' ? ' (' + UI.Ara.cPurposeTypes[cState.values.purposeType] + ')' : ''}، الوكيل: ${cState.values.agent || ''}`) }),
+          openRequest(service, `${UI.Ara.cForms[cState.form]} - ${cState.consulate === 'berlin' ? 'سفارة' : 'قنصلية'} ${UI.Ara.cPlaces[cState.consulate]}${cState.form === 'poa' && cState.values.purposeType !== 'custom' ? ' (' + UI.Ara.cPurposeTypes[cState.values.purposeType] + ')' : ''}، الوكيل: ${cState.values.agent || ''}`) }),
         h('p', { class: 'trust small', html: ICON.check }, u.noUpfront))),
     h('div', { class: 'dock grid' },
       h('button', { class: 'btn primary', type: 'button', text: u.saveImg, onclick: (e) => cExport('png', e.currentTarget, fname) }),
