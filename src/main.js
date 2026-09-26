@@ -1366,4 +1366,17 @@ start();
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+  // A new version took over: reload once so the person sees it straight away
+  // (not while they are typing into a sheet or dialog).
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloaded) return;
+    reloaded = true;
+    if ($('#veil') || (document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))) {
+      toast(t() ? (app.lang === 'Kur' ? 'وەشانی نوێ ئامادەیە، لاپەڕەکە نوێ بکەرەوە' : 'يوجد تحديث جديد، أعد فتح البرنامج') : '', 6000);
+      return;
+    }
+    location.reload();
+  });
 }
