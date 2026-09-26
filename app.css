@@ -238,3 +238,33 @@ input[dir="ltr"].input { text-align: right; }
   body > *:not(#print-page) { display: none !important; }
   #print-page { display: block !important; width: 210mm; height: 297mm; }
 }
+
+/* Latin spelling suggestion */
+.sugg { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; width: 100%; margin-top: 6px; padding: 8px 12px; border: 1px dashed var(--navy); border-radius: 12px; background: var(--navy-tint); color: var(--navy); font: inherit; font-size: 14px; text-align: start; cursor: pointer; }
+.sugg[hidden] { display: none; }
+.sugg b { font-size: 15px; }
+.sugg small { flex-basis: 100%; color: var(--muted); font-size: 12px; }
+
+/* Check-before-printing */
+.field.warn .input { border-color: var(--gold); background: var(--gold-tint); }
+.warnlist { list-style: none; margin: 12px 0; padding: 0; display: grid; gap: 8px; }
+.warnitem { width: 100%; text-align: start; font: inherit; font-size: 14.5px; line-height: 1.7; font-weight: 600; color: var(--gold-ink); background: var(--gold-tint); border: 1px solid #EFD9A3; border-radius: 12px; padding: 10px 12px; cursor: pointer; }
+
+/* Rating */
+.stars { display: flex; justify-content: center; gap: 6px; margin: 8px 0 4px; direction: ltr; }
+.star { width: 48px; height: 48px; font-size: 34px; line-height: 1; border: 0; background: none; color: var(--line); cursor: pointer; padding: 0; }
+.star.on { color: var(--gold); }
+.rate-after .btn { margin-top: 8px; }
+.rate > .btn.ghost { margin-top: 12px; }
+
+/* Country welcome in the consular section */
+.cwelcome { margin-top: 12px; padding: 12px; border-radius: 12px; background: var(--navy-tint); color: var(--navy); }
+.cwelcome p { margin: 0; font-size: 14px; line-height: 1.8; font-weight: 600; }
+.cwelcome .btn.soft { margin-top: 10px; min-height: 40px; background: #fff; border-color: #fff; }
+
+/* Print and post */
+.printmail { margin-top: 14px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+.printmail .hint { margin: 0; }
+.printmail .btn.soft { margin-top: 10px; }
+.review > .btn.wa { margin-top: 14px; }
+.review > .btn.soft { margin-top: 10px; }

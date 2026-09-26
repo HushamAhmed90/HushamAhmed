@@ -4,6 +4,7 @@ import { UI, OWNER, SERVICES } from './texts.js';
 import { drawSheet, sheetFontsReady } from './sheet.js';
 import { jpegPagePdf } from './pdf.js';
 import { MISSIONS, OWN_FORMS, NO_FORM, missionTitle, findMission } from './missions.js';
+import { toLatin, hasArabic } from './translit.js';
 import { FIELDS as C_FIELDS, POA_PURPOSES, REQUIRED as C_REQUIRED, MARITAL, drawConsular, consularFontsReady } from './consular.js';
 
 const KEY = 'bitaqa.forms.v2';
@@ -311,6 +312,219 @@ async function shareApp() {
   window.open(`https://wa.me/?text=${encodeURIComponent(text + '\n' + url)}`, '_blank', 'noopener');
 }
 
+// ---------- share the finished form as a PDF (WhatsApp, e-mail, ...) ----------
+async function shareFile(blob, name, place) {
+  const file = new File([blob], name, { type: blob.type });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: name }); count('form_shared', { place, how: 'share' }); return true; }
+    catch (e) { if (e.name === 'AbortError') return false; }
+  }
+  // No file sharing here (most computers): save it so it can be attached.
+  const url = URL.createObjectURL(blob);
+  const a = h('a', { href: url, download: name });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  toast(t().shareFallback, 5000);
+  count('form_shared', { place, how: 'download' });
+  return true;
+}
+async function sharePdf(btn, paintFn, name, place) {
+  if (busy) return;
+  busy = true;
+  const label = btn.textContent;
+  btn.textContent = t().preparing; btn.disabled = true;
+  try {
+    const big = await paintFn(2.5);
+    const jpg = await new Promise((res) => big.toBlob(res, 'image/jpeg', 0.92));
+    const pdf = jpegPagePdf(new Uint8Array(await jpg.arrayBuffer()), big.width, big.height);
+    if (await shareFile(pdf, name, place)) askRating();
+  } catch (e) { console.error(e); toast(t().failed); }
+  finally { busy = false; btn.textContent = label; btn.disabled = false; }
+}
+
+// ---------- "did the app help you?" (asked once, after saving) ----------
+const RATE_KEY = 'bitaqa.rating.v1';
+function askRating() {
+  let st = {};
+  try { st = JSON.parse(localStorage.getItem(RATE_KEY) || '{}'); } catch (e) { /* ignore */ }
+  if (st.stars || (st.later && Date.now() - st.later < 7 * 864e5)) return;
+  setTimeout(showRating, 1500);
+}
+function showRating() {
+  if ($('#veil')) return;
+  const tst = $('#toast'); if (tst) tst.classList.remove('show');
+  const u = t();
+  const keep = (x) => { try { localStorage.setItem(RATE_KEY, JSON.stringify(x)); } catch (e) { /* ignore */ } };
+  let rated = false;
+  const after = h('div', { class: 'rate-after' });
+  const later = h('button', { class: 'btn ghost wide', type: 'button', text: u.rateLater, onclick: closeSheet });
+  const chosen = (n) => {
+    rated = true;
+    keep({ stars: n });
+    count('rating', { stars: n });
+    [...stars.children].forEach((b, i) => { b.classList.toggle('on', i < n); b.setAttribute('aria-pressed', String(i === n - 1)); });
+    after.replaceChildren(...(n === 5 ? [
+      h('p', { class: 'note', text: u.rateThanks }),
+      h('button', { class: 'btn primary wide', type: 'button', text: u.shareApp, onclick: () => { closeSheet(); shareApp(); } }),
+      h('a', { class: 'btn tt wide', href: OWNER.tiktok, target: '_blank', rel: 'noopener', html: ICON.tt, onclick: () => count('tiktok_click', { place: 'rating' }) }, u.followTiktok),
+    ] : [
+      h('p', { class: 'note', text: u.rateSorry }),
+      h('a', { class: 'btn wa wide', href: waLink(UI.Ara.rateMsg(n)), target: '_blank', rel: 'noopener', html: ICON.wa, onclick: () => { count('whatsapp_click', { place: 'rating' }); closeSheet(); } }, u.rateTell),
+    ]));
+    later.textContent = u.close;
+  };
+  const stars = h('div', { class: 'stars', role: 'group', 'aria-label': u.rateTitle },
+    [1, 2, 3, 4, 5].map((n) => h('button', { class: 'star', type: 'button', 'aria-label': `${n} / 5`, 'aria-pressed': 'false', text: '★', onclick: () => chosen(n) })));
+  sheet(h('div', { class: 'msg rate' }, h('h2', { text: u.rateTitle }), h('p', { text: u.rateNote }), stars, after, later),
+    { onClose: () => { if (!rated) keep({ later: Date.now() }); } });
+}
+
+// ---------- checks for common mistakes before printing ----------
+function dateIssue(v, label, u, birth) {
+  if (!v) return null;
+  const d = new Date(v);
+  if (isNaN(d)) return null;
+  if (d > new Date()) return u.wFuture(label);
+  if (d.getFullYear() < 1900) return u.wOld(label);
+  if (birth && v < birth) return u.wBeforeBirth(label);
+  return null;
+}
+function phoneIssue(v, u) {
+  const d = latinDigits(String(v || '')).replace(/\D/g, '');
+  if (!d) return null;
+  if (/^07/.test(d) && d.length !== 11) return u.wPhoneIraq;
+  if (d.length < 9) return u.wPhoneShort;
+  if (d.length > 15) return u.wPhoneLong;
+  return null;
+}
+const sameText = (a, b) => a && b && a.trim() === b.trim();
+function nidWarnings() {
+  const u = t();
+  const v = app.values;
+  const L = LABELS[app.lang];
+  const out = [];
+  const add = (key, msg) => { if (msg) out.push({ key, msg }); };
+  ['a07name1', 'a06name2', 'a09name3', 'a08name4', 'a11motherName', 'a10motherFatherName', 'a04birthLoc'].forEach((k) => {
+    if (!v[k]) return;
+    if (/\d/.test(latinDigits(v[k]))) add(k, u.wDigits(L[k]));
+    else if (/[a-z]/i.test(v[k])) add(k, u.wLatin(L[k]));
+  });
+  if (sameText(v.a07name1, v.a06name2)) add('a06name2', u.wSameName);
+  if (sameText(v.a06name2, v.a09name3)) add('a09name3', u.wSameFather);
+  add('a05birthDate', dateIssue(v.a05birthDate, L.a05birthDate, u));
+  add('a40phone', phoneIssue(v.a40phone, u));
+  add('a18shDate', dateIssue(v.a18shDate, L.a18shDate, u, v.a05birthDate));
+  if (v.a20shYear) {
+    const y = +latinDigits(String(v.a20shYear));
+    if (!(y >= 1900 && y <= new Date().getFullYear())) add('a20shYear', u.wYear(L.a20shYear));
+  }
+  add('a24addrFromDate', dateIssue(v.a24addrFromDate, L.a24addrFromDate, u, v.a05birthDate));
+  return out;
+}
+function cWarnings() {
+  const u = t();
+  const v = cState.values;
+  const L = u.cLabels;
+  const out = [];
+  // Only fields that are on screen for this form.
+  const add = (key, msg) => { if (msg && document.querySelector(`[data-c="${key}"]`)) out.push({ key, msg }); };
+  ['principal', 'mother', 'agent', 'child', 'spouse'].forEach((k) => { if (v[k] && /\d/.test(latinDigits(v[k]))) add(k, u.wDigits(L[k])); });
+  ['latinName', 'firstName', 'lastName', 'street', 'plzCity', 'signPlace', 'targetCountry'].forEach((k) => { if (hasArabic(v[k])) add(k, u.wArabic(L[k])); });
+  add('birthDate', dateIssue(v.birthDate, L.birthDate, u));
+  add('childBirth', dateIssue(v.childBirth, L.childBirth, u));
+  add('phone', phoneIssue(v.phone, u));
+  if (v.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email.trim())) add('email', u.wEmail);
+  if (v.year) {
+    const y = +latinDigits(String(v.year)); const now = new Date().getFullYear();
+    if (!(y >= now - 1 && y <= now + 1)) add('year', u.wYear(L.year));
+  }
+  return out;
+}
+function showWarnings(list, goTo, proceed) {
+  const u = t();
+  count('warnings_shown', { n: list.length, first: list[0].key });
+  sheet(h('div', { class: 'msg warnbox' },
+    h('h2', { text: u.warnTitle }),
+    h('p', { text: u.warnNote }),
+    h('ul', { class: 'warnlist' }, list.map((w) => h('li', {},
+      h('button', { class: 'warnitem', type: 'button', text: w.msg, onclick: () => { closeSheet(); goTo(w.key); } })))),
+    h('button', { class: 'btn primary wide', type: 'button', text: u.warnFix, onclick: () => { closeSheet(); goTo(list[0].key); } }),
+    h('button', { class: 'btn ghost wide', type: 'button', text: u.warnGo, onclick: () => { closeSheet(); count('warnings_ignored', { n: list.length }); proceed(); } }),
+  ), { tall: list.length > 4 });
+}
+const flagField = (el) => {
+  if (!el) return;
+  el.classList.add('warn');
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  const i = el.querySelector('input.input, textarea.input');
+  if (i) setTimeout(() => i.focus({ preventScroll: true }), 350);
+};
+function goToNidField(key) {
+  const sec = SECTIONS.find((s) => s.keys.includes(key));
+  if (sec) { app.open = sec.id; persist(); }
+  renderForm();
+  requestAnimationFrame(() => flagField(document.querySelector(`.field[data-key="${key}"]`)));
+}
+const goToCField = (key) => flagField(document.querySelector(`[data-c="${key}"]`));
+
+// ---------- yearly reminder for the life certificate ----------
+function openReminder() {
+  const u = t();
+  const when = new Date(); when.setMonth(when.getMonth() + 11);   // about a month before it is due again
+  const after = new Date(when); after.setDate(after.getDate() + 1);
+  const ymd = (x) => `${x.getFullYear()}${String(x.getMonth() + 1).padStart(2, '0')}${String(x.getDate()).padStart(2, '0')}`;
+  const shown = `${when.getDate()}/${when.getMonth() + 1}/${when.getFullYear()}`;
+  const mission = currentMission();
+  const title = u.remindEventTitle + (mission ? ` - ${mission}` : '');
+  const phone = `+${OWNER.whatsapp}`;
+  const text = `${u.remindEventText(location.origin, phone)}\nhttps://wa.me/${OWNER.whatsapp}`;
+  const google = 'https://calendar.google.com/calendar/render?action=TEMPLATE'
+    + `&text=${encodeURIComponent(title)}&dates=${ymd(when)}/${ymd(after)}&details=${encodeURIComponent(text)}`;
+  const esc = (x) => x.replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+  const enc = new TextEncoder();
+  const fold = (line) => {   // iCalendar lines are at most 75 bytes
+    let out = ''; let n = 0;
+    for (const ch of line) {
+      const b = enc.encode(ch).length;
+      if (n + b > 73) { out += '\r\n '; n = 1; }
+      out += ch; n += b;
+    }
+    return out;
+  };
+  const ics = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//husham-ahmed//bitaqa//AR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'BEGIN:VEVENT',
+    `UID:${newId()}@husham-ahmed.vercel.app`, `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').slice(0, 15)}Z`,
+    `DTSTART;VALUE=DATE:${ymd(when)}`, `DTEND;VALUE=DATE:${ymd(after)}`,
+    `SUMMARY:${esc(title)}`, `DESCRIPTION:${esc(text)}`, `URL:${location.origin}`,
+    'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${esc(title)}`, 'TRIGGER:PT9H', 'END:VALARM',
+    'END:VEVENT', 'END:VCALENDAR',
+  ].map(fold).join('\r\n');
+  const addIcs = () => {
+    const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar;charset=utf-8' }));
+    if (isIOS()) location.href = url;   // Safari offers "Add to Calendar"
+    else { const a = h('a', { href: url, download: 'تذكير-شهادة-الحياة.ics' }); document.body.append(a); a.click(); a.remove(); }
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    count('reminder_added', { how: 'ics' }); toast(u.remindDone);
+  };
+  sheet(h('div', { class: 'msg' },
+    h('h2', { text: u.remindTitle }),
+    h('p', { text: u.remindText(shown) }),
+    h('a', { class: 'btn primary wide', href: google, target: '_blank', rel: 'noopener', onclick: () => { count('reminder_added', { how: 'google' }); closeSheet(); } }, u.remindGoogle),
+    h('button', { class: 'btn soft wide', type: 'button', text: u.remindIcs, onclick: () => { addIcs(); closeSheet(); } }),
+    h('button', { class: 'btn ghost wide', type: 'button', text: u.close, onclick: closeSheet })));
+}
+
+// ---------- print and post it for you ----------
+function printMailCard(formLabel) {
+  const u = t();
+  return h('div', { class: 'printmail' },
+    h('p', { class: 'hint', text: u.printMailNote }),
+    h('button', { class: 'btn soft wide', type: 'button', text: u.printMail, onclick: () => {
+      count('printmail_click', { form: app.view });
+      openRequest('printmail', UI.Ara.printMailMsg(formLabel));
+    } }));
+}
+
 // ---------- sheets (bottom dialogs) ----------
 function sheet(content, { tall = false, onClose } = {}) {
   closeSheet();
@@ -330,13 +544,13 @@ function closeSheet() {
 }
 
 let toastTimer;
-function toast(msg) {
+function toast(msg, ms = 2500) {
   let el = $('#toast');
   if (!el) { el = h('div', { id: 'toast', class: 'toast', role: 'status' }); document.body.append(el); }
   el.textContent = msg;
   el.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+  toastTimer = setTimeout(() => el.classList.remove('show'), ms);
 }
 
 // ---------- picker ----------
@@ -592,7 +806,10 @@ function cField(key) {
   const required = cState.form === 'apostille' ? ['firstName', 'lastName', 'street', 'plzCity'].includes(key) : (key === 'principal' || key === 'agent');
   const wrap = h('div', { class: 'field', 'data-c': key });
   wrap.append(h('label', { for: 'c_' + key }, label, required ? h('span', { class: 'req', text: ' *' }) : null));
-  const bind = (el, after) => el.addEventListener('input', () => { v[key] = el.value; cSave(); wrap.classList.remove('bad'); if (after) after(); });
+  const bind = (el, after) => el.addEventListener('input', () => {
+    v[key] = el.value; cSave(); wrap.classList.remove('bad', 'warn'); if (after) after();
+    if (key === 'principal') suggesters.forEach((f) => f());
+  });
 
   if (key === 'purposeType') {
     const chips = h('div', { class: 'chips' }, Object.entries(u.cPurposeTypes).map(([id, name]) =>
@@ -654,7 +871,40 @@ function cField(key) {
     const ta = document.getElementById('c_purpose'); if (ta) ta.value = v.purpose;
   } : null);
   wrap.append(inp);
+  if (SUGGEST[key]) wrap.append(suggestButton(key, inp));
   return wrap;
+}
+
+// Latin spelling suggested from the Arabic name, one tap to use it.
+const SUGGEST = {
+  latinName: (n) => toLatin(n),
+  firstName: (n) => toLatin(n.split(/\s+/)[0]),
+  lastName: (n) => { const p = n.split(/\s+/); return p.length > 1 ? toLatin(p[p.length - 1]) : ''; },
+};
+const suggesters = new Set();
+const arabicName = () => (cState.values.principal
+  || (cState.values.__fresh ? '' : [app.values.a07name1, app.values.a06name2, app.values.a09name3, app.values.a08name4].filter(Boolean).join(' '))
+  || '').trim();
+function suggestButton(key, inp) {
+  const u = t();
+  const v = cState.values;
+  const value = h('b', { dir: 'ltr' });
+  const btn = h('button', { class: 'sugg', type: 'button' }, h('span', { text: `${u.suggest}: ` }), value, h('small', { text: u.suggestNote }));
+  const update = () => {
+    const name = arabicName();
+    const s = name && hasArabic(name) ? SUGGEST[key](name) : '';
+    value.textContent = s;
+    btn.hidden = !s || s.toLowerCase() === (inp.value || '').trim().toLowerCase();
+  };
+  btn.addEventListener('click', () => {
+    inp.value = value.textContent; v[key] = inp.value; cSave(); update();
+    inp.closest('.field').classList.remove('bad', 'warn');
+    count('latin_suggest', { field: key });
+  });
+  inp.addEventListener('input', update);
+  suggesters.add(update);
+  update();
+  return btn;
 }
 
 // Searchable country picker (matches country or mission city names).
@@ -709,6 +959,7 @@ function missionSelect() {
 function renderConsular(keepScroll) {
   const u = t();
   const y = scrollY;
+  suggesters.clear();
   cPrefill();
   const pick = (options, current, onPick) => h('div', { class: 'chips big' }, Object.entries(options).map(([id, name]) =>
     h('button', { class: 'chipbtn' + (current === id ? ' on' : ''), type: 'button', text: name, onclick: () => onPick(id) })));
@@ -722,6 +973,12 @@ function renderConsular(keepScroll) {
       h('p', { class: 'note', text: u.cIntro }),
       h('section', { class: 'card open' }, h('div', { class: 'card-body flat' },
         h('p', { class: 'qlabel', text: u.cCountry }), countrySelect(),
+        h('div', { class: 'cwelcome' },
+          h('p', { text: u.cWelcome(cState.country) }),
+          h('button', { class: 'btn soft', type: 'button', text: u.cWelcomeBtn, onclick: () => {
+            count('country_help', { country: cState.country });
+            openRequest(null, `مساعدة للعراقيين في ${cState.country}`);
+          } })),
         cState.form === 'apostille' ? null : h('p', { class: 'qlabel', text: u.cMission }),
         cState.form === 'apostille' ? null : missionSelect(),
         cState.form === 'apostille' ? null : noForm() ? h('p', { class: 'notice', text: u.cNoForm(currentMission()) })
@@ -743,7 +1000,7 @@ function renderConsular(keepScroll) {
         h('ul', { class: 'docs' }, docs.map(([ar, ku]) => h('li', { text: app.lang === 'Kur' ? ku : ar }))),
         h('p', { class: 'hint', text: u.cRequiredNote }))),
       h('p', { class: 'disclaimer', text: u.disclaimer })),
-    h('div', { class: 'dock' }, h('button', { class: 'btn primary wide big', type: 'button', text: noForm() ? u.cOptionalSheet : u.review, onclick: cGoReview })),
+    h('div', { class: 'dock' }, h('button', { class: 'btn primary wide big', type: 'button', text: noForm() ? u.cOptionalSheet : u.review, onclick: () => cGoReview() })),
   );
   if (keepScroll) scrollTo(0, y);
 }
@@ -792,13 +1049,17 @@ function bookingCard() {
   ));
 }
 
-function cGoReview() {
+function cGoReview(checked) {
   const need = cState.form === 'apostille' ? ['firstName', 'lastName', 'street', 'plzCity'] : ['principal', 'agent'];
   const miss = need.filter((k) => !(cState.values[k] || '').trim());
   if (miss.length) {
     miss.forEach((k) => { const f = document.querySelector(`[data-c="${k}"]`); if (f) { f.classList.add('bad'); if (!f.querySelector('.err')) f.append(h('p', { class: 'err', text: t().fillThis })); } });
     const first = document.querySelector(`[data-c="${miss[0]}"]`); if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
+  }
+  if (!checked) {
+    const warns = cWarnings();
+    if (warns.length) { showWarnings(warns, goToCField, () => cGoReview(true)); return; }
   }
   count('consular_form', { mission: `${cState.country} - ${cState.city}`, form: cState.form });
   app.cReview = true;
@@ -823,6 +1084,7 @@ async function renderConsularReview() {
   const service = cState.form === 'poa' ? 'poa' : cState.form === 'apostille' ? 'legal' : 'life';
   const formName = cState.form === 'apostille' ? u.cForms.apostille : `${u.cForms[cState.form]} - ${currentMission()}`;
   const who = cState.form === 'apostille' ? [cState.values.firstName, cState.values.lastName].filter(Boolean).join('-') : (cState.values.principal || '').trim();
+  const formNameAr = cState.form === 'apostille' ? UI.Ara.cForms.apostille : `استمارة ${UI.Ara.cForms[cState.form]} (${currentMission()})${who ? ' باسم ' + who : ''}`;
   const fname = (ext) => `${UI.Ara.cForms[cState.form]}${cState.form === 'apostille' ? '' : '-' + cState.city}-${who.replace(/\s+/g, '-')}.${ext}`;
   $('#app').replaceChildren(
     header(),
@@ -835,6 +1097,9 @@ async function renderConsularReview() {
           h('button', { class: 'btn primary wide', type: 'button', text: u.close, onclick: closeSheet })), { tall: true });
       } }, preview),
       h('p', { class: 'hint center', text: u.tapZoom }),
+      h('button', { class: 'btn wa wide', type: 'button', text: u.shareForm, onclick: (e) => sharePdf(e.currentTarget, cPaint, fname('pdf'), 'consular') }),
+      cState.form === 'life' ? h('button', { class: 'btn soft wide', type: 'button', text: u.remindBtn, onclick: openReminder }) : null,
+      printMailCard(formNameAr),
       h('div', { class: 'owner-card' },
         h('div', { class: 'oc-head' }, h('img', { src: OWNER.photo, alt: '', width: 52, height: 52 }),
           h('div', {}, h('b', { text: OWNER.name[app.lang] }), h('p', { text: u.helpTitle }))),
@@ -869,7 +1134,7 @@ async function cExport(kind, btn, fname) {
     const blob = await new Promise((res) => big.toBlob(res, kind === 'png' ? 'image/png' : 'image/jpeg', 0.92));
     const ok = kind === 'png' ? await hand(blob, fname('png'))
       : await hand(jpegPagePdf(new Uint8Array(await blob.arrayBuffer()), big.width, big.height), fname('pdf'));
-    if (ok) { toast(t().saved); count('consular_saved', { kind, form: cState.form }); }
+    if (ok) { toast(t().saved); count('consular_saved', { kind, form: cState.form }); askRating(); }
   } catch (e) { console.error(e); toast(t().failed); }
   finally { busy = false; btn.textContent = label; btn.disabled = false; }
 }
@@ -892,12 +1157,12 @@ function renderForm() {
         h('button', { class: 'btn ghost', type: 'button', text: t().saveContact, onclick: saveContact }),
         h('button', { class: 'btn ghost', type: 'button', text: t().shareApp, onclick: shareApp })),
       h('p', { class: 'disclaimer', text: t().disclaimer })),
-    h('div', { class: 'dock' }, h('button', { class: 'btn primary wide big', type: 'button', text: t().review, onclick: goReview })),
+    h('div', { class: 'dock' }, h('button', { class: 'btn primary wide big', type: 'button', text: t().review, onclick: () => goReview() })),
   );
   refreshStatus();
 }
 
-function goReview() {
+function goReview(checked) {
   for (const sec of SECTIONS) {
     const miss = missingIn(sec);
     if (miss.length) {
@@ -910,6 +1175,10 @@ function goReview() {
       if (navigator.vibrate) navigator.vibrate(30);
       return;
     }
+  }
+  if (!checked) {
+    const warns = nidWarnings();
+    if (warns.length) { showWarnings(warns, goToNidField, () => goReview(true)); return; }
   }
   count('form_completed');
   app.review = true;
@@ -940,6 +1209,8 @@ async function renderReview() {
       h('p', { class: 'note', text: u.reviewNote }),
       h('button', { class: 'paper-btn', type: 'button', 'aria-label': u.tapZoom, onclick: zoom }, preview),
       h('p', { class: 'hint center', text: u.tapZoom }),
+      h('button', { class: 'btn wa wide', type: 'button', text: u.shareForm, onclick: (e) => sharePdf(e.currentTarget, paint, fileName('pdf'), 'nid') }),
+      printMailCard(`استمارة البطاقة الوطنية باسم ${personName(app.values)}`),
       h('div', { class: 'owner-card' },
         h('div', { class: 'oc-head' }, h('img', { src: OWNER.photo, alt: '', width: 52, height: 52 }),
           h('div', {}, h('b', { text: OWNER.name[app.lang] }), h('p', { text: u.helpTitle }))),
@@ -1005,7 +1276,7 @@ async function save(kind, btn) {
     let ok;
     if (kind === 'png') ok = await hand(blob, fileName('png'));
     else ok = await hand(jpegPagePdf(new Uint8Array(await blob.arrayBuffer()), big.width, big.height), fileName('pdf'));
-    if (ok) { toast(t().saved); count(kind === 'png' ? 'saved_image' : 'saved_pdf'); }
+    if (ok) { toast(t().saved); count(kind === 'png' ? 'saved_image' : 'saved_pdf'); askRating(); }
   } catch (e) {
     console.error(e); toast(t().failed);
   } finally {
