@@ -686,6 +686,27 @@ function header() {
       social('wa', waLink(t().waHello), 'WhatsApp', 'whatsapp_click')));
   return head;
 }
+// Turkey e-visa: how to apply yourself on the official site, or ask for help.
+const TVISA_URL = 'https://evisa.gov.tr/login';
+function openTvisa() {
+  const u = t();
+  count('tvisa_open');
+  sheet(h('div', { class: 'request tvisa' },
+    h('div', { class: 'picker-top' }, h('h2', { text: u.tvTitle }), h('button', { class: 'x', type: 'button', 'aria-label': u.close, onclick: closeSheet, text: '✕' })),
+    h('p', { class: 'note', text: u.tvIntro }),
+    h('p', { class: 'notice', text: u.tvFee }),
+    h('p', { class: 'qlabel', text: u.tvNeedTitle }),
+    h('ul', { class: 'docs' }, u.tvNeed.map((x) => h('li', { text: x }))),
+    h('p', { class: 'qlabel', text: u.tvStepsTitle }),
+    h('ol', { class: 'steps' }, u.tvSteps.map((x) => h('li', { text: x }))),
+    h('p', { class: 'hint', text: u.tvValid }),
+    h('p', { class: 'warnitem static', text: u.tvWarn }),
+    h('a', { class: 'btn primary wide', href: TVISA_URL, target: '_blank', rel: 'noopener', onclick: () => count('tvisa_site_open') }, u.tvOpen),
+    h('button', { class: 'btn soft wide', type: 'button', text: u.tvHelp, onclick: () => { closeSheet(); openRequest('tvisa'); } }),
+    h('p', { class: 'trust small', html: ICON.check }, u.noUpfront),
+  ), { tall: true });
+}
+
 // Shortcuts to the services, in the header's free space (a scrolling row on phones).
 function quickNav() {
   const u = t();
@@ -693,7 +714,7 @@ function quickNav() {
     u.quick[id], hot ? h('small', { text: u.quickNew }) : null);
   const design = UI.Ara.promos.find((p) => p.key === 'design');
   return h('nav', { class: 'quick', 'aria-label': u.quickTitle },
-    item('tvisa', () => openRequest('tvisa'), true),
+    item('tvisa', openTvisa, true),
     item('booking', () => openRequest(null)),
     item('passport', () => openRequest('passport')),
     item('lawyer', () => openRequest('lawyer')),
@@ -712,7 +733,8 @@ function promoBanner() {
   const box = h('a', { class: 'promo', target: '_blank', rel: 'noopener', onclick: (e) => {
     const key = items[i].key;
     count(key + '_click', { place: 'banner' });
-    if (key === 'booking' || key === 'lawyer' || key === 'tvisa') { e.preventDefault(); openRequest(key === 'booking' ? null : key); }
+    if (key === 'tvisa') { e.preventDefault(); openTvisa(); }
+    else if (key === 'booking' || key === 'lawyer') { e.preventDefault(); openRequest(key === 'lawyer' ? 'lawyer' : null); }
   } },
     h('span', { class: 'promo-tag', text: '★' }), h('span', { class: 'promo-body' }, title, text));
   const show = () => {

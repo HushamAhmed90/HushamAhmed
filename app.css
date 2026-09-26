@@ -282,3 +282,6 @@ input[dir="ltr"].input { text-align: right; }
   .owner-who { flex: 0 0 auto; }
   .quick { order: 0; flex: 1; flex-basis: auto; justify-content: center; flex-wrap: wrap; margin: 0 12px; padding: 0; overflow: visible; }
 }
+.warnitem.static { cursor: default; margin: 12px 0 0; }
+.tvisa .btn.primary { margin-top: 14px; }
+.tvisa .btn.soft { margin-top: 8px; }
