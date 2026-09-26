@@ -697,7 +697,7 @@ function promoBanner() {
   const box = h('a', { class: 'promo', target: '_blank', rel: 'noopener', onclick: (e) => {
     const key = items[i].key;
     count(key + '_click', { place: 'banner' });
-    if (key === 'booking' || key === 'lawyer') { e.preventDefault(); openRequest(key === 'lawyer' ? 'lawyer' : null); }
+    if (key === 'booking' || key === 'lawyer' || key === 'tvisa') { e.preventDefault(); openRequest(key === 'booking' ? null : key); }
   } },
     h('span', { class: 'promo-tag', text: '★' }), h('span', { class: 'promo-body' }, title, text));
   const show = () => {
