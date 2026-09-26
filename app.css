@@ -268,3 +268,17 @@ input[dir="ltr"].input { text-align: right; }
 .printmail .btn.soft { margin-top: 10px; }
 .review > .btn.wa { margin-top: 14px; }
 .review > .btn.soft { margin-top: 10px; }
+
+/* Service shortcuts in the header */
+.owner { flex-wrap: wrap; }
+.quick { order: 10; flex-basis: 100%; display: flex; gap: 6px; overflow-x: auto; margin: 10px -16px 0; padding: 0 16px 2px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.quick::-webkit-scrollbar { display: none; }
+.qbtn { flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid rgba(255,255,255,.3); background: rgba(255,255,255,.1); color: #fff; font: inherit; font-size: 14px; font-weight: 700; white-space: nowrap; cursor: pointer; }
+.qbtn:hover { background: rgba(255,255,255,.18); }
+.qbtn.hot { background: var(--gold); border-color: var(--gold); color: var(--navy-2); }
+.qbtn small { font-size: 11px; font-weight: 700; background: var(--navy-2); color: #fff; border-radius: 999px; padding: 0 7px; line-height: 18px; }
+@media (min-width: 900px) {
+  .owner { flex-wrap: nowrap; }
+  .owner-who { flex: 0 0 auto; }
+  .quick { order: 0; flex: 1; flex-basis: auto; justify-content: center; flex-wrap: wrap; margin: 0 12px; padding: 0; overflow: visible; }
+}

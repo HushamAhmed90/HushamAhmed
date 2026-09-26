@@ -680,10 +680,25 @@ function header() {
       h('a', { class: 'owner-who', href: waLink(t().waHello), target: '_blank', rel: 'noopener', onclick: () => count('whatsapp_click', { place: 'header' }) },
         h('img', { src: o.photo, alt: '', width: 30, height: 30 }),
         h('span', { text: `${t().by} ${o.name[app.lang]}` })),
+      quickNav(),
       social('tt', o.tiktok, 'TikTok', 'tiktok_click'),
       social('fb', o.facebook, 'Facebook', 'facebook_click'),
       social('wa', waLink(t().waHello), 'WhatsApp', 'whatsapp_click')));
   return head;
+}
+// Shortcuts to the services, in the header's free space (a scrolling row on phones).
+function quickNav() {
+  const u = t();
+  const item = (id, onclick, hot) => h('button', { class: 'qbtn' + (hot ? ' hot' : ''), type: 'button', onclick: () => { count('quick_click', { item: id }); onclick(); } },
+    u.quick[id], hot ? h('small', { text: u.quickNew }) : null);
+  const design = UI.Ara.promos.find((p) => p.key === 'design');
+  return h('nav', { class: 'quick', 'aria-label': u.quickTitle },
+    item('tvisa', () => openRequest('tvisa'), true),
+    item('booking', () => openRequest(null)),
+    item('passport', () => openRequest('passport')),
+    item('lawyer', () => openRequest('lawyer')),
+    item('printmail', () => openRequest('printmail')),
+    item('design', () => window.open(waLink(design ? design.msg : t().waHello), '_blank', 'noopener')));
 }
 function social(icon, href, label, ev) {
   return h('a', { class: 'soc', href, target: '_blank', rel: 'noopener', 'aria-label': label, html: ICON[icon], onclick: () => count(ev, { place: 'header' }) });

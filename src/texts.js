@@ -24,6 +24,9 @@ export const SERVICES = [
 export const UI = {
   Ara: {
     dir: 'rtl',
+    quickTitle: 'خدمات سريعة',
+    quick: { tvisa: 'فيزا تركيا', booking: 'حجز معاملة', passport: 'جواز إلكتروني', lawyer: 'محامي في العراق', printmail: 'نطبع ونرسل لك', design: 'تصميم' },
+    quickNew: 'جديد',
     shareForm: 'مشاركة الاستمارة (واتساب وغيره)',
     shareFallback: 'تم حفظ الملف. أرسله من واتساب كمرفق (مستند).',
     suggest: 'اقتراح',
@@ -231,6 +234,9 @@ export const UI = {
   },
   Kur: {
     dir: 'rtl',
+    quickTitle: 'خزمەتگوزاری خێرا',
+    quick: { tvisa: 'ڤیزای تورکیا', booking: 'گرتنی ژوان', passport: 'پاسپۆرتی ئەلیکترۆنی', lawyer: 'پارێزەر لە عێراق', printmail: 'چاپ و ناردن', design: 'دیزاین' },
+    quickNew: 'نوێ',
     shareForm: 'ناردنی فۆرمەکە (واتسئاپ و هتد)',
     shareFallback: 'فایلەکە هەڵگیرا. لە واتسئاپەوە وەک هاوپێچ بینێرە.',
     suggest: 'پێشنیار',

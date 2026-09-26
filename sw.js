@@ -1,5 +1,5 @@
 // Offline support. Change VERSION whenever any file changes.
-const VERSION = 'bitaqa-28';
+const VERSION = 'bitaqa-29';
 const FILES = [
   '/', '/index.html', '/app.css', '/manifest.webmanifest',
   '/src/main.js', '/src/va.js', '/src/sheet.js', '/src/schema.js', '/src/texts.js', '/src/lists.js', '/src/qr.js', '/src/pdf.js', '/src/consular.js', '/src/missions.js', '/src/translit.js', '/src/vendor/qrcode.mjs',
