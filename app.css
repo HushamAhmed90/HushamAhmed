@@ -285,3 +285,5 @@ input[dir="ltr"].input { text-align: right; }
 .warnitem.static { cursor: default; margin: 12px 0 0; }
 .tvisa .btn.primary { margin-top: 14px; }
 .tvisa .btn.soft { margin-top: 8px; }
+.review .topnav { margin: 0 0 12px; }
+.review .topnav .btn { margin: 0; min-height: 44px; }

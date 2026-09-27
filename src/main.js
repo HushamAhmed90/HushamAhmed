@@ -1147,7 +1147,14 @@ async function renderConsularReview() {
   const fname = (ext) => `${UI.Ara.cForms[cState.form]}${cState.form === 'apostille' ? '' : '-' + cState.city}-${who.replace(/\s+/g, '-')}.${ext}`;
   $('#app').replaceChildren(
     header(),
+    tabs(),
     h('main', { class: 'review' },
+      h('div', { class: 'two topnav' },
+        h('button', { class: 'btn ghost', type: 'button', text: '→ ' + u.backEdit, onclick: () => history.back() }),
+        h('button', { class: 'btn primary', type: 'button', text: u.newPerson, onclick: () => {
+          if (!confirm(u.cConfirmClear)) return;
+          cClear(); app.cReview = false; history.replaceState(null, ''); renderConsular(); scrollTo(0, 0); toast(u.cCleared);
+        } })),
       h('h2', { text: u.cReviewTitle }),
       h('p', { class: 'note', text: `${formName}. ${u.cReviewNote}` }),
       h('button', { class: 'paper-btn', type: 'button', 'aria-label': u.tapZoom, onclick: () => {
@@ -1263,7 +1270,11 @@ async function renderReview() {
   const root = $('#app');
   root.replaceChildren(
     header(),
+    tabs(),
     h('main', { class: 'review' },
+      h('div', { class: 'two topnav' },
+        h('button', { class: 'btn ghost', type: 'button', text: '→ ' + u.backEdit, onclick: () => history.back() }),
+        h('button', { class: 'btn primary', type: 'button', text: u.newPerson, onclick: newPersonForm })),
       h('h2', { text: u.reviewTitle }),
       h('p', { class: 'note', text: u.reviewNote }),
       h('button', { class: 'paper-btn', type: 'button', 'aria-label': u.tapZoom, onclick: zoom }, preview),
@@ -1295,6 +1306,19 @@ async function renderReview() {
   sheetCanvas = await paint(2);
   preview.src = sheetCanvas.toDataURL('image/png');
   $('#print-page').src = preview.src;
+}
+
+// Start an empty form for someone else; the finished one stays in the family list.
+function newPersonForm() {
+  persist();
+  addForm({});
+  persist();
+  app.review = false;
+  history.replaceState(null, '');
+  renderForm();
+  scrollTo(0, 0);
+  toast(t().newPersonDone, 4500);
+  count('new_person_form');
 }
 
 function zoom() {
