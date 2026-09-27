@@ -295,3 +295,17 @@ input[dir="ltr"].input { text-align: right; }
 .guidecta { margin: 0 0 12px; font-size: 14px; line-height: 1.6; white-space: normal; min-height: 48px; padding: 8px 14px; }
 .tvisa .btn.soft + .btn.soft, .tvisa .btn.soft + .btn.primary { margin-top: 8px; }
 .tvisa .hint a { color: var(--navy); margin-inline-start: 4px; }
+
+/* Personal ribbon + About me */
+.me-ribbon { display: flex; align-items: center; gap: 12px; width: calc(100% - 28px); max-width: 592px; margin: 12px auto 0; padding: 10px 12px; background: var(--card); border: 1px solid #EFD9A3; border-inline-start: 5px solid var(--gold); border-radius: 14px; font: inherit; color: var(--ink); text-align: start; cursor: pointer; }
+.me-ribbon img { flex: none; width: 52px; height: 52px; border-radius: 50%; object-fit: cover; border: 2px solid var(--gold); }
+.me-body { flex: 1; display: flex; flex-direction: column; gap: 2px; font-size: 14px; line-height: 1.7; font-weight: 600; }
+.me-tag { align-self: flex-start; background: var(--gold-tint); color: var(--gold-ink); border-radius: 999px; padding: 0 10px; font-size: 12px; font-weight: 700; }
+.me-more { flex: none; align-self: center; font-size: 13px; font-weight: 700; color: var(--navy); background: var(--navy-tint); border-radius: 999px; padding: 6px 12px; white-space: nowrap; }
+.about p { line-height: 1.9; font-size: 15.5px; margin: 10px 0; }
+.about-head { display: flex; align-items: center; gap: 14px; margin: 6px 0 4px; }
+.about-head img { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; border: 3px solid var(--gold); }
+.about-head b { display: block; font-size: 20px; }
+.about-head small { color: var(--muted); font-size: 13.5px; }
+.about-sign { font-weight: 700; color: var(--navy); }
+.about .two { margin-top: 8px; }
