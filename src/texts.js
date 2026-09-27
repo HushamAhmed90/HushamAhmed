@@ -25,6 +25,7 @@ export const SERVICES = [
 export const UI = {
   Ara: {
     dir: 'rtl',
+    dDay: 'اليوم', dMonth: 'الشهر', dYear: 'السنة',
     backEdit: 'رجوع للتعديل',
     newPerson: '+ استمارة جديدة',
     newPersonDone: 'استمارة جديدة فارغة. استمارتك السابقة محفوظة بقائمة «العائلة».',
@@ -280,6 +281,7 @@ export const UI = {
   },
   Kur: {
     dir: 'rtl',
+    dDay: 'ڕۆژ', dMonth: 'مانگ', dYear: 'ساڵ',
     backEdit: 'گەڕانەوە بۆ دەستکاری',
     newPerson: '+ فۆرمی نوێ',
     newPersonDone: 'فۆرمێکی نوێی بەتاڵ. فۆرمەکەی پێشووت لە لیستی «خێزان» پاشەکەوت کراوە.',

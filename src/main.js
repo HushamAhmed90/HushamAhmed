@@ -597,8 +597,7 @@ function field(key) {
       onclick: () => pick(key, () => { wrap.replaceWith(field(key)); refreshStatus(); }) },
       h('span', { text: txt || t().choose }), h('i', { html: ICON.chevron }));
   } else if (f.type === 'date') {
-    control = h('input', { class: 'input', id, type: 'date', max: new Date().toISOString().slice(0, 10), value: app.values[key] || '' });
-    control.addEventListener('change', () => { setValue(key, control.value); });
+    control = dateSelect(id, app.values[key], (v) => setValue(key, v));
   } else {
     control = h('input', { class: 'input', id, type: f.tel ? 'tel' : 'text', value: app.values[key] || '',
       inputmode: f.type === 'num' ? 'numeric' : 'text', dir: f.type === 'num' ? 'ltr' : null, autocomplete: 'off', enterkeyhint: 'next' });
@@ -619,6 +618,34 @@ function field(key) {
   const hint = t().hints[key];
   if (hint) wrap.append(h('p', { class: 'hint', text: hint }));
   return wrap;
+}
+
+// Day / month / year lists instead of the calendar popup: much quicker for
+// birth dates. The value stays YYYY-MM-DD, and is only set once all three are chosen.
+function dateSelect(id, value, onChange) {
+  const u = t();
+  const [y0, m0, d0] = (value || '').split('-').map((n) => +n || 0);
+  const now = new Date().getFullYear();
+  const pad = (n) => String(n).padStart(2, '0');
+  const sel = (label, opts, cur, extra) => {
+    const s = h('select', { class: 'input select', 'aria-label': label, ...extra },
+      h('option', { value: '', text: label }), opts.map(([v, text]) => h('option', { value: String(v), text })));
+    s.value = cur ? String(cur) : '';
+    return s;
+  };
+  const day = sel(u.dDay, Array.from({ length: 31 }, (_, i) => [i + 1, String(i + 1)]), d0, { id });
+  const month = sel(u.dMonth, u.cMonths.map((name, i) => [i + 1, `${i + 1} - ${name}`]), m0);
+  const year = sel(u.dYear, Array.from({ length: now - 1899 }, (_, i) => [now - i, String(now - i)]), y0);
+  const update = () => {
+    const d = +day.value; const m = +month.value; const y = +year.value;
+    if (d && m && y) {
+      const last = new Date(y, m, 0).getDate();   // 31 April -> 30 April
+      if (d > last) day.value = String(last);
+      onChange(`${y}-${pad(m)}-${pad(+day.value)}`);
+    } else onChange('');
+  };
+  [day, month, year].forEach((s) => s.addEventListener('change', update));
+  return h('div', { class: 'dsel' }, day, month, year);
 }
 
 function setValue(key, v) {
@@ -915,6 +942,17 @@ function cField(key) {
     wrap.append(h('div', { class: 'chips' }, ['ابنتي', 'ابني'].map((rel) => h('button', {
       class: 'chipbtn' + ((v.childRel || 'ابنتي') === rel ? ' on' : ''), type: 'button', text: rel,
       onclick: () => { v.childRel = rel; v.purpose = purposeText(); cSave(); renderConsular(true); } }))));
+    return wrap;
+  }
+  if (key === 'birthDate' || key === 'childBirth') {
+    wrap.append(dateSelect('c_' + key, v[key], (val) => {
+      if (val) v[key] = val; else delete v[key];
+      cSave(); wrap.classList.remove('bad', 'warn');
+      if (key === 'childBirth' && v.purposeType !== 'custom') {
+        v.purpose = purposeText(); cSave();
+        const ta = document.getElementById('c_purpose'); if (ta) ta.value = v.purpose;
+      }
+    }));
     return wrap;
   }
   const latin = ['latinName', 'street', 'plzCity', 'firstName', 'lastName', 'email', 'targetCountry', 'signPlace', 'docCount'].includes(key);
