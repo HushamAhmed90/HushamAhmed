@@ -361,7 +361,7 @@ function showRating() {
   const chosen = (n) => {
     rated = true;
     keep({ stars: n });
-    count('rating', { stars: n });
+    count(`rating_${n}`, { stars: n });   // one event per score, so the list shows it directly
     [...stars.children].forEach((b, i) => { b.classList.toggle('on', i < n); b.setAttribute('aria-pressed', String(i === n - 1)); });
     after.replaceChildren(...(n === 5 ? [
       h('p', { class: 'note', text: u.rateThanks }),
