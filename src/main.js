@@ -707,6 +707,27 @@ function openTvisa() {
   ), { tall: true });
 }
 
+// Pension data update (National Retirement Authority): do it yourself, or ask for help.
+const PENSION_URL = 'https://pension-update.mof.gov.iq';
+function openPension() {
+  const u = t();
+  count('pension_open');
+  sheet(h('div', { class: 'request tvisa' },
+    h('div', { class: 'picker-top' }, h('h2', { text: u.pnTitle }), h('button', { class: 'x', type: 'button', 'aria-label': u.close, onclick: closeSheet, text: '✕' })),
+    h('p', { class: 'note', text: u.pnIntro }),
+    h('p', { class: 'notice', text: u.pnDeadline }),
+    h('p', { class: 'qlabel', text: u.pnNeedTitle }),
+    h('ul', { class: 'docs' }, u.pnNeed.map((x) => h('li', { text: x }))),
+    h('p', { class: 'qlabel', text: u.pnStepsTitle }),
+    h('ol', { class: 'steps' }, u.pnSteps.map((x) => h('li', { text: x }))),
+    h('p', { class: 'hint', text: u.pnMismatch }),
+    h('p', { class: 'warnitem static', text: u.pnWarn }),
+    h('a', { class: 'btn primary wide', href: PENSION_URL, target: '_blank', rel: 'noopener', onclick: () => count('pension_site_open') }, u.pnOpen),
+    h('button', { class: 'btn soft wide', type: 'button', text: u.pnHelp, onclick: () => { closeSheet(); openRequest('pension'); } }),
+    h('p', { class: 'trust small', html: ICON.check }, u.noUpfront),
+  ), { tall: true });
+}
+
 // Shortcuts to the services, in the header's free space (a scrolling row on phones).
 function quickNav() {
   const u = t();
@@ -714,6 +735,7 @@ function quickNav() {
     u.quick[id], hot ? h('small', { text: u.quickNew }) : null);
   const design = UI.Ara.promos.find((p) => p.key === 'design');
   return h('nav', { class: 'quick', 'aria-label': u.quickTitle },
+    item('pension', openPension, true),
     item('tvisa', openTvisa, true),
     item('booking', () => openRequest(null)),
     item('passport', () => openRequest('passport')),
