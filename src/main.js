@@ -756,6 +756,34 @@ function openPension() {
   ), { tall: true });
 }
 
+// ---------- a personal note from Husham ----------
+function meRibbon() {
+  const u = t();
+  return h('button', { class: 'me-ribbon', type: 'button', onclick: openAboutMe },
+    h('img', { src: OWNER.photo, alt: '', width: 52, height: 52 }),
+    h('span', { class: 'me-body' }, h('small', { class: 'me-tag', text: u.meTag }), h('span', { text: u.meRibbon })),
+    h('span', { class: 'me-more', text: u.meMore }));
+}
+function openAboutMe() {
+  const u = t();
+  count('about_open');
+  sheet(h('div', { class: 'about' },
+    h('div', { class: 'picker-top' }, h('h2', { text: u.meTitle }), h('button', { class: 'x', type: 'button', 'aria-label': u.close, onclick: closeSheet, text: '✕' })),
+    h('div', { class: 'about-head' }, h('img', { src: OWNER.photo, alt: '', width: 96, height: 96 }),
+      h('div', {}, h('b', { text: OWNER.name[app.lang] }), h('small', { text: u.contactNote }))),
+    u.meText.map((x) => h('p', { text: x })),
+    h('p', { class: 'trust', html: ICON.check }, u.noUpfront),
+    h('p', { class: 'about-sign', text: u.meSign }),
+    h('a', { class: 'btn wa wide', href: waLink(u.waHello), target: '_blank', rel: 'noopener', html: ICON.wa, onclick: () => count('whatsapp_click', { place: 'about' }) }, u.whatsapp),
+    h('div', { class: 'two' },
+      h('a', { class: 'btn tt', href: OWNER.tiktok, target: '_blank', rel: 'noopener', html: ICON.tt, onclick: () => count('tiktok_click', { place: 'about' }) }, u.tiktok),
+      h('a', { class: 'btn fb', href: OWNER.facebook, target: '_blank', rel: 'noopener', html: ICON.fb, onclick: () => count('facebook_click', { place: 'about' }) }, u.facebook)),
+    h('div', { class: 'two' },
+      h('button', { class: 'btn soft', type: 'button', text: u.saveContact, onclick: saveContact }),
+      h('button', { class: 'btn soft', type: 'button', text: u.shareApp, onclick: shareApp })),
+  ), { tall: true });
+}
+
 // ---------- دليل المعاملات ----------
 function openGuides() {
   const u = t();
@@ -1123,7 +1151,7 @@ function renderConsular(keepScroll) {
   const formOptions = cState.country === 'ألمانيا' ? u.cForms : { poa: u.cForms.poa, life: u.cForms.life };
   const docs = C_REQUIRED[cState.form];
   $('#app').replaceChildren(
-    header(), promoBanner(), tabs(),
+    header(), promoBanner(), tabs(), meRibbon(),
     h('main', { class: 'cards consular' },
       h('p', { class: 'note', text: u.cIntro }),
       h('button', { class: 'btn soft wide guidecta', type: 'button', text: u.gCta, onclick: openGuides }),
@@ -1309,6 +1337,7 @@ function renderForm() {
     header(),
     promoBanner(),
     tabs(),
+    meRibbon(),
     h('div', { class: 'progress' },
       h('button', { class: 'fambar', type: 'button', onclick: openFamily },
         h('span', { class: 'fambar-who' }, h('small', { text: t().editing }), h('b', { text: personName(app.values) })),
