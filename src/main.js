@@ -5,6 +5,7 @@ import { drawSheet, sheetFontsReady } from './sheet.js';
 import { jpegPagePdf } from './pdf.js';
 import { MISSIONS, OWN_FORMS, NO_FORM, missionTitle, findMission } from './missions.js';
 import { toLatin, hasArabic } from './translit.js';
+import { GUIDES, findGuide } from './guides.js';
 import { FIELDS as C_FIELDS, POA_PURPOSES, REQUIRED as C_REQUIRED, MARITAL, drawConsular, consularFontsReady } from './consular.js';
 
 const KEY = 'bitaqa.forms.v2';
@@ -755,6 +756,62 @@ function openPension() {
   ), { tall: true });
 }
 
+// ---------- دليل المعاملات ----------
+function openGuides() {
+  const u = t();
+  count('guides_open');
+  const row = (title, short, onclick) => h('button', { class: 'option country', type: 'button', onclick }, h('b', { text: title }), h('small', { text: short }));
+  sheet(h('div', { class: 'picker guides' },
+    h('div', { class: 'picker-top' }, h('h2', { text: u.gTitle }), h('button', { class: 'x', type: 'button', 'aria-label': u.close, onclick: closeSheet, text: '✕' })),
+    h('p', { class: 'note', text: u.gIntro }),
+    h('div', { class: 'options' },
+      GUIDES.map((g) => row(g[app.lang].title, g[app.lang].short, () => openGuide(g.id, true))),
+      row(u.pnTitle, u.pnShort, openPension),
+      row(u.tvTitle, u.tvShort, openTvisa)),
+  ), { tall: true });
+}
+function guideAction(kind) {
+  closeSheet();
+  app.view = 'consular'; persistView();
+  app.cReview = false;
+  if (kind === 'apostille') {
+    cState.country = 'ألمانيا';
+    if (!findMission(cState.country, cState.city)) cState.city = 'فرانكفورت';
+    cState.consulate = templateOf();
+    cState.form = 'apostille';
+  } else {
+    cState.form = 'poa';
+    delete cState.values.__fresh;
+    cState.values.purposeType = kind === 'poaBirth' ? 'birth' : 'marriage';
+    cState.values.purpose = purposeText();
+  }
+  cSave();
+  count('guide_action', { kind });
+  renderConsular(); scrollTo(0, 0);
+}
+function openGuide(id, fromList) {
+  const g = findGuide(id);
+  if (!g) return;
+  const u = t();
+  const x = g[app.lang] || g.Ara;
+  count('guide_view', { id });
+  sheet(h('div', { class: 'request tvisa' },
+    h('div', { class: 'picker-top' }, h('h2', { text: x.title }), h('button', { class: 'x', type: 'button', 'aria-label': u.close, onclick: closeSheet, text: '✕' })),
+    fromList ? h('button', { class: 'linkbtn', type: 'button', text: u.gBack, onclick: openGuides }) : null,
+    h('p', { class: 'note', text: x.intro }),
+    h('p', { class: 'qlabel', text: u.gNeed }),
+    h('ul', { class: 'docs' }, x.need.map((n) => h('li', { text: n }))),
+    h('p', { class: 'qlabel', text: u.gSteps }),
+    h('ol', { class: 'steps' }, x.steps.map((n) => h('li', { text: n }))),
+    h('p', { class: 'notice', text: x.note }),
+    (g.actions || []).map((a) => h('button', { class: 'btn soft wide', type: 'button', text: u.gActions[a], onclick: () => guideAction(a) })),
+    h('a', { class: 'btn primary wide', href: ICASS_URL, target: '_blank', rel: 'noopener', onclick: () => count('guide_book', { id }) }, u.gBook),
+    h('button', { class: 'btn soft wide', type: 'button', text: u.gHelp, onclick: () => { closeSheet(); openRequest(g.service, `${UI.Ara.gTitle}: ${g.Ara.title}`); } }),
+    h('p', { class: 'trust small', html: ICON.check }, u.noUpfront),
+    h('p', { class: 'hint' }, u.gSource, ' ', ...g.source.map((url, i) => h('a', { href: url, target: '_blank', rel: 'noopener', text: `(${i + 1})` }))),
+  ), { tall: true });
+}
+
 // Shortcuts to the services, in the header's free space (a scrolling row on phones).
 function quickNav() {
   const u = t();
@@ -764,8 +821,9 @@ function quickNav() {
   return h('nav', { class: 'quick', 'aria-label': u.quickTitle },
     item('pension', openPension, true),
     item('tvisa', openTvisa, true),
+    item('guides', openGuides),
     item('booking', () => openRequest(null)),
-    item('passport', () => openRequest('passport')),
+    item('passport', () => openGuide('passport')),
     item('lawyer', () => openRequest('lawyer')),
     item('printmail', () => openRequest('printmail')),
     item('design', () => window.open(waLink(design ? design.msg : t().waHello), '_blank', 'noopener')));
@@ -1068,6 +1126,7 @@ function renderConsular(keepScroll) {
     header(), promoBanner(), tabs(),
     h('main', { class: 'cards consular' },
       h('p', { class: 'note', text: u.cIntro }),
+      h('button', { class: 'btn soft wide guidecta', type: 'button', text: u.gCta, onclick: openGuides }),
       h('section', { class: 'card open' }, h('div', { class: 'card-body flat' },
         h('p', { class: 'qlabel', text: u.cCountry }), countrySelect(),
         h('div', { class: 'cwelcome' },
