@@ -969,7 +969,7 @@ function bigBtn() {
 function tabs() {
   const u = t();
   const tab = (id, label) => h('button', { class: 'tab' + (app.view === id ? ' on' : ''), type: 'button', 'aria-pressed': String(app.view === id),
-    onclick: () => { if (app.view === id) return; app.view = id; persistView(); renderCurrent(); scrollTo(0, 0); } }, label);
+    onclick: () => { if (app.view === id) return; app.view = id; persistView(); app.review = false; app.cReview = false; renderCurrent(); scrollTo(0, 0); navPush(); } }, label);
   return h('nav', { class: 'tabs', 'aria-label': u.appName }, tab('nid', u.tabNid), tab('consular', u.tabConsular));
 }
 function persistView() { try { localStorage.setItem('bitaqa.view', app.view); } catch (e) { /* ignore */ } }
@@ -1413,11 +1413,16 @@ const NAV_ICON = {
   guide: '<svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z M4 21V5 M8 7h7"/></svg>',
   services: '<svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M4 8h16v12H4z M9 8V5h6v3 M4 13h16"/></svg>',
 };
-function goSection(sec) {
+// Each move between sections/tabs is a browser history entry, so the phone's
+// back button goes to the previous screen instead of closing the app.
+const navState = () => ({ nav: 1, section: app.section, view: app.view });
+function navPush() { try { history.pushState(navState(), ''); } catch (e) { /* ignore */ } }
+function goSection(sec, fromHistory) {
   closeSheet();
   app.section = sec; persistSection();
-  count('nav', { to: sec });
+  if (!fromHistory) count('nav', { to: sec });
   renderCurrent(); scrollTo(0, 0);
+  if (!fromHistory) navPush();
 }
 function bottomNav() {
   const u = t();
@@ -1712,11 +1717,21 @@ const renderCurrent = () => {
 addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvent = e; if (app.lang) renderCurrent(); });
 addEventListener('appinstalled', () => { installEvent = null; count('app_installed'); });
 
-addEventListener('popstate', () => {
-  if ($('#veil')) { closeSheet(); return; }
-  if (app.section !== 'forms') { app.review = false; app.cReview = false; return; }
-  if (app.cReview) { app.cReview = false; renderConsular(); scrollTo(0, 0); return; }
-  if (app.review) { app.review = false; renderForm(); scrollTo(0, 0); }
+addEventListener('popstate', (e) => {
+  // Back with a dialog open: just close it, and keep the history in step.
+  if ($('#veil')) { closeSheet(); navPush(); return; }
+  if (app.section === 'forms' && app.cReview) { app.cReview = false; renderConsular(); scrollTo(0, 0); return; }
+  if (app.section === 'forms' && app.review) { app.review = false; renderForm(); scrollTo(0, 0); return; }
+  const st = e.state;
+  if (st && st.nav) {
+    app.review = false; app.cReview = false;
+    if (st.view === 'nid' || st.view === 'consular') { app.view = st.view; persistView(); }
+    goSection(st.section, true);
+    return;
+  }
+  // Oldest entry: go to the home screen rather than leaving the app.
+  app.review = false; app.cReview = false;
+  if (app.section !== 'home') { goSection('home', true); try { history.replaceState(navState(), ''); } catch (err) { /* ignore */ } }
 });
 
 function welcome(saved) {
@@ -1747,6 +1762,11 @@ function start() {
   try { app.view = localStorage.getItem('bitaqa.view') === 'consular' ? 'consular' : 'nid'; } catch (e) { /* ignore */ }
   try { const sec = localStorage.getItem(SECTION_KEY); if (['home', 'forms', 'guide', 'services'].includes(sec)) app.section = sec; } catch (e) { /* ignore */ }
   const saved = restore();
+  // The first history entry is always the home screen, so back never leaves the app early.
+  try {
+    history.replaceState({ nav: 1, section: 'home', view: app.view }, '');
+    if (app.section !== 'home') history.pushState(navState(), '');
+  } catch (e) { /* ignore */ }
   if (saved && saved.lang) {
     app.lang = saved.lang;
     document.documentElement.lang = app.lang === 'Ara' ? 'ar' : 'ckb';
