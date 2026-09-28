@@ -50,7 +50,7 @@ export const VIDEOS = {
   consular_apostille: '', // تصديق بيان الولادة الألماني
   booking: '',        // حجز موعد بالسفارة (ICASS)
   guide_passport: '', guide_record: '', guide_birth: '', guide_marriage: '', guide_laissez: '',
-  tvisa: '',          // فيزا تركيا
+  tvisa: 'https://vm.tiktok.com/ZGdQvT93B/',          // فيزا تركيا
   pension: 'https://vm.tiktok.com/ZGdQcd8PC/',        // تحديث بيانات المتقاعدين
 };
 
