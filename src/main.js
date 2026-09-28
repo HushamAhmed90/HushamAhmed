@@ -766,20 +766,31 @@ function noticeCards() {
   const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   let hidden = [];
   try { hidden = JSON.parse(localStorage.getItem(NOTICE_KEY) || '[]'); } catch (e) { /* ignore */ }
-  const live = NOTICES.filter((n) => today >= n.from && today <= n.to && !hidden.includes(n.id));
-  if (!live.length) return null;
-  return h('div', { class: 'notices' }, live.map((n) => {
+  const current = NOTICES.filter((n) => today >= n.from && today <= n.to);
+  const live = current.filter((n) => !hidden.includes(n.id));
+  if (!current.length) return null;
+  const wrap = h('div', { class: 'notices' });
+  const showAgain = () => h('button', { class: 'notice-show', type: 'button', text: u.noticeShow(current.length), onclick: () => {
+    try { localStorage.setItem(NOTICE_KEY, JSON.stringify(hidden.filter((id) => !current.some((n) => n.id === id)))); } catch (e) { /* ignore */ }
+    wrap.replaceWith(noticeCards() || '');
+    count('notice_show');
+  } });
+  if (!live.length) { wrap.append(showAgain()); return wrap; }
+  wrap.append(...live.map((n) => {
     const card = h('div', { class: 'offnotice', role: 'note' },
       h('div', { class: 'offnotice-top' },
         h('small', { text: n.who[L] }),
         h('button', { class: 'offnotice-x', type: 'button', 'aria-label': u.noticeHide, text: '✕', onclick: () => {
           try { localStorage.setItem(NOTICE_KEY, JSON.stringify([...hidden, n.id])); } catch (e) { /* ignore */ }
+          hidden = [...hidden, n.id];
           card.remove(); count('notice_hide', { id: n.id });
+          if (!wrap.querySelector('.offnotice')) wrap.append(showAgain());
         } })),
       h('b', { text: n.title[L] }),
       h('p', { text: n.text[L] }));
     return card;
   }));
+  return wrap;
 }
 
 // ---------- a personal note from Husham ----------
