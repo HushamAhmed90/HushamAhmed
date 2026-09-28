@@ -380,3 +380,6 @@ body { padding-bottom: calc(96px + var(--navh) + env(safe-area-inset-bottom, 0px
 @media print { .bottomnav { display: none !important; } }
 .home .me-wrap { margin-bottom: 14px; }
 .home .me-wrap .me-ribbon, .home .impact { width: 100%; margin-inline: 0; }
+/* Video explanation button (TikTok) */
+.btn.video { background: #111; border-color: #111; color: #fff; margin: 10px 0 4px; }
+.btn.video svg { width: 20px; height: 20px; }

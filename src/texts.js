@@ -41,6 +41,19 @@ export const OCCASIONS = [
     text: { Ara: 'عيد أضحى مبارك، وكل عام وأنتم بخير. تقبّل الله من الحجاج ومنّا ومنكم.', Kur: 'جەژنی قوربانتان پیرۆز، هەموو ساڵێک بە خێر بن.' } },
 ];
 
+// Video explanations (TikTok links). A "watch the explanation" button shows
+// only where a link is set; empty = hidden.
+export const VIDEOS = {
+  nid: '',            // استمارة البطاقة الوطنية
+  consular_poa: '',   // الوكالة
+  consular_life: '',  // شهادة الحياة
+  consular_apostille: '', // تصديق بيان الولادة الألماني
+  booking: '',        // حجز موعد بالسفارة (ICASS)
+  guide_passport: '', guide_record: '', guide_birth: '', guide_marriage: '', guide_laissez: '',
+  tvisa: '',          // فيزا تركيا
+  pension: '',        // تحديث بيانات المتقاعدين
+};
+
 // Services offered through the request form. `ar` is what the WhatsApp message carries.
 export const SERVICES = [
   { id: 'nid', ar: 'البطاقة الوطنية', ku: 'کارتی نیشتمانی' },
@@ -60,6 +73,7 @@ export const SERVICES = [
 export const UI = {
   Ara: {
     dir: 'rtl',
+    videoBtn: 'شوف الشرح بالفيديو',
     navHome: 'الرئيسية', navForms: 'الاستمارات', navGuide: 'الدليل', navServices: 'خدماتي',
     homeAsk: 'شنو تحتاج اليوم؟',
     homeTiles: { nid: ['استمارة البطاقة الوطنية', 'مع رمز QR، جاهزة للطباعة'], consular: ['الوكالة وشهادة الحياة', 'لكل سفارات وقنصليات العراق'], guide: ['دليل المعاملات', 'الوثائق والخطوات لكل معاملة'], services: ['اطلب مساعدة', 'حجز، محامين، طباعة وتصاميم'] },
@@ -346,6 +360,7 @@ export const UI = {
   },
   Kur: {
     dir: 'rtl',
+    videoBtn: 'ڕوونکردنەوە بە ڤیدیۆ ببینە',
     navHome: 'سەرەکی', navForms: 'فۆرمەکان', navGuide: 'ڕێبەر', navServices: 'خزمەتگوزاری',
     homeAsk: 'ئەمڕۆ چیت پێویستە؟',
     homeTiles: { nid: ['فۆرمی کارتی نیشتمانی', 'لەگەڵ QR، ئامادە بۆ چاپ'], consular: ['بریکارنامە و بەڕژیانی', 'بۆ هەموو باڵیۆزخانەکانی عێراق'], guide: ['ڕێبەری مامەڵەکان', 'بەڵگەنامە و هەنگاوەکان'], services: ['داوای یارمەتی بکە', 'ژوان، پارێزەر، چاپ و دیزاین'] },

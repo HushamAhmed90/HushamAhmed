@@ -1,6 +1,6 @@
 import { LISTS } from './lists.js';
 import { FIELDS, FIXED, SECTIONS, LABELS } from './schema.js';
-import { UI, OWNER, SERVICES, NOTICES, IMPACT, OCCASIONS } from './texts.js';
+import { UI, OWNER, SERVICES, NOTICES, IMPACT, OCCASIONS, VIDEOS } from './texts.js';
 import { drawSheet, sheetFontsReady } from './sheet.js';
 import { jpegPagePdf } from './pdf.js';
 import { MISSIONS, OWN_FORMS, NO_FORM, missionTitle, findMission } from './missions.js';
@@ -722,6 +722,7 @@ function openTvisa() {
   sheet(h('div', { class: 'request tvisa' },
     h('div', { class: 'picker-top' }, h('h2', { text: u.tvTitle }), h('button', { class: 'x', type: 'button', 'aria-label': u.close, onclick: closeSheet, text: '✕' })),
     h('p', { class: 'note', text: u.tvIntro }),
+    videoBtn('tvisa'),
     h('p', { class: 'notice', text: u.tvFee }),
     h('p', { class: 'qlabel', text: u.tvNeedTitle }),
     h('ul', { class: 'docs' }, u.tvNeed.map((x) => h('li', { text: x }))),
@@ -743,6 +744,7 @@ function openPension() {
   sheet(h('div', { class: 'request tvisa' },
     h('div', { class: 'picker-top' }, h('h2', { text: u.pnTitle }), h('button', { class: 'x', type: 'button', 'aria-label': u.close, onclick: closeSheet, text: '✕' })),
     h('p', { class: 'note', text: u.pnIntro }),
+    videoBtn('pension'),
     h('p', { class: 'notice', text: u.pnDeadline }),
     h('p', { class: 'qlabel', text: u.pnNeedTitle }),
     h('ul', { class: 'docs' }, u.pnNeed.map((x) => h('li', { text: x }))),
@@ -754,6 +756,14 @@ function openPension() {
     h('button', { class: 'btn soft wide', type: 'button', text: u.pnHelp, onclick: () => { closeSheet(); openRequest('pension'); } }),
     h('p', { class: 'trust small', html: ICON.check }, u.noUpfront),
   ), { tall: true });
+}
+
+// ---------- video explanations (open on TikTok; hidden until a link is set) ----------
+function videoBtn(key) {
+  const url = VIDEOS[key];
+  if (!url || !/^https:\/\/([a-z]+\.)?tiktok\.com\//.test(url)) return null;
+  return h('a', { class: 'btn video wide', href: url, target: '_blank', rel: 'noopener', html: ICON.tt,
+    onclick: () => count('video_click', { key }) }, t().videoBtn);
 }
 
 // ---------- official announcements (hide themselves after their end date) ----------
@@ -885,6 +895,7 @@ function openGuide(id, fromList) {
     h('div', { class: 'picker-top' }, h('h2', { text: x.title }), h('button', { class: 'x', type: 'button', 'aria-label': u.close, onclick: closeSheet, text: '✕' })),
     fromList ? h('button', { class: 'linkbtn', type: 'button', text: u.gBack, onclick: openGuides }) : null,
     h('p', { class: 'note', text: x.intro }),
+    videoBtn('guide_' + g.id),
     h('p', { class: 'qlabel', text: u.gNeed }),
     h('ul', { class: 'docs' }, x.need.map((n) => h('li', { text: n }))),
     h('p', { class: 'qlabel', text: u.gSteps }),
@@ -1213,6 +1224,7 @@ function renderConsular(keepScroll) {
     header(), tabs(),
     h('main', { class: 'cards consular' },
       h('p', { class: 'note', text: u.cIntro }),
+      videoBtn('consular_' + cState.form),
       h('section', { class: 'card open' }, h('div', { class: 'card-body flat' },
         h('p', { class: 'qlabel', text: u.cCountry }), countrySelect(),
         h('div', { class: 'cwelcome' },
@@ -1278,6 +1290,7 @@ function bookingCard() {
   return h('section', { class: 'card open booking' }, h('div', { class: 'card-body flat' },
     h('p', { class: 'qlabel', text: u.bkTitle }),
     h('p', { class: 'hint', text: u.bkIntro }),
+    videoBtn('booking'),
     h('ol', { class: 'steps' }, u.bkSteps.map((st) => h('li', { text: typeof st === 'function' ? st(mission) : st }))),
     h('a', { class: 'btn primary wide', href: ICASS_URL, target: '_blank', rel: 'noopener', onclick: () => count('booking_site_open', { city: cState.city }) }, u.bkOpen),
     h('div', { class: 'field' }, h('label', { text: u.bkLabels.gender }), genderChips),
@@ -1510,7 +1523,8 @@ function renderForm() {
         h('span', { class: 'fambar-who' }, h('small', { text: t().editing }), h('b', { text: personName(app.values) })),
         h('span', { class: 'fambar-btn' }, `${t().family} (${app.forms.length})`)),
       h('p', { id: 'progress-text' }),
-      h('div', { class: 'track' }, h('div', { id: 'progress-bar', class: 'fill' }))),
+      h('div', { class: 'track' }, h('div', { id: 'progress-bar', class: 'fill' })),
+      videoBtn('nid')),
     h('main', { class: 'cards' }, SECTIONS.map(sectionCard),
       h('p', { class: 'disclaimer', text: t().disclaimer })),
     h('div', { class: 'dock' }, h('button', { class: 'btn primary wide big', type: 'button', text: t().review, onclick: () => goReview() })),
