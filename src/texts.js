@@ -45,7 +45,7 @@ export const OCCASIONS = [
 // only where a link is set; empty = hidden.
 export const VIDEOS = {
   nid: '',            // استمارة البطاقة الوطنية
-  consular_poa: '',   // الوكالة
+  consular_poa: 'https://vm.tiktok.com/ZGdQvwBEd/',   // الوكالة
   consular_life: '',  // شهادة الحياة
   consular_apostille: '', // تصديق بيان الولادة الألماني
   booking: '',        // حجز موعد بالسفارة (ICASS)
