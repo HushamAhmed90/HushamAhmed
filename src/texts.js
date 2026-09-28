@@ -47,9 +47,9 @@ export const VIDEOS = {
   nid: 'https://vm.tiktok.com/ZGdQcRqf5/',            // استمارة البطاقة الوطنية
   consular_poa: 'https://vm.tiktok.com/ZGdQvwBEd/',   // الوكالة
   consular_life: '',  // شهادة الحياة
-  consular_apostille: 'https://vm.tiktok.com/ZGdQcjAfG/', // تصديق بيان الولادة الألماني
+  consular_apostille: '', // تصديق بيان الولادة الألماني
   booking: '',        // حجز موعد بالسفارة (ICASS)
-  guide_passport: '', guide_record: '', guide_birth: '', guide_marriage: '', guide_laissez: '',
+  guide_passport: '', guide_record: '', guide_birth: 'https://vm.tiktok.com/ZGdQcjAfG/', guide_marriage: '', guide_laissez: '',
   tvisa: 'https://vm.tiktok.com/ZGdQvT93B/',          // فيزا تركيا
   pension: 'https://vm.tiktok.com/ZGdQcd8PC/',        // تحديث بيانات المتقاعدين
 };
