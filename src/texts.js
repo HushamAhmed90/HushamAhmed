@@ -47,7 +47,7 @@ export const VIDEOS = {
   nid: '',            // استمارة البطاقة الوطنية
   consular_poa: 'https://vm.tiktok.com/ZGdQvwBEd/',   // الوكالة
   consular_life: '',  // شهادة الحياة
-  consular_apostille: 'https://vm.tiktok.com/ZGdQvwBEd/', // تصديق بيان الولادة الألماني
+  consular_apostille: 'https://vm.tiktok.com/ZGdQcjAfG/', // تصديق بيان الولادة الألماني
   booking: '',        // حجز موعد بالسفارة (ICASS)
   guide_passport: '', guide_record: '', guide_birth: '', guide_marriage: '', guide_laissez: '',
   tvisa: 'https://vm.tiktok.com/ZGdQvT93B/',          // فيزا تركيا
