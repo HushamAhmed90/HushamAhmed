@@ -938,8 +938,7 @@ function promoBanner() {
     const key = items[i].key;
     count(key + '_click', { place: 'banner' });
     if (key === 'tvisa') { e.preventDefault(); openTvisa(); }
-    else if (key === 'lawyer') { e.preventDefault(); openLawyer(); }
-    else if (key === 'booking') { e.preventDefault(); openRequest(null); }
+    else if (key === 'booking' || key === 'lawyer') { e.preventDefault(); openRequest(key === 'lawyer' ? 'lawyer' : null); }
   } },
     h('span', { class: 'promo-tag', text: '★' }), h('span', { class: 'promo-body' }, title, text));
   const show = () => {
@@ -1438,34 +1437,6 @@ function openForms(view) {
   app.review = false; app.cReview = false;
   goSection('forms');
 }
-// ---------- lawyer partner ----------
-const SCALE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M7 21h10M5 7h14M5 7l-3 7a3.5 3.5 0 0 0 6 0zM19 7l-3 7a3.5 3.5 0 0 0 6 0z"/></svg>';
-function lawyerCard() {
-  const u = t();
-  return h('button', { class: 'lawyer-card', type: 'button', onclick: () => { count('lawyer_open', { from: 'card' }); openLawyer(); } },
-    h('i', { html: SCALE_ICON }),
-    h('span', { class: 'lw-body' }, h('b', { text: u.lwName }), h('small', { text: u.lwSub })),
-    h('span', { class: 'me-more', text: u.lwMore }));
-}
-function openLawyer() {
-  const u = t();
-  sheet(h('div', { class: 'request lawyer' },
-    h('div', { class: 'picker-top' }, h('h2', { text: u.lwName }), h('button', { class: 'x', type: 'button', 'aria-label': u.close, onclick: closeSheet, text: '✕' })),
-    h('p', { class: 'lw-sub', text: u.lwSub }),
-    h('p', { class: 'note', text: u.lwIntro }),
-    h('p', { class: 'qlabel', text: u.lwTitle }),
-    h('ul', { class: 'docs' }, u.lwItems.map((x) => h('li', { text: x }))),
-    [...u.lwPoints, u.noUpfront].map((x) => h('p', { class: 'trust', html: ICON.check }, x)),
-    h('button', { class: 'btn primary wide big', type: 'button', text: u.lwAsk, onclick: () => {
-      count('lawyer_request'); closeSheet(); openRequest('lawyer', `أريد متابعة معاملة عن طريق ${UI.Ara.lwName}: `);
-    } }),
-    h('p', { class: 'hint', text: u.lwNoPoa }),
-    h('button', { class: 'btn soft wide', type: 'button', text: u.lwPoaBtn, onclick: () => {
-      closeSheet(); cState.form = 'poa'; cSave(); openForms('consular');
-    } }),
-  ), { tall: true });
-}
-
 function renderHome() {
   const u = t();
   const tile = (key, onclick, cls = '') => h('button', { class: 'tile ' + cls, type: 'button', onclick: () => { count('home_tile', { tile: key }); onclick(); } },
@@ -1488,7 +1459,6 @@ function renderHome() {
         tile('consular', () => openForms('consular'), 'main'),
         tile('guide', () => goSection('guide')),
         tile('services', () => goSection('services'))),
-      lawyerCard(),
       h('div', { class: 'hots' },
         hot(u.pnTitle, u.pnShort, openPension),
         hot(u.tvTitle, u.tvShort, openTvisa)),
@@ -1529,7 +1499,7 @@ function renderServices() {
       h('div', { class: 'svgrid' },
         sv('booking', () => openRequest(null)),
         sv('passport', () => openRequest('passport')),
-        sv('lawyer', openLawyer),
+        sv('lawyer', () => openRequest('lawyer')),
         sv('printmail', () => openRequest('printmail')),
         sv('tvisa', openTvisa),
         sv('design', () => window.open(waLink(design ? design.msg : u.waHello), '_blank', 'noopener'))),

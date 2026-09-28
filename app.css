@@ -383,16 +383,3 @@ body { padding-bottom: calc(96px + var(--navh) + env(safe-area-inset-bottom, 0px
 /* Video explanation button (TikTok) */
 .btn.video { background: #111; border-color: #111; color: #fff; margin: 10px 0 4px; }
 .btn.video svg { width: 20px; height: 20px; }
-
-/* Lawyer partner */
-.lawyer-card { display: flex; align-items: center; gap: 12px; width: 100%; margin: 0 0 14px; padding: 12px; border-radius: 16px; border: 1px solid var(--navy); background: var(--card); color: var(--ink); font: inherit; text-align: start; cursor: pointer; box-shadow: 0 1px 2px rgba(15,45,69,.05), 0 6px 18px rgba(15,45,69,.07); }
-.lawyer-card i { flex: none; width: 46px; height: 46px; border-radius: 12px; background: var(--navy); color: #fff; display: grid; place-items: center; }
-.lawyer-card i svg { width: 26px; height: 26px; }
-.lw-body { flex: 1; display: flex; flex-direction: column; }
-.lw-body b { font-size: 16px; }
-.lw-body small { color: var(--muted); font-size: 12.5px; line-height: 1.6; }
-.lw-sub { margin: 0; color: var(--navy); font-weight: 700; font-size: 14px; line-height: 1.7; }
-.lawyer .trust { margin: 6px 0 0; }
-.lawyer .btn.big { margin-top: 14px; }
-.lawyer .btn.soft { margin-top: 6px; }
-.home .lawyer-card { margin: 10px 0 0; }
