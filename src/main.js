@@ -1,6 +1,6 @@
 import { LISTS } from './lists.js';
 import { FIELDS, FIXED, SECTIONS, LABELS } from './schema.js';
-import { UI, OWNER, SERVICES, NOTICES } from './texts.js';
+import { UI, OWNER, SERVICES, NOTICES, IMPACT, OCCASIONS } from './texts.js';
 import { drawSheet, sheetFontsReady } from './sheet.js';
 import { jpegPagePdf } from './pdf.js';
 import { MISSIONS, OWN_FORMS, NO_FORM, missionTitle, findMission } from './missions.js';
@@ -794,12 +794,33 @@ function noticeCards() {
 }
 
 // ---------- a personal note from Husham ----------
+// Today's occasion, if any (yearly MM-DD ranges may wrap past New Year).
+function occasionToday(now = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const md = `${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const ymd = `${now.getFullYear()}-${md}`;
+  return OCCASIONS.find((o) => {
+    if (o.from.length === 10) return ymd >= o.from && ymd <= o.to;
+    return o.from <= o.to ? md >= o.from && md <= o.to : md >= o.from || md <= o.to;
+  });
+}
 function meRibbon() {
   const u = t();
-  return h('button', { class: 'me-ribbon', type: 'button', onclick: openAboutMe },
+  const occ = occasionToday();
+  const L = app.lang === 'Kur' ? 'Kur' : 'Ara';
+  const ribbon = h('button', { class: 'me-ribbon' + (occ ? ' festive' : ''), type: 'button', onclick: openAboutMe },
     h('img', { src: OWNER.photo, alt: '', width: 52, height: 52 }),
-    h('span', { class: 'me-body' }, h('small', { class: 'me-tag', text: u.meTag }), h('span', { text: u.meRibbon })),
+    h('span', { class: 'me-body' },
+      h('small', { class: 'me-tag', text: occ ? occ.tag[L] : u.meTag }),
+      h('span', { text: occ ? `${occ.text[L]} — ${OWNER.name[app.lang]}` : u.meRibbon })),
     h('span', { class: 'me-more', text: u.meMore }));
+  const stat = (num, label) => h('div', { class: 'imp' }, h('b', { text: num }), h('small', { text: label }));
+  const impact = h('div', { class: 'impact', role: 'group', 'aria-label': u.impAsOf(IMPACT.asOf[L]) },
+    stat(`+${IMPACT.people}`, u.impPeople),
+    stat(`+${IMPACT.forms}`, u.impForms),
+    stat(u.impFree, u.impFreeSub),
+    h('small', { class: 'imp-date', text: u.impAsOf(IMPACT.asOf[L]) }));
+  return h('div', { class: 'me-wrap' }, ribbon, impact);
 }
 function openAboutMe() {
   const u = t();

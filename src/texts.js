@@ -6,7 +6,6 @@ export const OWNER = {
   tiktok: 'https://vm.tiktok.com/ZGdQbPGJ5/',
 };
 
-// Services offered through the request form. `ar` is what the WhatsApp message carries.
 // Official announcements from Iraqi missions. Each one shows from `from` to `to`
 // (inclusive, the device's date) and then disappears by itself.
 export const NOTICES = [
@@ -21,6 +20,28 @@ export const NOTICES = [
   },
 ];
 
+// Impact numbers shown in the app. Keep them real: update them from the
+// Vercel Analytics page (visitors, and form_completed + consular_form).
+export const IMPACT = { people: 200, forms: 35, asOf: { Ara: 'أيلول 2026', Kur: 'ئەیلوولی 2026' } };
+
+// Greetings shown in the personal ribbon on these days. Yearly dates use MM-DD;
+// Islamic dates are the expected ones (moon sighting can move them a day).
+export const OCCASIONS = [
+  { from: '10-01', to: '10-04', tag: { Ara: 'اليوم الوطني العراقي', Kur: 'ڕۆژی نیشتمانی عێراق' },
+    text: { Ara: 'كل عام والعراق بخير. بمناسبة اليوم الوطني العراقي، تحية لكل العراقيين بالغربة، أنتم فخر بلدكم.', Kur: 'هەموو ساڵێک عێراق بە خێر بێت. بە بۆنەی ڕۆژی نیشتمانی، سڵاو بۆ هەموو عێراقییەکانی دەرەوە.' } },
+  { from: '12-24', to: '01-01', tag: { Ara: 'عيد الميلاد ورأس السنة', Kur: 'جەژنی لەدایکبوون و سەری ساڵ' },
+    text: { Ara: 'عيد ميلاد مجيد وسنة جديدة سعيدة لكل العراقيين. أتمنى تكون سنة خير وأمان عليكم وعلى العراق.', Kur: 'جەژنی لەدایکبوونتان پیرۆز و ساڵی نوێتان خۆش. هیوادارم ساڵێکی پڕ لە خێر بێت.' } },
+  { from: '2027-02-07', to: '2027-02-14', tag: { Ara: 'رمضان كريم', Kur: 'ڕەمەزانتان پیرۆز' },
+    text: { Ara: 'رمضان كريم، تقبّل الله صيامكم وطاعاتكم، وأعاده عليكم وعلى أهلكم بالخير.', Kur: 'ڕەمەزانتان پیرۆز، خوا ڕۆژوو و پەرستنەکانتان وەربگرێت.' } },
+  { from: '2027-03-08', to: '2027-03-13', tag: { Ara: 'عيد الفطر', Kur: 'جەژنی ڕەمەزان' },
+    text: { Ara: 'عيد فطر مبارك، وكل عام وأنتم بخير. أعاده الله عليكم وعلى العراق بالأمن والفرح.', Kur: 'جەژنتان پیرۆز، هەموو ساڵێک بە خێر بن.' } },
+  { from: '03-20', to: '03-22', tag: { Ara: 'نوروز', Kur: 'نەورۆز' },
+    text: { Ara: 'نوروز مبارك لأهلنا الكورد ولكل العراقيين. سنة جديدة مليانة خير وربيع.', Kur: 'نەورۆزتان پیرۆز! ساڵێکی نوێی پڕ لە خێر و بەهار.' } },
+  { from: '2027-05-15', to: '2027-05-19', tag: { Ara: 'عيد الأضحى', Kur: 'جەژنی قوربان' },
+    text: { Ara: 'عيد أضحى مبارك، وكل عام وأنتم بخير. تقبّل الله من الحجاج ومنّا ومنكم.', Kur: 'جەژنی قوربانتان پیرۆز، هەموو ساڵێک بە خێر بن.' } },
+];
+
+// Services offered through the request form. `ar` is what the WhatsApp message carries.
 export const SERVICES = [
   { id: 'nid', ar: 'البطاقة الوطنية', ku: 'کارتی نیشتمانی' },
   { id: 'passport', ar: 'الجواز الإلكتروني', ku: 'پاسپۆرتی ئەلیکترۆنی' },
@@ -41,6 +62,7 @@ export const UI = {
     dir: 'rtl',
     noticeShow: (n) => `عرض إعلانات السفارات (${n})`,
     noticeHide: 'إخفاء الإعلان',
+    impPeople: 'شخص استخدموا البرنامج', impForms: 'استمارة تجهّزت', impFree: 'مجاني', impFreeSub: 'بدون أي رسوم', impAsOf: (d) => `حتى ${d}`,
     meTag: 'من القلب',
     meRibbon: 'أنا هشام، عراقي مغترب مثلك. سوّيت هذا البرنامج مجاناً لأن مساعدة أهلنا بالغربة تفرحني.',
     meMore: 'تعرّف عليّ',
@@ -317,6 +339,7 @@ export const UI = {
     dir: 'rtl',
     noticeShow: (n) => `پیشاندانی ڕاگەیاندنەکانی باڵیۆزخانە (${n})`,
     noticeHide: 'شاردنەوەی ڕاگەیاندن',
+    impPeople: 'کەس بەرنامەکەیان بەکارهێنا', impForms: 'فۆرم ئامادە کرا', impFree: 'خۆڕایی', impFreeSub: 'بێ هیچ کرێیەک', impAsOf: (d) => `تا ${d}`,
     meTag: 'لە دڵەوە',
     meRibbon: 'من هیشامم، عێراقییەکی دوور لە وڵات وەک تۆ. ئەم بەرنامەیەم بە خۆڕایی دروست کرد چونکە یارمەتیدانی خەڵکەکەمان دڵخۆشم دەکات.',
     meMore: 'بمناسە',
