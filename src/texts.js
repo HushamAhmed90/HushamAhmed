@@ -44,7 +44,7 @@ export const OCCASIONS = [
 // Video explanations (TikTok links). A "watch the explanation" button shows
 // only where a link is set; empty = hidden.
 export const VIDEOS = {
-  nid: '',            // استمارة البطاقة الوطنية
+  nid: 'https://vm.tiktok.com/ZGdQcRqf5/',            // استمارة البطاقة الوطنية
   consular_poa: 'https://vm.tiktok.com/ZGdQvwBEd/',   // الوكالة
   consular_life: '',  // شهادة الحياة
   consular_apostille: 'https://vm.tiktok.com/ZGdQcjAfG/', // تصديق بيان الولادة الألماني
