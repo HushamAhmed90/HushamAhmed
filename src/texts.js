@@ -51,7 +51,7 @@ export const VIDEOS = {
   booking: '',        // حجز موعد بالسفارة (ICASS)
   guide_passport: '', guide_record: '', guide_birth: '', guide_marriage: '', guide_laissez: '',
   tvisa: '',          // فيزا تركيا
-  pension: '',        // تحديث بيانات المتقاعدين
+  pension: 'https://vm.tiktok.com/ZGdQcd8PC/',        // تحديث بيانات المتقاعدين
 };
 
 // Services offered through the request form. `ar` is what the WhatsApp message carries.
