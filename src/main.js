@@ -19,6 +19,7 @@ const app = {
   values: {},        // raw values of the current form (codes for pick fields)
   open: 'names',     // open section id
   review: false,
+  section: 'home',   // 'home' | 'forms' | 'guide' | 'services'
   view: 'nid',       // 'nid' | 'consular'
   cReview: false,
 };
@@ -708,7 +709,6 @@ function header() {
       h('a', { class: 'owner-who', href: waLink(t().waHello), target: '_blank', rel: 'noopener', onclick: () => count('whatsapp_click', { place: 'header' }) },
         h('img', { src: o.photo, alt: '', width: 30, height: 30 }),
         h('span', { text: `${t().by} ${o.name[app.lang]}` })),
-      quickNav(),
       social('tt', o.tiktok, 'TikTok', 'tiktok_click'),
       social('fb', o.facebook, 'Facebook', 'facebook_click'),
       social('wa', waLink(t().waHello), 'WhatsApp', 'whatsapp_click')));
@@ -1198,6 +1198,7 @@ function missionSelect() {
 }
 
 function renderConsular(keepScroll) {
+  app.section = 'forms'; persistSection();
   const u = t();
   const y = scrollY;
   suggesters.clear();
@@ -1209,10 +1210,9 @@ function renderConsular(keepScroll) {
   const formOptions = cState.country === 'ألمانيا' ? u.cForms : { poa: u.cForms.poa, life: u.cForms.life };
   const docs = C_REQUIRED[cState.form];
   $('#app').replaceChildren(
-    header(), promoBanner(), tabs(), noticeCards(), meRibbon(),
+    header(), tabs(),
     h('main', { class: 'cards consular' },
       h('p', { class: 'note', text: u.cIntro }),
-      h('button', { class: 'btn soft wide guidecta', type: 'button', text: u.gCta, onclick: openGuides }),
       h('section', { class: 'card open' }, h('div', { class: 'card-body flat' },
         h('p', { class: 'qlabel', text: u.cCountry }), countrySelect(),
         h('div', { class: 'cwelcome' },
@@ -1243,6 +1243,7 @@ function renderConsular(keepScroll) {
         h('p', { class: 'hint', text: u.cRequiredNote }))),
       h('p', { class: 'disclaimer', text: u.disclaimer })),
     h('div', { class: 'dock' }, h('button', { class: 'btn primary wide big', type: 'button', text: noForm() ? u.cOptionalSheet : u.review, onclick: () => cGoReview() })),
+    bottomNav(),
   );
   if (keepScroll) scrollTo(0, y);
 }
@@ -1321,6 +1322,7 @@ async function cPaint(scale) {
 
 let cCanvas = null;
 async function renderConsularReview() {
+  app.section = 'forms';
   const u = t();
   const preview = h('img', { class: 'paper', alt: u.cReviewTitle });
   const service = cState.form === 'poa' ? 'poa' : cState.form === 'apostille' ? 'legal' : 'life';
@@ -1366,6 +1368,7 @@ async function renderConsularReview() {
       h('button', { class: 'btn ghost', type: 'button', text: u.print, onclick: async () => {
         count('consular_print'); const c = await cPaint(2.5); const img = $('#print-page'); img.src = c.toDataURL('image/png');
         await img.decode().catch(() => {}); window.print(); } })),
+    bottomNav(),
   );
   scrollTo(0, 0);
   cCanvas = await cPaint(2);
@@ -1388,15 +1391,120 @@ async function cExport(kind, btn, fname) {
   finally { busy = false; btn.textContent = label; btn.disabled = false; }
 }
 
+// ---------- sections and bottom navigation ----------
+const SECTION_KEY = 'bitaqa.section';
+function persistSection() { try { localStorage.setItem(SECTION_KEY, app.section); } catch (e) { /* ignore */ } }
+const NAV_ICON = {
+  home: '<svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>',
+  forms: '<svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M6 3h8l4 4v14H6z M14 3v4h4 M9 12h6 M9 16h6"/></svg>',
+  guide: '<svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z M4 21V5 M8 7h7"/></svg>',
+  services: '<svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M4 8h16v12H4z M9 8V5h6v3 M4 13h16"/></svg>',
+};
+function goSection(sec) {
+  closeSheet();
+  app.section = sec; persistSection();
+  count('nav', { to: sec });
+  renderCurrent(); scrollTo(0, 0);
+}
+function bottomNav() {
+  const u = t();
+  const item = (sec, label) => h('button', { class: 'navbtn' + (app.section === sec ? ' on' : ''), type: 'button', 'aria-current': app.section === sec ? 'page' : null,
+    onclick: () => { if (app.section === sec && sec !== 'forms') { scrollTo(0, 0); return; } goSection(sec); } },
+    h('i', { html: NAV_ICON[sec] }), h('span', { text: label }));
+  return h('nav', { class: 'bottomnav', 'aria-label': u.appName },
+    item('home', u.navHome), item('forms', u.navForms), item('guide', u.navGuide), item('services', u.navServices));
+}
+function openForms(view) {
+  app.view = view; persistView();
+  app.review = false; app.cReview = false;
+  goSection('forms');
+}
+function renderHome() {
+  const u = t();
+  const tile = (key, onclick, cls = '') => h('button', { class: 'tile ' + cls, type: 'button', onclick: () => { count('home_tile', { tile: key }); onclick(); } },
+    h('i', { html: NAV_ICON[key === 'consular' || key === 'nid' ? 'forms' : key] }),
+    h('b', { text: u.homeTiles[key][0] }), h('small', { text: u.homeTiles[key][1] }));
+  const hot = (title, sub, onclick) => h('button', { class: 'hotcard', type: 'button', onclick },
+    h('span', { class: 'hot-tag', text: u.homeNew }), h('b', { text: title }), h('small', { text: sub }));
+  const cur = currentForm();
+  const started = cur && Object.keys(cur.values || {}).length;
+  $('#app').replaceChildren(
+    header(),
+    noticeCards(),
+    h('main', { class: 'home' },
+      started ? h('button', { class: 'continue', type: 'button', onclick: () => openForms('nid') },
+        h('b', { text: u.homeContinue(personName(cur.values)) }),
+        h('small', { text: formMissing(cur.values) ? `${u.formMissing} (${formMissing(cur.values)})` : u.formDone })) : null,
+      h('h2', { class: 'home-ask', text: u.homeAsk }),
+      h('div', { class: 'tiles' },
+        tile('nid', () => openForms('nid'), 'main'),
+        tile('consular', () => openForms('consular'), 'main'),
+        tile('guide', () => goSection('guide')),
+        tile('services', () => goSection('services'))),
+      h('div', { class: 'hots' },
+        hot(u.pnTitle, u.pnShort, openPension),
+        hot(u.tvTitle, u.tvShort, openTvisa)),
+      meRibbon(),
+      promoBanner(),
+      h('p', { class: 'disclaimer', text: u.disclaimer })),
+    bottomNav(),
+  );
+}
+function renderGuide() {
+  const u = t();
+  const row = (title, short, onclick) => h('button', { class: 'gcard', type: 'button', onclick },
+    h('b', { text: title }), h('small', { text: short }), h('i', { html: ICON.chevron }));
+  $('#app').replaceChildren(
+    header(),
+    h('main', { class: 'page' },
+      h('h2', { text: u.gTitle }),
+      h('p', { class: 'note', text: u.gIntro }),
+      h('div', { class: 'glist' },
+        GUIDES.map((g) => row(g[app.lang].title, g[app.lang].short, () => openGuide(g.id))),
+        row(u.pnTitle, u.pnShort, openPension),
+        row(u.tvTitle, u.tvShort, openTvisa)),
+      h('p', { class: 'disclaimer', text: u.disclaimer })),
+    bottomNav(),
+  );
+}
+function renderServices() {
+  const u = t();
+  const design = UI.Ara.promos.find((p) => p.key === 'design');
+  const sv = (key, onclick) => h('button', { class: 'svbtn', type: 'button', text: u.svItems[key], onclick: () => { count('service_click', { item: key }); onclick(); } });
+  $('#app').replaceChildren(
+    header(),
+    h('main', { class: 'page' },
+      h('h2', { text: u.svTitle }),
+      h('p', { class: 'note', text: u.svIntro }),
+      h('p', { class: 'trust', html: ICON.check }, u.noUpfront),
+      h('button', { class: 'btn primary wide big', type: 'button', text: u.svRequest, onclick: () => openRequest(null) }),
+      h('div', { class: 'svgrid' },
+        sv('booking', () => openRequest(null)),
+        sv('passport', () => openRequest('passport')),
+        sv('lawyer', () => openRequest('lawyer')),
+        sv('printmail', () => openRequest('printmail')),
+        sv('tvisa', openTvisa),
+        sv('design', () => window.open(waLink(design ? design.msg : u.waHello), '_blank', 'noopener'))),
+      h('a', { class: 'btn wa wide', href: waLink(u.waHello), target: '_blank', rel: 'noopener', html: ICON.wa, onclick: () => count('whatsapp_click', { place: 'services' }) }, u.whatsapp),
+      meRibbon(),
+      h('div', { class: 'two' },
+        h('a', { class: 'btn tt', href: OWNER.tiktok, target: '_blank', rel: 'noopener', html: ICON.tt, onclick: () => count('tiktok_click', { place: 'services' }) }, u.tiktok),
+        h('a', { class: 'btn fb', href: OWNER.facebook, target: '_blank', rel: 'noopener', html: ICON.fb, onclick: () => count('facebook_click', { place: 'services' }) }, u.facebook)),
+      h('div', { class: 'two' },
+        h('button', { class: 'btn soft', type: 'button', text: u.saveContact, onclick: saveContact }),
+        h('button', { class: 'btn soft', type: 'button', text: u.shareApp, onclick: shareApp })),
+      h('p', { class: 'disclaimer', text: u.disclaimer })),
+    bottomNav(),
+  );
+}
+
 // ---------- screens ----------
 function renderForm() {
+  app.section = 'forms'; persistSection();
   const root = $('#app');
   root.replaceChildren(
     header(),
-    promoBanner(),
     tabs(),
-    noticeCards(),
-    meRibbon(),
     h('div', { class: 'progress' },
       h('button', { class: 'fambar', type: 'button', onclick: openFamily },
         h('span', { class: 'fambar-who' }, h('small', { text: t().editing }), h('b', { text: personName(app.values) })),
@@ -1404,11 +1512,9 @@ function renderForm() {
       h('p', { id: 'progress-text' }),
       h('div', { class: 'track' }, h('div', { id: 'progress-bar', class: 'fill' }))),
     h('main', { class: 'cards' }, SECTIONS.map(sectionCard),
-      h('div', { class: 'two' },
-        h('button', { class: 'btn ghost', type: 'button', text: t().saveContact, onclick: saveContact }),
-        h('button', { class: 'btn ghost', type: 'button', text: t().shareApp, onclick: shareApp })),
       h('p', { class: 'disclaimer', text: t().disclaimer })),
     h('div', { class: 'dock' }, h('button', { class: 'btn primary wide big', type: 'button', text: t().review, onclick: () => goReview() })),
+    bottomNav(),
   );
   refreshStatus();
 }
@@ -1450,6 +1556,7 @@ async function paint(scale) {
 }
 
 async function renderReview() {
+  app.section = 'forms';
   const u = t();
   const preview = h('img', { class: 'paper', alt: u.reviewTitle });
   const root = $('#app');
@@ -1486,6 +1593,7 @@ async function renderReview() {
       h('button', { class: 'btn primary', type: 'button', text: u.savePdf, onclick: (e) => save('pdf', e.currentTarget) }),
       h('button', { class: 'btn ghost', type: 'button', text: u.edit, onclick: () => history.back() }),
       h('button', { class: 'btn ghost', type: 'button', text: u.print, onclick: doPrint })),
+    bottomNav(),
   );
   scrollTo(0, 0);
   sheetCanvas = await paint(2);
@@ -1581,6 +1689,9 @@ function installBtn() {
   } });
 }
 const renderCurrent = () => {
+  if (app.section === 'home') return renderHome();
+  if (app.section === 'guide') return renderGuide();
+  if (app.section === 'services') return renderServices();
   if (app.view === 'consular') return app.cReview ? renderConsularReview() : renderConsular();
   return app.review ? renderReview() : renderForm();
 };
@@ -1589,6 +1700,7 @@ addEventListener('appinstalled', () => { installEvent = null; count('app_install
 
 addEventListener('popstate', () => {
   if ($('#veil')) { closeSheet(); return; }
+  if (app.section !== 'forms') { app.review = false; app.cReview = false; return; }
   if (app.cReview) { app.cReview = false; renderConsular(); scrollTo(0, 0); return; }
   if (app.review) { app.review = false; renderForm(); scrollTo(0, 0); }
 });
@@ -1619,13 +1731,14 @@ function askResume() {
 
 function start() {
   try { app.view = localStorage.getItem('bitaqa.view') === 'consular' ? 'consular' : 'nid'; } catch (e) { /* ignore */ }
+  try { const sec = localStorage.getItem(SECTION_KEY); if (['home', 'forms', 'guide', 'services'].includes(sec)) app.section = sec; } catch (e) { /* ignore */ }
   const saved = restore();
   if (saved && saved.lang) {
     app.lang = saved.lang;
     document.documentElement.lang = app.lang === 'Ara' ? 'ar' : 'ckb';
     loadSaved(saved);
     renderCurrent();
-    if (hasData(saved) && app.view === 'nid') askResume();
+    if (hasData(saved) && app.section === 'forms' && app.view === 'nid') askResume();
   } else {
     welcome(saved);
   }
