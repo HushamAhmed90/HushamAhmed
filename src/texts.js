@@ -7,6 +7,20 @@ export const OWNER = {
 };
 
 // Services offered through the request form. `ar` is what the WhatsApp message carries.
+// Official announcements from Iraqi missions. Each one shows from `from` to `to`
+// (inclusive, the device's date) and then disappears by itself.
+export const NOTICES = [
+  {
+    id: 'frankfurt-holiday-2026-10-02', from: '2026-09-28', to: '2026-10-02',
+    who: { Ara: 'القنصلية العامة لجمهورية العراق في فرانكفورت', Kur: 'کونسوڵخانەی گشتی عێراق لە فرانکفۆرت' },
+    title: { Ara: 'إعلان عطلة رسمية', Kur: 'ڕاگەیاندنی پشووی فەرمی' },
+    text: {
+      Ara: 'بمناسبة أيام السيادة، القنصلية معطّلة يوم الجمعة 2 تشرين الأول فقط. باقي الأيام الدوام طبيعي. من عنده موعد يوم الجمعة يقدر يراجع بالأيام اللي بعدها.',
+      Kur: 'بە بۆنەی ڕۆژانی سەروەری، کونسوڵخانە تەنها ڕۆژی هەینی 2ی تشرینی یەکەم داخراوە. ڕۆژەکانی تر دەوام ئاساییە. ئەوەی ژوانی هەینی هەیە دەتوانێت لە ڕۆژانی دواتر سەردان بکات.',
+    },
+  },
+];
+
 export const SERVICES = [
   { id: 'nid', ar: 'البطاقة الوطنية', ku: 'کارتی نیشتمانی' },
   { id: 'passport', ar: 'الجواز الإلكتروني', ku: 'پاسپۆرتی ئەلیکترۆنی' },
@@ -25,6 +39,7 @@ export const SERVICES = [
 export const UI = {
   Ara: {
     dir: 'rtl',
+    noticeHide: 'إخفاء الإعلان',
     meTag: 'من القلب',
     meRibbon: 'أنا هشام، عراقي مغترب مثلك. سوّيت هذا البرنامج مجاناً لأن مساعدة أهلنا بالغربة تفرحني.',
     meMore: 'تعرّف عليّ',
@@ -299,6 +314,7 @@ export const UI = {
   },
   Kur: {
     dir: 'rtl',
+    noticeHide: 'شاردنەوەی ڕاگەیاندن',
     meTag: 'لە دڵەوە',
     meRibbon: 'من هیشامم، عێراقییەکی دوور لە وڵات وەک تۆ. ئەم بەرنامەیەم بە خۆڕایی دروست کرد چونکە یارمەتیدانی خەڵکەکەمان دڵخۆشم دەکات.',
     meMore: 'بمناسە',

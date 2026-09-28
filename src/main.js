@@ -1,6 +1,6 @@
 import { LISTS } from './lists.js';
 import { FIELDS, FIXED, SECTIONS, LABELS } from './schema.js';
-import { UI, OWNER, SERVICES } from './texts.js';
+import { UI, OWNER, SERVICES, NOTICES } from './texts.js';
 import { drawSheet, sheetFontsReady } from './sheet.js';
 import { jpegPagePdf } from './pdf.js';
 import { MISSIONS, OWN_FORMS, NO_FORM, missionTitle, findMission } from './missions.js';
@@ -756,6 +756,32 @@ function openPension() {
   ), { tall: true });
 }
 
+// ---------- official announcements (hide themselves after their end date) ----------
+const NOTICE_KEY = 'bitaqa.noticesHidden';
+function noticeCards() {
+  const u = t();
+  const L = app.lang === 'Kur' ? 'Kur' : 'Ara';
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  let hidden = [];
+  try { hidden = JSON.parse(localStorage.getItem(NOTICE_KEY) || '[]'); } catch (e) { /* ignore */ }
+  const live = NOTICES.filter((n) => today >= n.from && today <= n.to && !hidden.includes(n.id));
+  if (!live.length) return null;
+  return h('div', { class: 'notices' }, live.map((n) => {
+    const card = h('div', { class: 'offnotice', role: 'note' },
+      h('div', { class: 'offnotice-top' },
+        h('small', { text: n.who[L] }),
+        h('button', { class: 'offnotice-x', type: 'button', 'aria-label': u.noticeHide, text: '✕', onclick: () => {
+          try { localStorage.setItem(NOTICE_KEY, JSON.stringify([...hidden, n.id])); } catch (e) { /* ignore */ }
+          card.remove(); count('notice_hide', { id: n.id });
+        } })),
+      h('b', { text: n.title[L] }),
+      h('p', { text: n.text[L] }));
+    return card;
+  }));
+}
+
 // ---------- a personal note from Husham ----------
 function meRibbon() {
   const u = t();
@@ -1151,7 +1177,7 @@ function renderConsular(keepScroll) {
   const formOptions = cState.country === 'ألمانيا' ? u.cForms : { poa: u.cForms.poa, life: u.cForms.life };
   const docs = C_REQUIRED[cState.form];
   $('#app').replaceChildren(
-    header(), promoBanner(), tabs(), meRibbon(),
+    header(), promoBanner(), tabs(), noticeCards(), meRibbon(),
     h('main', { class: 'cards consular' },
       h('p', { class: 'note', text: u.cIntro }),
       h('button', { class: 'btn soft wide guidecta', type: 'button', text: u.gCta, onclick: openGuides }),
@@ -1337,6 +1363,7 @@ function renderForm() {
     header(),
     promoBanner(),
     tabs(),
+    noticeCards(),
     meRibbon(),
     h('div', { class: 'progress' },
       h('button', { class: 'fambar', type: 'button', onclick: openFamily },

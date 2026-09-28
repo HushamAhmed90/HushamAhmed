@@ -309,3 +309,14 @@ input[dir="ltr"].input { text-align: right; }
 .about-head small { color: var(--muted); font-size: 13.5px; }
 .about-sign { font-weight: 700; color: var(--navy); }
 .about .two { margin-top: 8px; }
+
+/* Official announcements */
+.notices { max-width: 592px; margin: 12px auto 0; padding: 0 14px; }
+@media (min-width: 620px) { .notices { padding: 0; } }
+.offnotice { background: #FFF8E6; border: 1px solid #EFD9A3; border-inline-start: 5px solid var(--navy); border-radius: 14px; padding: 10px 12px; }
+.offnotice + .offnotice { margin-top: 8px; }
+.offnotice-top { display: flex; align-items: center; gap: 8px; }
+.offnotice-top small { flex: 1; color: var(--navy); font-weight: 700; font-size: 12.5px; }
+.offnotice-x { border: 0; background: none; color: var(--muted); font-size: 16px; cursor: pointer; padding: 2px 6px; }
+.offnotice b { display: block; font-size: 16px; margin-top: 2px; color: var(--bad); }
+.offnotice p { margin: 4px 0 0; font-size: 14.5px; line-height: 1.8; }
