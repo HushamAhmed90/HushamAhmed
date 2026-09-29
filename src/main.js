@@ -6,6 +6,7 @@ import { jpegPagePdf } from './pdf.js';
 import { MISSIONS, OWN_FORMS, NO_FORM, missionTitle, findMission } from './missions.js';
 import { toLatin, hasArabic } from './translit.js';
 import { GUIDES, findGuide } from './guides.js';
+import { NATUR, NATUR_SOURCES, QUIZ, INTERVIEW } from './natur.js';
 import { FIELDS as C_FIELDS, POA_PURPOSES, REQUIRED as C_REQUIRED, MARITAL, drawConsular, consularFontsReady } from './consular.js';
 
 const KEY = 'bitaqa.forms.v2';
@@ -758,6 +759,87 @@ function openPension() {
   ), { tall: true });
 }
 
+// ---------- German citizenship preparation ----------
+function openNatur() {
+  const u = t();
+  const n = NATUR[app.lang] || NATUR.Ara;
+  count('natur_open');
+  sheet(h('div', { class: 'request tvisa natur' },
+    h('div', { class: 'picker-top' }, h('h2', { text: n.title }), h('button', { class: 'x', type: 'button', 'aria-label': u.close, onclick: closeSheet, text: '✕' })),
+    h('p', { class: 'note', text: n.intro }),
+    h('button', { class: 'btn primary wide big', type: 'button', text: n.quizBtn, onclick: () => startQuiz() }),
+    h('button', { class: 'btn soft wide', type: 'button', text: n.interviewBtn, onclick: openInterview }),
+    h('p', { class: 'qlabel', text: n.needTitle }),
+    h('ul', { class: 'docs' }, n.need.map((x) => h('li', { text: x }))),
+    h('p', { class: 'qlabel', text: n.factsTitle }),
+    h('ul', { class: 'docs' }, n.facts.map((x) => h('li', { text: x }))),
+    h('p', { class: 'notice', text: n.interviewNote }),
+    h('p', { class: 'hint', text: n.help }),
+    h('button', { class: 'btn soft wide', type: 'button', text: u.gHelp, onclick: () => { closeSheet(); openRequest(null, 'مساعدة بالأوراق العراقية المطلوبة للتجنيس (الجنسية الألمانية)'); } }),
+    h('p', { class: 'hint' }, n.source, ...NATUR_SOURCES.map(([name, url]) => h('a', { class: 'srclink', href: url, target: '_blank', rel: 'noopener', text: name }))),
+  ), { tall: true });
+}
+function startQuiz() {
+  const pool = QUIZ.map((q, i) => i);
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  const picked = pool.slice(0, 10);
+  let at = 0; let score = 0;
+  count('quiz_start');
+  const show = () => {
+    const u = t();
+    const n = NATUR[app.lang] || NATUR.Ara;
+    const [q, opts, right, why] = QUIZ[picked[at]];
+    let answered = false;
+    const expl = h('div', { class: 'quiz-expl' });
+    const nextBtn = h('button', { class: 'btn primary wide', type: 'button', hidden: true,
+      text: at + 1 < picked.length ? n.next : n.finish, onclick: () => { at += 1; if (at < picked.length) show(); else done(); } });
+    const buttons = opts.map((o, i) => h('button', { class: 'quiz-opt', type: 'button', text: o, onclick: () => {
+      if (answered) return;
+      answered = true;
+      if (i === right) score += 1;
+      buttons.forEach((b, k) => { b.classList.toggle('ok', k === right); b.classList.toggle('bad', k === i && i !== right); b.disabled = true; });
+      expl.replaceChildren(h('b', { class: i === right ? 'good' : 'badtxt', text: i === right ? n.right : n.wrong }), ' ', why);
+      nextBtn.hidden = false;
+    } }));
+    sheet(h('div', { class: 'quiz' },
+      h('div', { class: 'picker-top' }, h('small', { class: 'quiz-count', text: n.qOf(at + 1, picked.length) }), h('button', { class: 'x', type: 'button', 'aria-label': u.close, onclick: openNatur, text: '✕' })),
+      h('div', { class: 'quiz-bar' }, h('i', { style: null })),
+      h('h2', { class: 'quiz-q', text: q }),
+      h('div', { class: 'quiz-opts' }, buttons),
+      expl, nextBtn,
+      h('p', { class: 'hint', text: n.quizNote })), { tall: true });
+    const bar = $('.quiz-bar i'); if (bar) bar.style.width = `${((at) / picked.length) * 100}%`;
+  };
+  const done = () => {
+    const u = t();
+    const n = NATUR[app.lang] || NATUR.Ara;
+    count('quiz_done', { score });
+    sheet(h('div', { class: 'quiz msg' },
+      h('div', { class: 'picker-top' }, h('h2', { text: n.result(score, picked.length) }), h('button', { class: 'x', type: 'button', 'aria-label': u.close, onclick: openNatur, text: '✕' })),
+      h('div', { class: 'quiz-score' + (score >= 5 ? ' pass' : '') }, h('b', { text: `${score}/${picked.length}` })),
+      h('p', { text: score >= 5 ? n.pass : n.fail }),
+      h('button', { class: 'btn primary wide', type: 'button', text: n.again, onclick: () => startQuiz() }),
+      h('button', { class: 'btn soft wide', type: 'button', text: n.interviewBtn, onclick: openInterview }),
+      h('button', { class: 'btn ghost wide', type: 'button', text: shareLabel(), onclick: shareApp })));
+  };
+  show();
+}
+const shareLabel = () => t().shareApp;
+function openInterview() {
+  const u = t();
+  const n = NATUR[app.lang] || NATUR.Ara;
+  count('interview_open');
+  sheet(h('div', { class: 'request interview' },
+    h('div', { class: 'picker-top' }, h('h2', { text: n.ivTitle }), h('button', { class: 'x', type: 'button', 'aria-label': u.close, onclick: openNatur, text: '✕' })),
+    h('p', { class: 'note', text: n.ivIntro }),
+    INTERVIEW.map(([de, ar, tip, sample]) => h('div', { class: 'ivcard' },
+      h('b', { class: 'ivq', dir: 'ltr', text: de }),
+      h('p', { class: 'iva', text: ar }),
+      h('p', { class: 'ivtip' }, h('small', { text: `${n.ivTip}: ` }), tip),
+      h('details', {}, h('summary', { text: n.ivSample }), h('p', { class: 'ivs', dir: 'ltr', text: sample })))),
+  ), { tall: true });
+}
+
 // ---------- video explanations (open on TikTok; hidden until a link is set) ----------
 function videoBtn(key) {
   const url = VIDEOS[key];
@@ -1433,6 +1515,7 @@ const ICONS = {
   scale: svgI('<path d="M12 3v18M7 21h10M5 7h14M5 7l-3 7a3.5 3.5 0 0 0 6 0zM19 7l-3 7a3.5 3.5 0 0 0 6 0z"/>'),
   printer: svgI('<path d="M7 9V3h10v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/>'),
   pen: svgI('<path d="M4 20l4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10z"/><path d="M13.5 6.5l3 3"/>'),
+  flag: svgI('<path d="M5 21V4"/><path d="M5 4h13l-2.5 4L18 12H5"/>'),
   calendar: svgI('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18M8 14h3v3H8z"/>'),
 };
 const GUIDE_ICON = { passport: 'passport', record: 'shield', birth: 'baby', marriage: 'rings', laissez: 'plane' };
@@ -1481,7 +1564,10 @@ function renderHome() {
         tile('services', () => goSection('services'))),
       h('div', { class: 'hots' },
         hot('wallet', u.pnTitle, u.pnShort, openPension),
-        hot('plane', u.tvTitle, u.tvShort, openTvisa)),
+        hot('plane', u.tvTitle, u.tvShort, openTvisa),
+        h('button', { class: 'hotcard wide natur-hot', type: 'button', onclick: openNatur },
+          h('span', { class: 'hot-top' }, h('i', { html: ICONS.flag }), h('span', { class: 'hot-tag', text: u.homeNew })),
+          h('b', { text: (NATUR[app.lang] || NATUR.Ara).title }), h('small', { text: (NATUR[app.lang] || NATUR.Ara).short }))),
       meRibbon(),
       promoBanner(),
       h('p', { class: 'disclaimer', text: u.disclaimer })),
@@ -1500,6 +1586,7 @@ function renderGuide() {
       h('h2', { text: u.gTitle }),
       h('p', { class: 'note', text: u.gIntro }),
       h('div', { class: 'glist' },
+        row('flag', (NATUR[app.lang] || NATUR.Ara).title, (NATUR[app.lang] || NATUR.Ara).short, openNatur),
         GUIDES.map((g) => row(GUIDE_ICON[g.id] || 'doc', g[app.lang].title, g[app.lang].short, () => openGuide(g.id))),
         row('wallet', u.pnTitle, u.pnShort, openPension),
         row('plane', u.tvTitle, u.tvShort, openTvisa)),
