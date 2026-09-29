@@ -1545,7 +1545,7 @@ function renderHome() {
     h('i', { html: ICONS[{ nid: 'idcard', consular: 'doc', guide: 'book', services: 'briefcase' }[key]] }),
     h('b', { text: u.homeTiles[key][0] }), h('small', { text: u.homeTiles[key][1] }));
   const hot = (icon, title, sub, onclick) => h('button', { class: 'hotcard', type: 'button', onclick },
-    h('span', { class: 'hot-top' }, h('i', { html: ICONS[icon] }), h('span', { class: 'hot-tag', text: u.homeNew })),
+    h('span', { class: 'hot-top' }, h('i', { html: ICONS[icon] })),
     h('b', { text: title }), h('small', { text: sub }));
   const cur = currentForm();
   const started = cur && Object.keys(cur.values || {}).length;
@@ -1566,7 +1566,7 @@ function renderHome() {
         hot('wallet', u.pnTitle, u.pnShort, openPension),
         hot('plane', u.tvTitle, u.tvShort, openTvisa),
         h('button', { class: 'hotcard wide natur-hot', type: 'button', onclick: openNatur },
-          h('span', { class: 'hot-top' }, h('i', { html: ICONS.flag }), h('span', { class: 'hot-tag', text: u.homeNew })),
+          h('span', { class: 'hot-top' }, h('i', { html: ICONS.flag })),
           h('b', { text: (NATUR[app.lang] || NATUR.Ara).title }), h('small', { text: (NATUR[app.lang] || NATUR.Ara).short }))),
       meRibbon(),
       promoBanner(),
