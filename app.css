@@ -383,3 +383,49 @@ body { padding-bottom: calc(96px + var(--navh) + env(safe-area-inset-bottom, 0px
 /* Video explanation button (TikTok) */
 .btn.video { background: #111; border-color: #111; color: #fff; margin: 10px 0 4px; }
 .btn.video svg { width: 20px; height: 20px; }
+
+/* ---------- Professional polish ---------- */
+:root { --sh: 0 1px 2px rgba(15,45,69,.05), 0 6px 18px rgba(15,45,69,.07); --line-soft: #E3E8EE; }
+.top { padding: 10px 16px 10px; box-shadow: 0 2px 10px rgba(15,45,69,.18); }
+.top h1 { font-size: 16px; letter-spacing: .2px; }
+.owner { margin-top: 6px; }
+.owner-who { font-size: 13px; font-weight: 600; opacity: .95; }
+.owner-who img { width: 26px; height: 26px; }
+.chip { min-height: 32px; font-size: 13px; padding: 2px 12px; }
+
+.card, .tile, .gcard, .svbtn, .hotcard, .me-ribbon, .imp, .offnotice, .continue, .fambar, .owner-card, .printmail { box-shadow: var(--sh); }
+.card, .tile, .gcard, .svbtn, .imp, .fambar { border-color: var(--line-soft); }
+.tile, .gcard, .svbtn, .hotcard, .continue, .me-ribbon, .btn, .navbtn, .chipbtn, .option { transition: transform .12s ease, box-shadow .12s ease, background-color .15s ease; }
+.tile:active, .gcard:active, .svbtn:active, .hotcard:active, .continue:active, .me-ribbon:active, .btn:active { transform: scale(.98); }
+@media (hover: hover) { .tile:hover, .gcard:hover, .svbtn:hover, .hotcard:hover { box-shadow: 0 2px 4px rgba(15,45,69,.06), 0 10px 26px rgba(15,45,69,.1); } }
+
+.home-ask { font-size: 18px; font-weight: 700; color: var(--navy-2); }
+.tile { min-height: 124px; gap: 6px; }
+.tile i { width: 40px; height: 40px; border-radius: 12px; }
+.tile i svg { width: 24px; height: 24px; }
+.tile.main { background: linear-gradient(160deg, #1D4E75, var(--navy) 60%, var(--navy-2)); }
+.hot-top { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: 4px; }
+.hot-top i { width: 34px; height: 34px; border-radius: 10px; background: #fff; color: var(--gold-ink); display: grid; place-items: center; }
+.hot-top i svg { width: 20px; height: 20px; }
+
+.gcard { grid-template-columns: auto 1fr auto; gap: 0 12px; padding: 12px; }
+.gicon { grid-row: 1 / span 2; width: 42px; height: 42px; border-radius: 12px; background: var(--navy-tint); color: var(--navy); display: grid; place-items: center; }
+.gicon svg { width: 22px; height: 22px; }
+.gtext { display: flex; flex-direction: column; min-width: 0; }
+.gtext b { font-size: 15.5px; }
+.gtext small { color: var(--muted); font-size: 12.5px; line-height: 1.6; }
+.gcard > i { grid-row: 1 / span 2; grid-column: 3; }
+
+.svbtn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 86px; }
+.svbtn i { width: 36px; height: 36px; border-radius: 10px; background: var(--navy-tint); display: grid; place-items: center; }
+.svbtn i svg { width: 21px; height: 21px; }
+.svbtn span { font-size: 13.5px; line-height: 1.4; }
+
+.navbtn { font-size: 12px; }
+.navbtn.on i { transform: translateY(-1px); }
+.bottomnav { backdrop-filter: saturate(1.4) blur(8px); background: rgba(255,255,255,.94); }
+
+/* Gentle entrance for each screen */
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.home, .page, main.cards, main.review, .progress, .tabs { animation: rise .22s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .home, .page, main.cards, main.review, .progress, .tabs { animation: none; } .tile, .gcard, .svbtn, .hotcard, .btn { transition: none; } }
