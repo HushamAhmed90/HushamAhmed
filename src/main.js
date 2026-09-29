@@ -1895,6 +1895,27 @@ function askResume() {
       resetAll(); closeSheet(); setLang(app.lang); } })));
 }
 
+// ---------- live content (news, videos, announcements) ----------
+// content.json is edited from the Telegram bot (n8n) and published by Vercel.
+// If it cannot be loaded (offline, broken file), the built-in values stay.
+async function loadContent() {
+  try {
+    const res = await fetch('/content.json', { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (Array.isArray(data.news)) NEWS.splice(0, NEWS.length, ...data.news.filter((n) => n && n.Ara));
+    if (data.videos && typeof data.videos === 'object') {
+      for (const [k, v] of Object.entries(data.videos)) if (typeof v === 'string') VIDEOS[k] = v;
+    }
+    if (Array.isArray(data.notices)) NOTICES.splice(0, NOTICES.length, ...data.notices.filter((n) => n && n.id && n.text));
+    // Refresh only the parts that show this content, so nothing the person is typing is lost.
+    const bar = $('.news'); const fresh = app.lang ? newsTicker() : null;
+    if (bar) { if (fresh) bar.replaceWith(fresh); else bar.remove(); }
+    else if (fresh && app.lang) { const head = $('header.top'); if (head) head.after(fresh); }
+    if (app.section === 'home' && !$('#veil') && app.lang) renderHome();
+  } catch (e) { /* keep built-in content */ }
+}
+
 function start() {
   try { app.view = localStorage.getItem('bitaqa.view') === 'consular' ? 'consular' : 'nid'; } catch (e) { /* ignore */ }
   try { const sec = localStorage.getItem(SECTION_KEY); if (['home', 'forms', 'guide', 'services'].includes(sec)) app.section = sec; } catch (e) { /* ignore */ }
@@ -1915,6 +1936,7 @@ function start() {
   }
 }
 start();
+loadContent();
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
