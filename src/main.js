@@ -1,6 +1,6 @@
 import { LISTS } from './lists.js';
 import { FIELDS, FIXED, SECTIONS, LABELS } from './schema.js';
-import { UI, OWNER, SERVICES, NOTICES, IMPACT, OCCASIONS, VIDEOS } from './texts.js';
+import { UI, OWNER, SERVICES, NOTICES, IMPACT, OCCASIONS, VIDEOS, NEWS } from './texts.js';
 import { drawSheet, sheetFontsReady } from './sheet.js';
 import { jpegPagePdf } from './pdf.js';
 import { MISSIONS, OWN_FORMS, NO_FORM, missionTitle, findMission } from './missions.js';
@@ -840,6 +840,27 @@ function openInterview() {
   ), { tall: true });
 }
 
+// ---------- scrolling news bar ----------
+function newsTicker() {
+  const u = t();
+  const L = app.lang === 'Kur' ? 'Kur' : 'Ara';
+  const now = new Date();
+  const pad = (x) => String(x).padStart(2, '0');
+  const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const items = NEWS.filter((n) => (!n.from || today >= n.from) && (!n.to || today <= n.to));
+  if (!items.length) return null;
+  const go = { natur: openNatur, tvisa: openTvisa, pension: openPension, guide: () => goSection('guide'), services: () => goSection('services'),
+    consular: () => openForms('consular'), nid: () => openForms('nid') };
+  const run = () => items.map((n) => h('button', { class: 'news-item', type: 'button', text: n[L] || n.Ara,
+    onclick: () => { count('news_click', { go: n.go }); (go[n.go] || (() => {}))(); } }));
+  const track = h('div', { class: 'news-track' }, h('div', { class: 'news-run' }, run()), h('div', { class: 'news-run', 'aria-hidden': 'true' }, run()));
+  const chars = items.reduce((a, n) => a + (n[L] || n.Ara).length, 0);
+  track.style.animationDuration = `${Math.max(25, Math.round(chars * 0.22))}s`;
+  return h('div', { class: 'news', role: 'region', 'aria-label': u.newsLabel },
+    h('span', { class: 'news-label', text: u.newsLabel }),
+    h('div', { class: 'news-view' }, track));
+}
+
 // ---------- video explanations (open on TikTok; hidden until a link is set) ----------
 function videoBtn(key) {
   const url = VIDEOS[key];
@@ -1303,7 +1324,7 @@ function renderConsular(keepScroll) {
   const formOptions = cState.country === 'ألمانيا' ? u.cForms : { poa: u.cForms.poa, life: u.cForms.life };
   const docs = C_REQUIRED[cState.form];
   $('#app').replaceChildren(
-    header(), tabs(),
+    header(), newsTicker(), tabs(),
     h('main', { class: 'cards consular' },
       h('p', { class: 'note', text: u.cIntro }),
       h('section', { class: 'card open' }, h('div', { class: 'card-body flat' },
@@ -1551,6 +1572,7 @@ function renderHome() {
   const started = cur && Object.keys(cur.values || {}).length;
   $('#app').replaceChildren(
     header(),
+    newsTicker(),
     noticeCards(),
     h('main', { class: 'home' },
       started ? h('button', { class: 'continue', type: 'button', onclick: () => openForms('nid') },
@@ -1582,6 +1604,7 @@ function renderGuide() {
     h('i', { html: ICON.chevron }));
   $('#app').replaceChildren(
     header(),
+    newsTicker(),
     h('main', { class: 'page' },
       h('h2', { text: u.gTitle }),
       h('p', { class: 'note', text: u.gIntro }),
@@ -1602,6 +1625,7 @@ function renderServices() {
     h('i', { html: ICONS[SV_ICON[key]] }), h('span', { text: u.svItems[key] }));
   $('#app').replaceChildren(
     header(),
+    newsTicker(),
     h('main', { class: 'page' },
       h('h2', { text: u.svTitle }),
       h('p', { class: 'note', text: u.svIntro }),
@@ -1633,6 +1657,7 @@ function renderForm() {
   const root = $('#app');
   root.replaceChildren(
     header(),
+    newsTicker(),
     tabs(),
     h('div', { class: 'progress' },
       h('button', { class: 'fambar', type: 'button', onclick: openFamily },
