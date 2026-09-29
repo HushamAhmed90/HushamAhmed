@@ -936,6 +936,10 @@ function meRibbon() {
     h('small', { class: 'imp-date', text: u.impAsOf(IMPACT.asOf[L]) }));
   return h('div', { class: 'me-wrap' }, ribbon, impact);
 }
+// Independent-app notice (required by Google Play for apps with government information).
+const disclaimerNote = () => h('p', { class: 'disclaimer' }, t().disclaimer, h('br'),
+  h('a', { href: '/privacy.html', target: '_blank', rel: 'noopener', text: t().privacy }));
+
 function openAboutMe() {
   const u = t();
   count('about_open');
@@ -953,6 +957,7 @@ function openAboutMe() {
     h('div', { class: 'two' },
       h('button', { class: 'btn soft', type: 'button', text: u.saveContact, onclick: saveContact }),
       h('button', { class: 'btn soft', type: 'button', text: u.shareApp, onclick: shareApp })),
+    disclaimerNote(),
   ), { tall: true });
 }
 
@@ -1357,7 +1362,7 @@ function renderConsular(keepScroll) {
         h('p', { class: 'qlabel', text: u.cRequired }),
         h('ul', { class: 'docs' }, docs.map(([ar, ku]) => h('li', { text: app.lang === 'Kur' ? ku : ar }))),
         h('p', { class: 'hint', text: u.cRequiredNote }))),
-      h('p', { class: 'disclaimer', text: u.disclaimer })),
+      disclaimerNote()),
     h('div', { class: 'dock' }, h('button', { class: 'btn primary wide big', type: 'button', text: noForm() ? u.cOptionalSheet : u.review, onclick: () => cGoReview() })),
     bottomNav(),
   );
@@ -1593,7 +1598,7 @@ function renderHome() {
           h('b', { text: (NATUR[app.lang] || NATUR.Ara).title }), h('small', { text: (NATUR[app.lang] || NATUR.Ara).short }))),
       meRibbon(),
       promoBanner(),
-      h('p', { class: 'disclaimer', text: u.disclaimer })),
+      disclaimerNote()),
     bottomNav(),
   );
 }
@@ -1614,7 +1619,7 @@ function renderGuide() {
         GUIDES.map((g) => row(GUIDE_ICON[g.id] || 'doc', g[app.lang].title, g[app.lang].short, () => openGuide(g.id))),
         row('wallet', u.pnTitle, u.pnShort, openPension),
         row('plane', u.tvTitle, u.tvShort, openTvisa)),
-      h('p', { class: 'disclaimer', text: u.disclaimer })),
+      disclaimerNote()),
     bottomNav(),
   );
 }
@@ -1647,7 +1652,7 @@ function renderServices() {
       h('div', { class: 'two' },
         h('button', { class: 'btn soft', type: 'button', text: u.saveContact, onclick: saveContact }),
         h('button', { class: 'btn soft', type: 'button', text: u.shareApp, onclick: shareApp })),
-      h('p', { class: 'disclaimer', text: u.disclaimer })),
+      disclaimerNote()),
     bottomNav(),
   );
 }
@@ -1668,7 +1673,7 @@ function renderForm() {
       h('div', { class: 'track' }, h('div', { id: 'progress-bar', class: 'fill' })),
       videoBtn('nid')),
     h('main', { class: 'cards' }, SECTIONS.map(sectionCard),
-      h('p', { class: 'disclaimer', text: t().disclaimer })),
+      disclaimerNote()),
     h('div', { class: 'dock' }, h('button', { class: 'btn primary wide big', type: 'button', text: t().review, onclick: () => goReview() })),
     bottomNav(),
   );
@@ -1743,7 +1748,7 @@ async function renderReview() {
           h('a', { class: 'btn tt', href: OWNER.tiktok, target: '_blank', rel: 'noopener', html: ICON.tt, onclick: () => count('tiktok_click', { place: 'review' }) }, u.tiktok))),
       promoBanner(),
       h('button', { class: 'btn soft wide', type: 'button', text: `${u.familyBtn} (${app.forms.length})`, onclick: openFamily }),
-      h('p', { class: 'disclaimer', text: u.disclaimer })),
+      disclaimerNote()),
     h('div', { class: 'dock grid' },
       h('button', { class: 'btn primary', type: 'button', text: u.saveImg, onclick: (e) => save('png', e.currentTarget) }),
       h('button', { class: 'btn primary', type: 'button', text: u.savePdf, onclick: (e) => save('pdf', e.currentTarget) }),

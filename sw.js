@@ -1,9 +1,9 @@
 // Offline support. Change VERSION whenever any file changes.
-const VERSION = 'bitaqa-60';
+const VERSION = 'bitaqa-61';
 const FILES = [
   '/', '/index.html', '/app.css', '/manifest.webmanifest',
   '/src/main.js', '/src/va.js', '/src/sheet.js', '/src/schema.js', '/src/texts.js', '/src/lists.js', '/src/qr.js', '/src/pdf.js', '/src/consular.js', '/src/missions.js', '/src/translit.js', '/src/guides.js', '/src/natur.js', '/src/vendor/qrcode.mjs',
-  '/fonts/cairo-regular.woff2', '/fonts/cairo-semibold.woff2',
+  '/fonts/cairo-regular.woff2', '/fonts/cairo-semibold.woff2', '/privacy.html', '/privacy.css',
   '/img/emblem.png', '/img/iraq-emblem.png', '/img/owner.jpg', '/img/og.jpg', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.png',
 ];
 

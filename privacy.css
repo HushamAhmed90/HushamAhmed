@@ -1,0 +1,19 @@
+@font-face { font-family: 'Cairo'; src: url('/fonts/cairo-regular.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Cairo'; src: url('/fonts/cairo-semibold.woff2') format('woff2'); font-weight: 600 700; font-display: swap; }
+:root { --ink: #1B2430; --muted: #5B6675; --brand: #173F5F; --bg: #EEF1F5; --card: #fff; --line: #D8DEE6; --warn: #FFF6E0; --warnline: #E9C46A; }
+@media (prefers-color-scheme: dark) {
+  :root { --ink: #E7ECF2; --muted: #A5B0BD; --brand: #8CC4F0; --bg: #10161D; --card: #19212B; --line: #2B3644; --warn: #2A2415; --warnline: #8A6D1F; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.9 'Cairo', system-ui, sans-serif; }
+main { max-width: 720px; margin: 0 auto; padding: 20px 16px 48px; background: var(--card); min-height: 100vh; }
+h1 { color: var(--brand); font-size: 26px; margin: 8px 0 0; }
+h2 { font-size: 18px; margin: 26px 0 4px; }
+p, li { margin: 6px 0; }
+ul { padding-inline-start: 22px; }
+a { color: var(--brand); }
+.meta { color: var(--muted); font-size: 14px; }
+.back { font-size: 15px; }
+.notice { background: var(--warn); border: 1px solid var(--warnline); border-radius: 12px; padding: 12px 14px; margin: 16px 0; font-size: 15px; }
+hr { border: 0; border-top: 1px solid var(--line); margin: 40px 0 24px; }
+section[dir="ltr"] { font-family: system-ui, sans-serif; line-height: 1.7; }
