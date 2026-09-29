@@ -747,6 +747,7 @@ function openPension() {
     h('p', { class: 'note', text: u.pnIntro }),
     videoBtn('pension'),
     h('p', { class: 'notice', text: u.pnDeadline }),
+    h('div', { class: 'abroadbox' }, h('b', { text: u.pnAbroadTitle }), h('ul', { class: 'docs' }, u.pnAbroad.map((x) => h('li', { text: x })))),
     h('p', { class: 'qlabel', text: u.pnNeedTitle }),
     h('ul', { class: 'docs' }, u.pnNeed.map((x) => h('li', { text: x }))),
     h('p', { class: 'qlabel', text: u.pnStepsTitle }),

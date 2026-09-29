@@ -471,3 +471,6 @@ body { padding-bottom: calc(96px + var(--navh) + env(safe-area-inset-bottom, 0px
 @media (prefers-reduced-motion: reduce) { .news-track { animation: none; } .news-view { overflow-x: auto; } }
 .news-track { animation-delay: 2s; }
 .news-run { padding-inline-start: 12px; }
+.abroadbox { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: var(--navy-tint); color: var(--navy-2); }
+.abroadbox b { display: block; margin-bottom: 4px; }
+.abroadbox .docs { font-size: 14px; }
