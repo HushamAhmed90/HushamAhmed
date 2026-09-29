@@ -96,6 +96,7 @@ export const SERVICES = [
 export const UI = {
   Ara: {
     dir: 'rtl',
+    fillDone: (n) => `انعبّت ${n} معلومات من الهوية. راجع كل حقل وكمّل الناقص قبل الطباعة`,
     newsLabel: 'آخر الأخبار',
     videoBtn: 'شوف الشرح بالفيديو',
     navHome: 'الرئيسية', navForms: 'الاستمارات', navGuide: 'الدليل', navServices: 'خدماتي',
@@ -390,6 +391,7 @@ export const UI = {
   },
   Kur: {
     dir: 'rtl',
+    fillDone: (n) => `${n} زانیاری لە ناسنامەکەوە پڕکرایەوە. هەموو خانەیەک بپشکنە و ئەوەی ماوە تەواوی بکە`,
     newsLabel: 'دوایین هەواڵ',
     videoBtn: 'ڕوونکردنەوە بە ڤیدیۆ ببینە',
     navHome: 'سەرەکی', navForms: 'فۆرمەکان', navGuide: 'ڕێبەر', navServices: 'خزمەتگوزاری',

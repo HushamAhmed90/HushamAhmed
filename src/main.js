@@ -1916,19 +1916,78 @@ async function loadContent() {
   } catch (e) { /* keep built-in content */ }
 }
 
+// ---------- form filled in from a link (the Telegram bot reads an ID photo) ----------
+// The data rides in the #fragment, so it never reaches the server; the hash is
+// removed right away. Pick fields arrive as text and are matched to the lists.
+function readFill() {
+  const m = location.hash.match(/^#fill=([A-Za-z0-9_-]+)$/);
+  if (!m) return null;
+  try { history.replaceState(history.state, '', location.pathname + location.search); } catch (e) { /* ignore */ }
+  try {
+    const b64 = m[1].replace(/-/g, '+').replace(/_/g, '/');
+    const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    const data = JSON.parse(new TextDecoder().decode(bytes));
+    return data && typeof data === 'object' ? data : null;
+  } catch (e) { return null; }
+}
+const normAr = (s) => latinDigits(String(s || '')).replace(/[\u064B-\u0652\u0640]/g, '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه')
+  .replace(/[یى]/g, 'ي').replace(/ک/g, 'ك').replace(/^(دائره|مديريه)?\s*(احوال|الاحوال المدنيه في|الاحوال المدنيه)\s*/, '')
+  .replace(/[^\p{L}\p{N}]+/gu, '').toLowerCase();
+function matchPick(key, text) {
+  const rows = listFor(key);
+  const raw = String(text).trim();
+  const byCode = rows.find((r) => r[0] === raw);
+  if (byCode) return byCode[0];
+  const want = normAr(raw);
+  if (!want) return '';
+  const exact = rows.find((r) => normAr(r[1]) === want);
+  if (exact) return exact[0];
+  const near = rows.filter((r) => { const l = normAr(r[1]); return l && (l.includes(want) || want.includes(l)); })
+    .sort((a, b) => Math.abs(normAr(a[1]).length - want.length) - Math.abs(normAr(b[1]).length - want.length));
+  return near.length ? near[0][0] : '';
+}
+function fillValues(data) {
+  const out = {};
+  for (const [k, v] of Object.entries(data)) {
+    const f = FIELDS[k];
+    if (!f || v == null || v === '') continue;
+    if (f.type === 'pick') { const code = matchPick(k, v); if (code) out[k] = code; }
+    else if (f.type === 'date') { const d = latinDigits(String(v)).match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/); if (d) out[k] = `${d[1]}-${d[2].padStart(2, '0')}-${d[3].padStart(2, '0')}`; }
+    else if (f.type === 'num') { const n = latinDigits(String(v)).replace(/\D/g, ''); if (n) out[k] = n; }
+    else out[k] = clean(v).trim();
+  }
+  return out;
+}
+function applyFill(data) {
+  const values = fillValues(data);
+  const n = Object.keys(values).length;
+  if (!n) return false;
+  const cur = currentForm();
+  if (cur && !Object.keys(cur.values || {}).length) { cur.values = values; useForm(cur); } else addForm(values);
+  persist();
+  app.view = 'nid'; persistView(); app.review = false;
+  goSection('forms');
+  count('fill_link', { n });
+  toast(t().fillDone(n), 5000);
+  return true;
+}
+
 function start() {
+  const fill = readFill();
   try { app.view = localStorage.getItem('bitaqa.view') === 'consular' ? 'consular' : 'nid'; } catch (e) { /* ignore */ }
   try { const sec = localStorage.getItem(SECTION_KEY); if (['home', 'forms', 'guide', 'services'].includes(sec)) app.section = sec; } catch (e) { /* ignore */ }
-  const saved = restore();
+  let saved = restore();
   // The first history entry is always the home screen, so back never leaves the app early.
   try {
     history.replaceState({ nav: 1, section: 'home', view: app.view }, '');
     if (app.section !== 'home') history.pushState(navState(), '');
   } catch (e) { /* ignore */ }
+  if (fill && !(saved && saved.lang)) saved = { ...(saved || {}), lang: 'Ara' };
   if (saved && saved.lang) {
     app.lang = saved.lang;
     document.documentElement.lang = app.lang === 'Ara' ? 'ar' : 'ckb';
     loadSaved(saved);
+    if (fill && applyFill(fill)) return;
     renderCurrent();
     if (hasData(saved) && app.section === 'forms' && app.view === 'nid') askResume();
   } else {
@@ -1937,6 +1996,7 @@ function start() {
 }
 start();
 loadContent();
+window.addEventListener('hashchange', () => { const f = readFill(); if (f && app.lang) applyFill(f); });
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
