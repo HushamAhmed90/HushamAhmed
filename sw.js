@@ -1,5 +1,5 @@
 // Offline support. Change VERSION whenever any file changes.
-const VERSION = 'bitaqa-61';
+const VERSION = 'bitaqa-62';
 const FILES = [
   '/', '/index.html', '/app.css', '/manifest.webmanifest',
   '/src/main.js', '/src/va.js', '/src/sheet.js', '/src/schema.js', '/src/texts.js', '/src/lists.js', '/src/qr.js', '/src/pdf.js', '/src/consular.js', '/src/missions.js', '/src/translit.js', '/src/guides.js', '/src/natur.js', '/src/vendor/qrcode.mjs',
@@ -19,7 +19,7 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
-  if (e.request.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/_vercel/') || url.pathname === '/content.json') return;
+  if (e.request.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/_vercel/') || url.pathname === '/content.json' || url.pathname.startsWith('/api/')) return;
   if (e.request.mode === 'navigate') {
     e.respondWith(fetch(e.request).catch(() => caches.match('/index.html')));
     return;

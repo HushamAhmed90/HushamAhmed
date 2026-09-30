@@ -1508,7 +1508,7 @@ async function cExport(kind, btn, fname) {
     const blob = await new Promise((res) => big.toBlob(res, kind === 'png' ? 'image/png' : 'image/jpeg', 0.92));
     const ok = kind === 'png' ? await hand(blob, fname('png'))
       : await hand(jpegPagePdf(new Uint8Array(await blob.arrayBuffer()), big.width, big.height), fname('pdf'));
-    if (ok) { toast(t().saved); count('consular_saved', { kind, form: cState.form }); askRating(); }
+    if (ok) { toast(t().saved); count('consular_saved', { kind, form: cState.form }); tally(`c:${cState.form}:${new Date().toISOString().slice(0, 10)}`, 'f'); askRating(); }
   } catch (e) { console.error(e); toast(t().failed); }
   finally { busy = false; btn.textContent = label; btn.disabled = false; }
 }
@@ -1699,6 +1699,7 @@ function goReview(checked) {
     if (warns.length) { showWarnings(warns, goToNidField, () => goReview(true)); return; }
   }
   count('form_completed');
+  tally('f:' + app.current, 'f');
   app.review = true;
   history.pushState({ review: true }, '');
   renderReview();
@@ -1835,6 +1836,7 @@ function setLang(lang) {
   app.lang = lang;
   document.documentElement.lang = lang === 'Ara' ? 'ar' : 'ckb';
   document.title = UI[lang].appName;
+  tally('p', 'p');
   persist();
   renderCurrent();
 }
@@ -1898,6 +1900,36 @@ function askResume() {
     h('button', { class: 'btn ghost wide', type: 'button', text: u.startOver, onclick: () => {
       if (!confirm(u.confirmNew)) return;
       resetAll(); closeSheet(); setLang(app.lang); } })));
+}
+
+// ---------- live numbers on the home screen (see api/count.js) ----------
+// Sends only "p" once per device and "f" once per finished form; no form data.
+const TALLY_KEY = 'bitaqa.tallied';
+const tallying = new Set();
+async function tally(id, k) {
+  if (tallying.has(id)) return;
+  let done = [];
+  try { done = JSON.parse(localStorage.getItem(TALLY_KEY) || '[]'); } catch (e) { /* ignore */ }
+  if (done.includes(id)) return;
+  tallying.add(id);
+  try {
+    const res = await fetch('/api/count', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ k }), keepalive: true });
+    if (!res.ok) return;
+    done.push(id);
+    localStorage.setItem(TALLY_KEY, JSON.stringify(done.slice(-300)));
+  } catch (e) { /* offline: try again next time */ } finally { tallying.delete(id); }
+}
+async function loadImpact() {
+  try {
+    const res = await fetch('/api/count', { cache: 'no-store' });
+    if (!res.ok) return;
+    const d = await res.json();
+    if (!(d.people > 0 && d.forms > 0)) return;
+    const now = new Date();
+    IMPACT.people = d.people; IMPACT.forms = d.forms;
+    IMPACT.asOf = { Ara: `${UI.Ara.cMonths[now.getMonth()]} ${now.getFullYear()}`, Kur: `${UI.Kur.cMonths[now.getMonth()]} ${now.getFullYear()}` };
+    if (app.section === 'home' && !$('#veil') && app.lang) renderHome();
+  } catch (e) { /* keep built-in numbers */ }
 }
 
 // ---------- live content (news, videos, announcements) ----------
@@ -2001,6 +2033,8 @@ function start() {
 }
 start();
 loadContent();
+loadImpact();
+if (app.lang) tally('p', 'p');
 window.addEventListener('hashchange', () => { const f = readFill(); if (f && app.lang) applyFill(f); });
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
