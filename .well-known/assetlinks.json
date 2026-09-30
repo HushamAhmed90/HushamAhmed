@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.hushamahmed.bitaqa",
+        "sha256_cert_fingerprints": ["D8:59:7C:37:58:19:5E:46:FC:91:5D:9E:AA:62:5F:A1:EA:47:D2:99:AB:F9:0E:18:63:F0:90:70:73:50:9E:17"]
+      }
+    }]
