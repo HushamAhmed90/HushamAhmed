@@ -475,3 +475,4 @@ body { padding-bottom: calc(96px + var(--navh) + env(safe-area-inset-bottom, 0px
 .abroadbox b { display: block; margin-bottom: 4px; }
 .abroadbox .docs { font-size: 14px; }
 .disclaimer a { color: inherit; text-decoration: underline; }
+.offnotice-link { margin-top: 10px; }

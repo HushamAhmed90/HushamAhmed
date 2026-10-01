@@ -901,7 +901,12 @@ function noticeCards() {
           if (!wrap.querySelector('.offnotice')) wrap.append(showAgain());
         } })),
       h('b', { text: n.title[L] }),
-      h('p', { text: n.text[L] }));
+      h('p', { text: n.text[L] }),
+      // Optional official link: only https addresses on Iraqi government domains open.
+      n.link && /^https:\/\/([a-z0-9-]+\.)*gov\.iq(\/|$)/i.test(n.link.url || '')
+        ? h('a', { class: 'btn primary wide offnotice-link', href: n.link.url, target: '_blank', rel: 'noopener',
+          onclick: () => count('notice_link', { id: n.id }) }, (n.link[L] || n.link.Ara || n.link.url))
+        : null);
     return card;
   }));
   return wrap;
