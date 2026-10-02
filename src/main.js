@@ -848,7 +848,7 @@ function newsTicker() {
   const now = new Date();
   const pad = (x) => String(x).padStart(2, '0');
   const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-  const items = NEWS.filter((n) => (!n.from || today >= n.from) && (!n.to || today <= n.to));
+  const items = NEWS.filter((n) => (!n.from || today >= n.from) && (!n.to || today <= n.to) && (!n.until || Date.now() < Date.parse(n.until)));
   if (!items.length) return null;
   const go = { natur: openNatur, tvisa: openTvisa, pension: openPension, guide: () => goSection('guide'), services: () => goSection('services'),
     consular: () => openForms('consular'), nid: () => openForms('nid') };
@@ -880,7 +880,8 @@ function noticeCards() {
   const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   let hidden = [];
   try { hidden = JSON.parse(localStorage.getItem(NOTICE_KEY) || '[]'); } catch (e) { /* ignore */ }
-  const current = NOTICES.filter((n) => today >= n.from && today <= n.to);
+  // `until` (optional ISO time) ends a notice at an exact moment, e.g. 12 hours after posting.
+  const current = NOTICES.filter((n) => today >= n.from && today <= n.to && (!n.until || Date.now() < Date.parse(n.until)));
   const live = current.filter((n) => !hidden.includes(n.id));
   if (!current.length) return null;
   const wrap = h('div', { class: 'notices' });
