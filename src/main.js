@@ -1650,6 +1650,7 @@ function renderServices() {
         sv('printmail', () => openRequest('printmail')),
         sv('tvisa', openTvisa),
         sv('design', () => window.open(waLink(design ? design.msg : u.waHello), '_blank', 'noopener'))),
+      h('a', { class: 'btn soft wide', href: '/track.html', onclick: () => count('track_open') }, u.myCases),
       h('a', { class: 'btn wa wide', href: waLink(u.waHello), target: '_blank', rel: 'noopener', html: ICON.wa, onclick: () => count('whatsapp_click', { place: 'services' }) }, u.whatsapp),
       meRibbon(),
       h('div', { class: 'two' },

@@ -72,6 +72,21 @@
           "value": "public, max-age=3600"
         }
       ]
+    },
+    {
+      "source": "/admin.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/track?a=cleanup",
+      "schedule": "17 3 * * *"
     }
   ]
 }
