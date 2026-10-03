@@ -74,3 +74,4 @@ textarea.in { min-height: 72px; resize: vertical; }
 .gap8 { height: 8px; }
 details summary { cursor: pointer; }
 .back { display: block; margin-bottom: 6px; }
+.note-plain { margin: 4px 0 8px; font-size: 14px; color: var(--muted); }

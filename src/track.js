@@ -39,14 +39,32 @@ async function api(path, opts) {
   return res;
 }
 
+function pasteBox() {
+  const inp = h('input', { class: 'in', dir: 'ltr', placeholder: 'https://husham-ahmed.vercel.app/track.html#…', autocomplete: 'off' });
+  const err = h('p', { class: 'err' });
+  const go = () => {
+    const m = inp.value.trim().match(/#([A-Z2-9]{10}\.[A-Za-z0-9_-]{16,64}\.[A-Za-z0-9_-]{43})/);
+    if (!m) { err.textContent = 'هذا مو رابط معاملة. انسخ الرابط كامل من رسالة الواتساب.'; return; }
+    location.hash = m[1];
+  };
+  inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+  return h('div', { class: 'card' },
+    h('b', { text: 'عندك رابط معاملة؟' }),
+    h('p', { class: 'note-plain', text: 'انسخ الرابط من رسالة الواتساب والصقه هنا، وتنحفظ معاملتك بهذا التطبيق.' }),
+    inp, err, h('button', { class: 'btn pri mt8', type: 'button', text: 'افتح المعاملة', onclick: go }));
+}
+
 function listMine() {
   const mine = readMine();
+  const wa_ = h('a', { class: 'btn wa', href: wa('مرحبا هشام، أريد رابط متابعة معاملتي'), target: '_blank', rel: 'noopener', text: '💬 اطلب الرابط من هشام' });
   if (!mine.length) {
-    return message('افتح رابط معاملتك', 'رابط متابعة المعاملة يوصلك من هشام على الواتساب. افتحه من هناك حتى تشوف وين وصلت معاملتك.');
+    return show(top('متابعة معاملتك', 'هشام احمد'), h('main', { class: 'wrap' }, pasteBox(), wa_,
+      h('p', { class: 'muted', text: 'رابط متابعة المعاملة يوصلك من هشام على الواتساب.' })));
   }
   show(top('معاملاتي', 'متابعة المعاملات · هشام احمد'), h('main', { class: 'wrap' },
     h('div', { class: 'card list' }, mine.map((x) => h('a', { class: 'it', href: `#${x.id}.${x.s}.${x.k}` },
       h('div', {}, h('b', { text: x.name || caseCode(x.id) }), h('small', { text: caseCode(x.id) })), h('span', { class: 'badge', text: 'فتح' })))),
+    pasteBox(),
     h('p', { class: 'muted', text: 'هاي المعاملات محفوظة بهذا الموبايل بس.' })));
 }
 
