@@ -1,7 +1,7 @@
 // Customer page: shows the progress of one case. The link carries #ID.SECRET.KEY;
 // only the ID and SECRET go to the server, the KEY stays on this device.
 import { OWNER } from './texts.js';
-import { importKey, openJSON, openBytes, caseCode, h, stepsList, statusPill, isDone, viewer, KINDS } from './track-core.js';
+import { importKey, openJSON, openBytes, caseCode, h, stepsList, statusPill, isDone, viewer, KINDS, fmtDate } from './track-core.js';
 
 const MINE = 'bitaqa.mycases';
 const $app = document.getElementById('app');
@@ -115,7 +115,7 @@ function render(p, key, data, info) {
     top(data.name ? `أهلاً ${data.name} 🌷` : 'متابعة معاملتك', 'متابعة معاملتك · هشام احمد', caseCode(p.id)),
     h('main', { class: 'wrap' },
       items.length ? items.map(card) : h('div', { class: 'card center', text: 'بعد ما انضافت تفاصيل للمعاملة.' }),
-      h('p', { class: 'muted', text: `آخر تحديث: ${updated.toLocaleDateString('ar-IQ', { day: 'numeric', month: 'long' })}` }),
+      h('p', { class: 'muted', text: `آخر تحديث: ${fmtDate(`${updated.getFullYear()}-${updated.getMonth() + 1}-${updated.getDate()}`)}` }),
       h('a', { class: 'btn wa', href: wa(`مرحبا هشام، أسأل عن معاملتي ${caseCode(p.id)}`), target: '_blank', rel: 'noopener', text: '💬 اسأل هشام على الواتساب' }),
       h('p', { class: 'muted', text: info.doneAt
         ? `🔒 المعاملة انتهت. هاي الصفحة والصور تنمسح تلقائياً بعد ${info.keepDays} يوم، فنزّل الصور اللي تحتاجها.`
