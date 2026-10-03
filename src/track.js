@@ -59,13 +59,15 @@ function listMine() {
   const wa_ = h('a', { class: 'btn wa', href: wa('مرحبا هشام، أريد رابط متابعة معاملتي'), target: '_blank', rel: 'noopener', text: '💬 اطلب الرابط من هشام' });
   if (!mine.length) {
     return show(top('متابعة معاملتك', 'هشام احمد'), h('main', { class: 'wrap' }, pasteBox(), wa_,
-      h('p', { class: 'muted', text: 'رابط متابعة المعاملة يوصلك من هشام على الواتساب.' })));
+      h('p', { class: 'muted', text: 'رابط متابعة المعاملة يوصلك من هشام على الواتساب.' }),
+      h('a', { class: 'admin-link', href: '/admin.html', text: '🔐 دخول الإدارة' })));
   }
   show(top('معاملاتي', 'متابعة المعاملات · هشام احمد'), h('main', { class: 'wrap' },
     h('div', { class: 'card list' }, mine.map((x) => h('a', { class: 'it', href: `#${x.id}.${x.s}.${x.k}` },
       h('div', {}, h('b', { text: x.name || caseCode(x.id) }), h('small', { text: caseCode(x.id) })), h('span', { class: 'badge', text: 'فتح' })))),
     pasteBox(),
-    h('p', { class: 'muted', text: 'هاي المعاملات محفوظة بهذا الموبايل بس.' })));
+    h('p', { class: 'muted', text: 'هاي المعاملات محفوظة بهذا الموبايل بس.' }),
+    h('a', { class: 'admin-link', href: '/admin.html', text: '🔐 دخول الإدارة' })));
 }
 
 async function load() {
