@@ -88,7 +88,23 @@ export const todayISO = () => {
   const n = new Date(); const p = (x) => String(x).padStart(2, '0');
   return `${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())}`;
 };
-export const isDone = (it) => it.stage >= it.stages.length - 1;
+// Stages are ticked freely by the admin (any order). Older records kept one
+// "current stage" number; those read as "every stage before it is ticked".
+export function checks(it) {
+  if (Array.isArray(it.checks)) return it.checks;
+  const last = it.stages.length - 1;
+  const n = it.stage || 0;
+  return n >= last ? it.stages.map((_, i) => i) : Array.from({ length: n }, (_, i) => i);
+}
+export const isDone = (it) => {
+  const c = checks(it); const last = it.stages.length - 1;
+  return c.includes(last) || it.stages.slice(0, -1).every((_, i) => c.includes(i));
+};
+export const currentIdx = (it) => {
+  const c = checks(it);
+  return it.stages.slice(0, -1).findIndex((_, i) => !c.includes(i));
+};
+export const currentLabel = (it) => (isDone(it) ? 'اكتملت' : it.stages[currentIdx(it)]);
 
 export function h(tag, props = {}, ...kids) {
   const node = document.createElement(tag);
@@ -105,15 +121,17 @@ export function h(tag, props = {}, ...kids) {
 
 // The timeline of one item, as shown to the customer (and previewed by the admin).
 export function stepsList(it) {
+  const c = checks(it); const now = currentIdx(it); const all = isDone(it);
   return h('ul', { class: 'steps' }, it.stages.slice(0, -1).map((label, i) => {
-    const state = i < it.stage ? 'done' : i === it.stage ? 'now' : 'todo';
-    const when = it.dates && it.dates[i] ? fmtDate(it.dates[i]) : '';
-    return h('li', { class: isDone(it) ? 'done' : state }, h('i'), label, when ? h('em', { text: when }) : null);
+    const ticked = all || c.includes(i);
+    const state = ticked ? 'done' : i === now ? 'now' : 'todo';
+    const when = ticked && it.dates && it.dates[i] ? fmtDate(it.dates[i]) : '';
+    return h('li', { class: state }, h('i'), label, when ? h('em', { text: when }) : null);
   }));
 }
 export function statusPill(it) {
   if (isDone(it)) return h('span', { class: 'pill p-ok', text: '✓ اكتملت' });
-  return h('span', { class: 'pill p-run', text: it.stages[it.stage] });
+  return h('span', { class: 'pill p-run', text: currentLabel(it) });
 }
 
 // Shrink a photo before it is encrypted and uploaded.

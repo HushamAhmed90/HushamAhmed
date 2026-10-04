@@ -77,3 +77,8 @@ details summary { cursor: pointer; }
 .note-plain { margin: 4px 0 8px; font-size: 14px; color: var(--muted); }
 a.it { color: inherit; text-decoration: none; }
 .admin-link { display: block; text-align: center; margin-top: 22px; font-size: 13px; color: var(--muted); text-decoration: none; }
+.ticks { display: grid; gap: 6px; }
+.tick { display: flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; font-size: 15px; cursor: pointer; background: #fff; }
+.tick input { width: 20px; height: 20px; accent-color: var(--ok); flex: none; }
+.tick:has(input:checked) { background: var(--okt); border-color: #B7DFC8; }
+.tick.final { font-weight: 700; }

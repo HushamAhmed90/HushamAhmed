@@ -3,7 +3,7 @@
 // the server only wrapped with a key derived from the admin password.
 import {
   randomB64, sha256Hex, importKey, sealJSON, openJSON, sealBytes, openBytes, deriveWrapKey,
-  caseLink, caseCode, KINDS, h, stepsList, statusPill, isDone, todayISO, shrinkImage, viewer,
+  caseLink, caseCode, KINDS, h, stepsList, statusPill, isDone, checks, currentLabel, todayISO, shrinkImage, viewer,
 } from './track-core.js';
 
 const $app = document.getElementById('app');
@@ -107,7 +107,7 @@ async function home() {
   const row = (c) => {
     const active = (c.data.items || []).filter((it) => !isDone(it)).length;
     const first = (c.data.items || []).find((it) => !isDone(it)) || (c.data.items || [])[0];
-    const sub = first ? `${first.title || ''} · ${first.stages[first.stage]}` : 'بدون بنود';
+    const sub = first ? `${first.title || ''} · ${currentLabel(first)}` : 'بدون بنود';
     return h('div', { class: 'it', onclick: () => edit(c) },
       h('div', {}, h('b', { text: c.data.name || caseCode(c.id) }), h('small', { text: `${caseCode(c.id)} · ${sub}` })),
       c.doneAt ? h('span', { class: 'badge ok', text: '✓ مغلق' }) : h('span', { class: active ? 'badge' : 'badge ok', text: active ? `${active} جارية` : '✓' }));
@@ -121,7 +121,7 @@ async function home() {
 // ---------- new case ----------
 function newItem(kind) {
   const k = KINDS[kind];
-  return { id: randomB64(6), kind, title: k.title, sub: '', stages: [...k.stages], stage: 0, dates: { 0: todayISO() }, note: '', files: [] };
+  return { id: randomB64(6), kind, title: k.title, sub: '', stages: [...k.stages], checks: [], dates: {}, note: '', files: [] };
 }
 function newCase() {
   const name = h('input', { class: 'in', placeholder: 'مثلاً: أم علي' });
@@ -167,7 +167,7 @@ function edit(c) {
   const waText = () => {
     const lines = [`مرحبا ${d.name} 🌷`, 'تحديث على معاملتك:'];
     (d.items || []).forEach((it) => {
-      lines.push(`• ${it.title}: ${isDone(it) ? 'اكتملت ✅' : it.stages[it.stage]}`);
+      lines.push(`• ${it.title}: ${isDone(it) ? 'اكتملت ✅' : currentLabel(it)}`);
       if (it.note && !isDone(it)) lines.push(`  📌 ${it.note}`);
     });
     lines.push('', 'تگدر تتابع معاملتك وتشوف الأوراق من هنا:', link(), '', 'هشام احمد');
@@ -191,16 +191,19 @@ function edit(c) {
     const k = KINDS[it.kind] || KINDS.general;
     const title = h('input', { class: 'in', value: it.title, oninput: () => { it.title = title.value; mark(); } });
     const sub = h('input', { class: 'in', value: it.sub || '', placeholder: 'مثلاً: وكالة خاصة · ميسان', oninput: () => { it.sub = sub.value; mark(); } });
-    const stage = h('select', { class: 'in' }, it.stages.map((s, i) => { const o = h('option', { value: String(i), text: s }); if (i === it.stage) o.selected = true; return o; }));
     const preview = h('div');
     const drawPreview = () => preview.replaceChildren(h('div', { class: 'hd' }, h('span', { class: 'ic', text: k.icon }), h('div', {}, h('b', { text: it.title }), h('small', { text: it.sub || '' })), statusPill(it)), stepsList(it));
-    stage.addEventListener('change', () => {
-      const n = Number(stage.value);
-      it.dates = it.dates || {};
-      for (let i = 0; i <= n; i += 1) if (!it.dates[i]) it.dates[i] = todayISO();
-      Object.keys(it.dates).forEach((i) => { if (Number(i) > n) delete it.dates[i]; });
-      it.stage = n; mark(); drawPreview();
-    });
+    // Tick any stages, in any order; ticked ones show as done to the customer.
+    it.checks = [...checks(it)]; it.dates = it.dates || {};
+    const stage = h('div', { class: 'ticks' }, it.stages.map((label, i) => {
+      const box = h('input', { type: 'checkbox' }); box.checked = it.checks.includes(i);
+      box.addEventListener('change', () => {
+        if (box.checked) { if (!it.checks.includes(i)) it.checks.push(i); it.dates[i] = it.dates[i] || todayISO(); }
+        else { it.checks = it.checks.filter((x) => x !== i); delete it.dates[i]; }
+        it.checks.sort((a, b) => a - b); delete it.stage; mark(); drawPreview();
+      });
+      return h('label', { class: i === it.stages.length - 1 ? 'tick final' : 'tick' }, box, h('span', { text: label }));
+    }));
     const note = h('textarea', { class: 'in', placeholder: 'مثلاً: صورة القيد طلعت، وننتظر قيد 57 هذا الأسبوع', oninput: () => { it.note = note.value; mark(); } });
     note.value = it.note || '';
     const docs = h('div', { class: 'docs' });
@@ -228,7 +231,7 @@ function edit(c) {
     docs.append(add);
     drawPreview();
     return h('section', { class: 'card' }, preview,
-      h('label', { class: 'lbl', text: 'المرحلة الحالية' }), stage,
+      h('label', { class: 'lbl', text: 'المراحل اللي خلصت (أشّر عليها، تطلع للزبون مكتملة)' }), stage,
       h('label', { class: 'lbl', text: 'ملاحظة للزبون' }), note,
       h('label', { class: 'lbl', text: 'صور الوكالة / الأوراق' }), docs, picker,
       h('details', {}, h('summary', { class: 'lbl', text: 'تعديل العنوان أو حذف البند' }),
