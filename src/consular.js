@@ -6,7 +6,7 @@ export const PAGE_W = 794;
 export const PAGE_H = 1123;
 
 export const CONSULATES = ['frankfurt', 'berlin'];
-export const FORMS = ['poa', 'life', 'apostille'];
+export const FORMS = ['poa', 'gpoa', 'life', 'apostille'];
 
 // Purpose wording, based on special powers of attorney issued by the consulate.
 // {place} is replaced with the city/province in Iraq, {passport} with a passport number.
@@ -32,6 +32,11 @@ export const REQUIRED = {
     ['سند عقار أو قسام شرعي لوكالة العقار', 'بەڵگەنامەی خاوەندارێتی موڵک یاخود دابەشنامەی یاسایی موڵک بۆ کڕین و فرۆشتن'],
     ['سنوية سيارة لوكالة السيارة', 'ساڵانەی ئۆتۆمبێل بۆ بەناوکردن یاخود فرۆشتن'],
   ],
+  gpoa: [
+    ['نسخ أصلية وملونة من هوية الأحوال المدنية وشهادة الجنسية العراقية', 'بەڵگەنامەی ڕەسەن و کۆپی ڕەنگاوڕەنگ لە پێناسی باری شارستانی و ڕەگەزنامەی عێراقی'],
+    ['جواز السفر العراقي أو الإقامة', 'پاسپۆرتی عێراقی یان ئیقامە'],
+    ['اسم الوكيل الثلاثي مكتوب بشكل صحيح', 'ناوی سیانی بریکار بە دروستی'],
+  ],
   apostille: [
     ['أصل بيان الولادة الألماني (Geburtsurkunde)', 'ئەسڵی بڕوانامەی لەدایکبوونی ئەڵمانی'],
     ['هذه الاستمارة مملوءة وموقّعة', 'ئەم فۆرمە پڕکراوە و واژووکراو'],
@@ -49,6 +54,7 @@ export const REQUIRED = {
 export const FIELDS = {
   'frankfurt.poa': ['principal', 'agent', 'purposeType', 'place', 'passportNo', 'school', 'childRel', 'child', 'childBirth', 'spouse', 'spouseNat', 'purpose', 'latinName', 'street', 'plzCity', 'phone'],
   'berlin.poa': ['principal', 'mother', 'agent', 'principalAddress', 'agentAddress', 'idInfo', 'natInfo', 'purposeType', 'place', 'passportNo', 'school', 'childRel', 'child', 'childBirth', 'spouse', 'spouseNat', 'purpose', 'phone'],
+  'frankfurt.gpoa': ['principal', 'agent', 'latinName', 'street', 'plzCity', 'phone', 'phone2', 'email'],
   'frankfurt.life': ['principal', 'agent', 'marital', 'month', 'year', 'latinName', 'street', 'plzCity', 'phone'],
   'berlin.life': ['principal', 'birthDate', 'street', 'plzCity', 'idPlaceDate', 'agent', 'phone'],
   // Any other mission: an information sheet with everything a mission needs.
@@ -150,6 +156,78 @@ function frankfurtPoa(g, v, emblem) {
   line(118, 933, 714, 933, 2);
   say('الرسم:', 673, 977, { size: 12 });
   say('رقم الوصل وتأريخه:', 673, 1009, { size: 12 });
+}
+
+// ---------- Frankfurt: general power of attorney (notary office form) ----------
+// The wording is the fixed text printed on the consulate's blank form.
+export const GENERAL_POA_TEXT = 'وكالة عامة مطلقة وقد خولته أن يمارس كافة الحقوق الممنوحة لي شرعاً وقانوناً وعرفاً بما فيها حق فتح الحسابات الجارية وإيداع المبالغ لدى المصارف وسحبها بتوقيعه وفتح الاعتمادات المستندية وغير المستندية والتوقيع على عقودها وتعديلها وإلغائها وله حق سحب وتظهير كافة الأوراق التجارية وقبض مبالغها وقبول كافة الحوالات المستندية وغير المستندية ودفع مبالغها كما خولته حق السحب على الاعتماد المكشوف الممنوح لي من قبل المصارف وفوضت إليه رهن أموالي المنقولة وغير المنقولة تأميناً للتسهيلات الممنوحة لي من قبل المصارف وله حق عقد كافة العقود والكفالات وخطابات الضمان والقيام بكفالة الغير وتوقيع عقودها كما خولته حق فتح حسابات التوفير والإيداع والسحب منها وحق الحضور لفتح خزائن (وصناديق الإيداع) وتسلم محتوياتها وإيداع وتسلم الودائع النقدية الثابتة والوقتية المودعة لدى المصارف مع فوائدها، كما خولته حق رهن البضائع وإيداعها في المستودعات واستعادتها منها وتسلمها ومراجعة كافة الدوائر الرسمية وشبه الرسمية وكافة المؤسسات التجارية وتوقيع الطلبات والاستمارات ومراجعة دوائر الكمارك وتخليص البضائع الواردة باسمي من حوزتها ودفع ما يقتضي دفعه من رسوم ومصاريف والاعتراض على القرارات الصادرة منها حتى آخر مرحلة من مراحلها ومراجعة دوائر التحويل الخارجي وسلطات ضريبة الدخل والعقار وسائر الضرائب على اختلافها ودوائر التسجيل العقاري للقيام بإجراء وتمشية معاملاتي والاعتراض على كافة القرارات الصادرة منها ومراجعة طرق الطعون، وله حق الرهن لدى المصرف العقاري ومراجعة المحاكم بكل مراحلها ودرجاتها وإقامة الدعاوى لديها والخصومة بصورة عامة وله كذلك حق الإقرار والتنازل والصلح والتحكيم وتوجيه اليمين وردها وقبولها ورد القضاة والتشكي منهم وتوجيه الإنذارات بواسطة الكاتب العدل والتبليغ والمطالبة بالحق الشخصي وصرف النظر عنه ومراجعة دوائر التنفيذ لتنفيذ القرارات وكافة المستندات القابلة للتنفيذ لديها والاعتراض على القرارات الصادرة فيها وطلب وضع الحجز الاحتياطي والتنفيذي ورفعه وحبس المدين وطلب إخلاء سبيله والتصالح على كل الدين أو جزء منه ومراجعة طرق الطعون، كما خولته حق الأخذ والقبض والبيع والشراء والإيجار والاستئجار وتوكيل الغير ببعض أو بكل ما وكل به وكالة عامة مفوضة لرأيه.';
+
+function frankfurtGeneralPoa(g, v, emblem) {
+  const { say, wrap, line, rect } = helpers(g);
+  say('بسم الله الرحمن الرحيم', 397, 58, { size: 13, weight: 600, align: 'center' });
+  say('جمهورية العراق', 592, 114, { size: 14, weight: 600, align: 'center' });
+  say('وزارة العدل', 592, 146, { size: 14, weight: 600, align: 'center' });
+  say('دائرة الكاتب العدل في فرانكفورت', 592, 174, { size: 13, weight: 600, align: 'center' });
+  if (emblem) g.drawImage(emblem, 360, 94, 66, 66 * emblem.naturalHeight / emblem.naturalWidth);
+  say('العدد العمومي:', 686, 201, { size: 12 });
+  say('السجل:', 686, 227, { size: 12 });
+  say('التأريخ:', 686, 253, { size: 12 });
+  say('وكالة عامة', 400, 278, { size: 15, weight: 600, align: 'center' });
+
+  const dots = '................................';
+  const body = `أني الموقع ${v.principal || dots} قد وكلت السيد ${v.agent || dots} ${GENERAL_POA_TEXT}`;
+  const size = 11.5, lh = 20.5, top = 300;
+  const lines = wrap(body, 552, AR(400, size));
+  const boxH = Math.max(362, lines.length * lh + 16);
+  rect(121, top, 571, boxH);
+  lines.forEach((l, i) => {
+    const y = top + 14 + i * lh;
+    if (i < lines.length - 1) justify(g, l, 682, 552, y, AR(400, size));
+    else say(l, 682, y, { size });
+  });
+  const d = top + boxH - 662;          // push the rest down if the names are very long
+
+  const w = say('الاسم الثلاثي:', 690, 682 + d, { size: 13, weight: 600 });
+  say(v.principal, 690 - w - 10, 682 + d, { size: 13 });
+  const lat = [['Name:', v.latinName], ['Strasse:', v.street], ['Plz Stadt:', v.plzCity], ['Tel:', v.phone]];
+  lat.forEach(([k, val], i) => {
+    g.font = "bold 14.5px 'Times New Roman', Times, serif"; g.textAlign = 'left'; g.direction = 'ltr'; g.fillStyle = '#000';
+    g.fillText(k, 128, 702 + d + i * 19);
+    const kw = g.measureText(k).width;
+    say(val, 128 + kw + 8, 702 + d + i * 19, { size: 14.5, latin: true, align: 'left' });
+  });
+  // "Tel بديل ان وجد :" (alternative number, if any)
+  g.font = "bold 14.5px 'Times New Roman', Times, serif"; g.textAlign = 'left'; g.direction = 'ltr';
+  g.fillText('Tel', 128, 778 + d);
+  const tw = g.measureText('Tel ').width;
+  const aw = say('بديل ان وجد', 128 + tw, 778 + d, { size: 12, weight: 600, align: 'left' });
+  g.font = "bold 14.5px 'Times New Roman', Times, serif"; g.textAlign = 'left'; g.direction = 'ltr';
+  g.fillText(':', 128 + tw + aw + 3, 778 + d);
+  say(v.phone2, 128 + tw + aw + 14, 778 + d, { size: 14.5, latin: true, align: 'left' });
+  g.font = "bold 14.5px 'Times New Roman', Times, serif"; g.textAlign = 'left'; g.direction = 'ltr';
+  g.fillText('E- Mail:', 128, 797 + d);
+  const ew = g.measureText('E- Mail:').width;
+  say(v.email, 128 + ew + 8, 797 + d, { size: 14.5, latin: true, align: 'left' });
+
+  say('أصدق بأن ............... المذيل في الوكالة هو ...............السيد...................................... المعرف أعلاه', 680, 838 + d, { size: 11.5 });
+  say(`وقد تلوت عليه مندرجاتها، فأعترف بمنطوقها حرفيا ووقعها أمامي في اليوم       /       /${new Date().getFullYear()}`, 680, 863 + d, { size: 11.5 });
+  say('الكاتب العدل:', 680, 889 + d, { size: 13, weight: 600 });
+  say('الاسم الثلاثي:', 680, 914 + d, { size: 13, weight: 600 });
+  say('التوقيع والختم:', 680, 939 + d, { size: 13, weight: 600 });
+  line(124, 969 + d, 690, 969 + d, 2);
+  say('الرسم:', 652, 994 + d, { size: 12 });
+  say('رقم الوصل وتأريخه:', 652, 1018 + d, { size: 12 });
+}
+
+// Spread an Arabic line to a fixed width (like the justified text on the form).
+function justify(g, text, right, width, y, font) {
+  g.font = font; g.direction = 'rtl'; g.textAlign = 'right'; g.fillStyle = '#000';
+  const words = text.split(' ');
+  const total = words.reduce((s, w) => s + g.measureText(w).width, 0);
+  if (words.length < 2 || total < width * 0.75) { g.fillText(text, right, y); return; }
+  const gap = (width - total) / (words.length - 1);
+  let x = right;
+  for (const w of words) { g.fillText(w, x, y); x -= g.measureText(w).width + gap; }
 }
 
 // ---------- Frankfurt: life certificate ----------
@@ -395,6 +473,7 @@ export function drawConsular(canvas, { consulate, form, values, emblem, scale = 
   if (form === 'apostille') apostilleLetter(g, values);
   else if (consulate === 'generic') genericSheet(g, values, form, values.__mission || '');
   else if (key === 'frankfurt.poa') frankfurtPoa(g, values, emblem);
+  else if (key === 'frankfurt.gpoa') frankfurtGeneralPoa(g, values, emblem);
   else if (key === 'frankfurt.life') frankfurtLife(g, values);
   else if (key === 'berlin.poa') berlinPoa(g, values);
   else berlinLife(g, values);

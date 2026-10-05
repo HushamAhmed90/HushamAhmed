@@ -436,6 +436,7 @@ function cWarnings() {
   add('birthDate', dateIssue(v.birthDate, L.birthDate, u));
   add('childBirth', dateIssue(v.childBirth, L.childBirth, u));
   add('phone', phoneIssue(v.phone, u));
+  if (v.phone2) add('phone2', phoneIssue(v.phone2, u));
   if (v.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email.trim())) add('email', u.wEmail);
   if (v.year) {
     const y = +latinDigits(String(v.year)); const now = new Date().getFullYear();
@@ -1226,8 +1227,8 @@ function cField(key) {
     return wrap;
   }
   const latin = ['latinName', 'street', 'plzCity', 'firstName', 'lastName', 'email', 'targetCountry', 'signPlace', 'docCount'].includes(key);
-  const type = key === 'birthDate' || key === 'childBirth' ? 'date' : key === 'phone' ? 'tel' : 'text';
-  const inp = h('input', { class: 'input', id: 'c_' + key, type, dir: latin || key === 'phone' ? 'ltr' : null, autocomplete: 'off',
+  const type = key === 'birthDate' || key === 'childBirth' ? 'date' : key === 'phone' || key === 'phone2' ? 'tel' : 'text';
+  const inp = h('input', { class: 'input', id: 'c_' + key, type, dir: latin || key === 'phone' || key === 'phone2' ? 'ltr' : null, autocomplete: 'off',
     inputmode: key === 'year' || key === 'docCount' ? 'numeric' : key === 'email' ? 'email' : null });
   inp.value = v[key] || '';
   if (key === 'passportNo') inp.setAttribute('dir', 'ltr');
@@ -1332,8 +1333,10 @@ function renderConsular(keepScroll) {
   const pick = (options, current, onPick) => h('div', { class: 'chips big' }, Object.entries(options).map(([id, name]) =>
     h('button', { class: 'chipbtn' + (current === id ? ' on' : ''), type: 'button', text: name, onclick: () => onPick(id) })));
   if (cState.form === 'apostille' && cState.country !== 'ألمانيا') cState.form = 'poa';
+  if (cState.form === 'gpoa' && cState.consulate !== 'frankfurt') cState.form = 'poa';
   const keys = cState.form === 'apostille' ? C_FIELDS.apostille : C_FIELDS[`${cState.consulate}.${cState.form}`];
-  const formOptions = cState.country === 'ألمانيا' ? u.cForms : { poa: u.cForms.poa, life: u.cForms.life };
+  const formOptions = cState.consulate === 'frankfurt' ? { poa: u.cPoaSpecial, gpoa: u.cForms.gpoa, life: u.cForms.life, apostille: u.cForms.apostille }
+    : cState.country === 'ألمانيا' ? { poa: u.cForms.poa, life: u.cForms.life, apostille: u.cForms.apostille } : { poa: u.cForms.poa, life: u.cForms.life };
   const docs = C_REQUIRED[cState.form];
   $('#app').replaceChildren(
     header(), newsTicker(), tabs(),
@@ -1354,6 +1357,7 @@ function renderConsular(keepScroll) {
         h('p', { class: 'qlabel', text: u.cForm }),
         pick(formOptions, cState.form, (id) => { cState.form = id; cSave(); renderConsular(true); }),
         cState.form === 'apostille' ? h('p', { class: 'notice', text: u.cApostilleNote }) : null,
+        cState.form === 'gpoa' ? h('p', { class: 'notice', text: u.cGpoaNote }) : null,
         videoBtn('consular_' + cState.form))),
       h('section', { class: 'card open' }, h('div', { class: 'card-body flat' },
         h('div', { class: 'qhead' },
@@ -1453,7 +1457,7 @@ async function renderConsularReview() {
   app.section = 'forms';
   const u = t();
   const preview = h('img', { class: 'paper', alt: u.cReviewTitle });
-  const service = cState.form === 'poa' ? 'poa' : cState.form === 'apostille' ? 'legal' : 'life';
+  const service = cState.form === 'poa' || cState.form === 'gpoa' ? 'poa' : cState.form === 'apostille' ? 'legal' : 'life';
   const formName = cState.form === 'apostille' ? u.cForms.apostille : `${u.cForms[cState.form]} - ${currentMission()}`;
   const who = cState.form === 'apostille' ? [cState.values.firstName, cState.values.lastName].filter(Boolean).join('-') : (cState.values.principal || '').trim();
   const formNameAr = cState.form === 'apostille' ? UI.Ara.cForms.apostille : `استمارة ${UI.Ara.cForms[cState.form]} (${currentMission()})${who ? ' باسم ' + who : ''}`;
