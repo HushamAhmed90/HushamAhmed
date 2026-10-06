@@ -319,7 +319,7 @@ input[dir="ltr"].input { text-align: right; }
 .offnotice-top small { flex: 1; color: var(--navy); font-weight: 700; font-size: 12.5px; }
 .offnotice-x { border: 0; background: none; color: var(--muted); font-size: 16px; cursor: pointer; padding: 2px 6px; }
 .offnotice b { display: block; font-size: 16px; margin-top: 2px; color: var(--bad); }
-.offnotice p { margin: 4px 0 0; font-size: 14.5px; line-height: 1.8; }
+.offnotice p { white-space: pre-line; margin: 4px 0 0; font-size: 14.5px; line-height: 1.8; }
 .notice-show { display: block; margin: 0 auto; border: 1px solid #EFD9A3; background: #FFF8E6; color: var(--navy); border-radius: 999px; padding: 6px 16px; font: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; }
 /* Impact numbers + festive ribbon */
 .me-wrap { max-width: 592px; margin: 0 auto; }
