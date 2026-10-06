@@ -1169,11 +1169,22 @@ function cField(key) {
   });
 
   if (key === 'purposeType') {
-    const chips = h('div', { class: 'chips' }, Object.entries(u.cPurposeTypes).map(([id, name]) =>
+    // Frankfurt has its own general power-of-attorney form, so the general wording is offered there.
+    const types = Object.entries(u.cPurposeTypes).filter(([id]) => !(id === 'generalCustom' && cState.consulate === 'frankfurt'));
+    const chips = h('div', { class: 'chips' }, types.map(([id, name]) =>
       h('button', { class: 'chipbtn' + (v.purposeType === id ? ' on' : ''), type: 'button', text: name, onclick: () => {
         v.purposeType = id; v.purpose = id === 'custom' ? '' : purposeText(); cSave(); renderConsular(true);
       } })));
     wrap.append(chips);
+    return wrap;
+  }
+  if (key === 'gpoaType') {
+    const cur = v.gpoaType === 'custom' ? 'custom' : 'full';
+    const chips = Object.entries(u.cGpoaTypes).map(([id, name]) => h('button', {
+      class: 'chipbtn' + (cur === id ? ' on' : ''), type: 'button', text: name,
+      onclick: () => { v.gpoaType = id; cSave(); renderConsular(true); } }));
+    wrap.append(h('div', { class: 'chips' }, chips));
+    if (cur === 'custom') wrap.append(h('p', { class: 'hint', text: u.cGpoaCustomNote }));
     return wrap;
   }
   if (key === 'anrede') {
@@ -1334,6 +1345,7 @@ function renderConsular(keepScroll) {
     h('button', { class: 'chipbtn' + (current === id ? ' on' : ''), type: 'button', text: name, onclick: () => onPick(id) })));
   if (cState.form === 'apostille' && cState.country !== 'ألمانيا') cState.form = 'poa';
   if (cState.form === 'gpoa' && cState.consulate !== 'frankfurt') cState.form = 'poa';
+  if (cState.form === 'poa' && cState.consulate === 'frankfurt' && cState.values.purposeType === 'generalCustom') { cState.form = 'gpoa'; cState.values.gpoaType = 'custom'; cState.values.purposeType = 'records'; cState.values.purpose = purposeText(); }
   const keys = cState.form === 'apostille' ? C_FIELDS.apostille : C_FIELDS[`${cState.consulate}.${cState.form}`];
   const formOptions = cState.consulate === 'frankfurt' ? { poa: u.cPoaSpecial, gpoa: u.cForms.gpoa, life: u.cForms.life, apostille: u.cForms.apostille }
     : cState.country === 'ألمانيا' ? { poa: u.cForms.poa, life: u.cForms.life, apostille: u.cForms.apostille } : { poa: u.cForms.poa, life: u.cForms.life };
@@ -1487,7 +1499,7 @@ async function renderConsularReview() {
         h('div', { class: 'oc-head' }, h('img', { src: OWNER.photo, alt: '', width: 52, height: 52 }),
           h('div', {}, h('b', { text: OWNER.name[app.lang] }), h('p', { text: u.helpTitle }))),
         h('button', { class: 'btn primary wide', type: 'button', text: u.cSubmit, onclick: () =>
-          openRequest(service, cState.form === 'apostille' ? `${UI.Ara.cForms.apostille} (الخارجية الألمانية)` : `${UI.Ara.cForms[cState.form]} - ${currentMission()}${cState.form === 'poa' && cState.values.purposeType !== 'custom' ? ' (' + UI.Ara.cPurposeTypes[cState.values.purposeType] + ')' : ''}، الوكيل: ${cState.values.agent || ''}`) }),
+          openRequest(service, cState.form === 'apostille' ? `${UI.Ara.cForms.apostille} (الخارجية الألمانية)` : `${UI.Ara.cForms[cState.form]} - ${currentMission()}${cState.form === 'poa' && cState.values.purposeType !== 'custom' ? ' (' + UI.Ara.cPurposeTypes[cState.values.purposeType] + ')' : ''}${cState.form === 'gpoa' ? ' (' + UI.Ara.cGpoaTypes[cState.values.gpoaType === 'custom' ? 'custom' : 'full'] + ')' : ''}، الوكيل: ${cState.values.agent || ''}`) }),
         h('p', { class: 'trust small', html: ICON.check }, u.noUpfront)),
       h('button', { class: 'btn soft wide', type: 'button', text: u.cNew, onclick: () => {
         if (!confirm(u.cConfirmClear)) return;
