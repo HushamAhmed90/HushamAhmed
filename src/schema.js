@@ -30,7 +30,7 @@ export const FIELDS = {
 
   a12office:           { type: 'pick', list: 'office', req: true },
   a13bookNo:           { type: 'num', req: true },
-  a14pageNo:           { type: 'num', req: true },
+  a14pageNo:           { type: 'num' },
 
   a15shProv:           { type: 'pick', list: 'prov', req: true },
   a16shOffice:         { type: 'pick', list: 'sh' },
