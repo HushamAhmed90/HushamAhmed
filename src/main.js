@@ -257,7 +257,7 @@ function openRequest(preselect, prefillNote) {
       `• عدد الأشخاص: ${people}`,
       `• أفضل وقت للتواصل: ${UI.Ara.reqTimes[when]}`,
       notes.value.trim() ? `• ملاحظات: ${notes.value.trim()}` : null,
-      '(مرسل من برنامج استمارة البطاقة الوطنية)',
+      '(مرسل من برنامج هشام للمعاملات)',
     ].filter(Boolean);
     try { localStorage.setItem(REQ_KEY, JSON.stringify({ name: name.value.trim(), city: city.value.trim() })); } catch (e) { /* ignore */ }
     count('booking_request', { services: picked.map((sv) => sv.id).join(','), people });
