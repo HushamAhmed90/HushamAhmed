@@ -79,7 +79,100 @@ async function signIn() {
   first ? [h('label', { class: 'lbl', text: 'أعد كتابة كلمة السر' }), pw2] : null,
   err, h('div', { class: 'row' }, go),
   h('p', { class: 'muted', text: first ? '⚠️ لا تنسى كلمة السر: بدونها ما تنفتح الملفات المشفّرة.' : '' }));
-  show(top('لوحة الإدارة', 'متابعة المعاملات · هشام فقط 🔐'), h('main', { class: 'wrap' }, form));
+  show(top('لوحة الإدارة', 'متابعة المعاملات · هشام فقط 🔐'), h('main', { class: 'wrap' }, form,
+    first ? null : h('button', { class: 'admin-link linkbtn', type: 'button', text: 'نسيت كلمة السر؟', onclick: resetForm })));
+}
+
+// Forgotten password: set a new one with the setup code.
+function resetForm() {
+  const code = h('input', { class: 'in', dir: 'ltr', autocomplete: 'off', placeholder: 'XXXXX-XXXXX-XXXXX-XXXXX' });
+  const pw = h('input', { class: 'in', type: 'password', autocomplete: 'new-password', dir: 'ltr' });
+  const pw2 = h('input', { class: 'in', type: 'password', autocomplete: 'new-password', dir: 'ltr' });
+  const err = h('p', { class: 'err' });
+  const go = h('button', { class: 'btn pri', type: 'submit', text: 'تعيين كلمة السر الجديدة' });
+  const form = h('form', { class: 'card', onsubmit: async (e) => {
+    e.preventDefault(); err.textContent = '';
+    if (pw.value.length < 8) { err.textContent = 'كلمة السر لازم تكون 8 حروف أو أكثر'; return; }
+    if (pw.value !== pw2.value) { err.textContent = 'كلمتا السر مو متطابقتين'; return; }
+    go.disabled = true;
+    try {
+      const wsalt = randomB64(16);
+      const res = await fetch('/api/track?a=reset', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code.value, password: pw.value, wsalt }) });
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok) { err.textContent = { code: 'رمز الإعداد غلط', slow: 'محاولات كثيرة، انتظر ساعة وجرّب' }[out.error] || 'صار خطأ، جرّب مرة ثانية'; return; }
+      wrapKey = await deriveWrapKey(pw.value, out.wsalt);
+      await idbSet('wrap', wrapKey);
+      localStorage.setItem(SESSION, out.session);
+      toast('تم تغيير كلمة السر');
+      home();
+    } catch (x) { err.textContent = 'تأكد من الإنترنت وجرّب مرة ثانية'; } finally { go.disabled = false; }
+  } },
+  h('h2', { text: 'نسيت كلمة السر' }),
+  h('p', { class: 'note-plain', text: 'اكتب رمز الإعداد اللي استخدمته أول مرة، واختار كلمة سر جديدة.' }),
+  h('label', { class: 'lbl', text: 'رمز الإعداد' }), code,
+  h('label', { class: 'lbl', text: 'كلمة السر الجديدة (8 حروف أو أكثر)' }), pw,
+  h('label', { class: 'lbl', text: 'أعد كتابة كلمة السر' }), pw2,
+  err, h('div', { class: 'row' }, go),
+  h('p', { class: 'muted', text: '🔒 الملفات القديمة تبقى مقفلة بعد التغيير. تفتحها مرة وحدة بلصق رابط الزبون مالها، وبعدها ترجع طبيعية.' }));
+  show(top('لوحة الإدارة', 'متابعة المعاملات · هشام فقط 🔐'), h('main', { class: 'wrap' }, form,
+    h('button', { class: 'admin-link linkbtn', type: 'button', text: '← رجوع لتسجيل الدخول', onclick: signIn })));
+}
+
+// A locked case (wrapped with an old password): open it again with its customer link.
+function unlockCase(c) {
+  const inp = h('input', { class: 'in', dir: 'ltr', placeholder: 'https://husham-ahmed.vercel.app/track.html#…', autocomplete: 'off' });
+  const err = h('p', { class: 'err' });
+  const go = h('button', { class: 'btn pri mt8', type: 'button', text: 'فتح الملف', onclick: async () => {
+    err.textContent = '';
+    const m = inp.value.trim().match(/#([A-Z2-9]{10})\.([A-Za-z0-9_-]{16,64})\.([A-Za-z0-9_-]{43})/);
+    if (!m) { err.textContent = 'هذا مو رابط معاملة. انسخ الرابط كامل.'; return; }
+    if (m[1] !== c.id) { err.textContent = `هذا الرابط لملف ثاني، مو ${caseCode(c.id)}.`; return; }
+    go.disabled = true;
+    try {
+      const key = await importKey(m[3]);
+      await openJSON(key, c.sealed);               // throws if the link key is wrong
+      await api('a=rewrap', { method: 'POST', json: { id: c.id, s: m[2], wrapped: await sealJSON(wrapKey, { k: m[3], s: m[2] }) } });
+      toast('انفتح الملف ✓'); home();
+    } catch (e) { if (e.message !== 'auth') err.textContent = 'الرابط ما يطابق هذا الملف.'; } finally { go.disabled = false; }
+  } });
+  show(top(`ملف مقفل ${caseCode(c.id)}`, 'لوحة الإدارة · هشام فقط 🔐', h('button', { class: 'back', type: 'button', text: '→ رجوع', onclick: home })),
+    h('main', { class: 'wrap' }, h('div', { class: 'card' },
+      h('b', { text: '🔒 هذا الملف مقفل بكلمة السر القديمة' }),
+      h('p', { class: 'note-plain', text: 'الصق رابط الزبون مال هذا الملف (اللي دزيته له بالواتساب) حتى ينفتح بكلمة السر الجديدة.' }),
+      inp, err, go)));
+}
+
+// Change password while signed in: re-wrap every case key with the new one.
+function changePassword() {
+  const pw = h('input', { class: 'in', type: 'password', autocomplete: 'new-password', dir: 'ltr' });
+  const pw2 = h('input', { class: 'in', type: 'password', autocomplete: 'new-password', dir: 'ltr' });
+  const err = h('p', { class: 'err' });
+  const go = h('button', { class: 'btn pri', type: 'submit', text: 'حفظ كلمة السر الجديدة' });
+  const form = h('form', { class: 'card', onsubmit: async (e) => {
+    e.preventDefault(); err.textContent = '';
+    if (pw.value.length < 8) { err.textContent = 'كلمة السر لازم تكون 8 حروف أو أكثر'; return; }
+    if (pw.value !== pw2.value) { err.textContent = 'كلمتا السر مو متطابقتين'; return; }
+    go.disabled = true;
+    try {
+      await loadCases();
+      const wsalt = randomB64(16);
+      const next = await deriveWrapKey(pw.value, wsalt);
+      const list = [];
+      for (const c of cases) if (!c.broken) list.push({ id: c.id, wrapped: await sealJSON(next, { k: c.k, s: c.s }) });
+      const out = await api('a=chpw', { method: 'POST', json: { password: pw.value, wsalt, cases: list } });
+      wrapKey = next; await idbSet('wrap', wrapKey);
+      localStorage.setItem(SESSION, out.session);
+      toast('تم تغيير كلمة السر ✓'); home();
+    } catch (x) { if (x.message !== 'auth') err.textContent = 'صار خطأ، جرّب مرة ثانية'; } finally { go.disabled = false; }
+  } },
+  h('h2', { text: 'تغيير كلمة السر' }),
+  h('label', { class: 'lbl', text: 'كلمة السر الجديدة (8 حروف أو أكثر)' }), pw,
+  h('label', { class: 'lbl', text: 'أعد كتابة كلمة السر' }), pw2,
+  err, h('div', { class: 'row' }, go),
+  h('p', { class: 'muted', text: 'كل الملفات تبقى تنفتح طبيعي. الأجهزة الثانية تطلب منك تسجيل دخول من جديد.' }));
+  show(top('تغيير كلمة السر', 'لوحة الإدارة · هشام فقط 🔐', h('button', { class: 'back', type: 'button', text: '→ رجوع', onclick: home })),
+    h('main', { class: 'wrap' }, form));
 }
 function signOut(expired) {
   try { localStorage.removeItem(SESSION); } catch (e) { /* ignore */ }
@@ -97,7 +190,7 @@ async function loadCases() {
       const ks = await openJSON(wrapKey, c.wrapped);
       const key = await importKey(ks.k);
       list.push({ ...c, k: ks.k, s: ks.s, key, data: await openJSON(key, c.data) });
-    } catch (e) { list.push({ ...c, broken: true, data: { name: '؟ (ما انفتح)', items: [] } }); }
+    } catch (e) { list.push({ ...c, broken: true, sealed: c.data, data: { name: '🔒 ملف مقفل', items: [] } }); }
   }
   cases = list.sort((a, b) => b.updated - a.updated);
 }
@@ -108,6 +201,11 @@ async function home() {
     const active = (c.data.items || []).filter((it) => !isDone(it)).length;
     const first = (c.data.items || []).find((it) => !isDone(it)) || (c.data.items || [])[0];
     const sub = first ? `${first.title || ''} · ${currentLabel(first)}` : 'بدون بنود';
+    if (c.broken) {
+      return h('div', { class: 'it', onclick: () => unlockCase(c) },
+        h('div', {}, h('b', { text: c.data.name }), h('small', { text: `${caseCode(c.id)} · الصق رابط الزبون حتى ينفتح` })),
+        h('span', { class: 'badge', text: 'فتح' }));
+    }
     return h('div', { class: 'it', onclick: () => edit(c) },
       h('div', {}, h('b', { text: c.data.name || caseCode(c.id) }), h('small', { text: `${caseCode(c.id)} · ${sub}` })),
       c.doneAt ? h('span', { class: 'badge ok', text: '✓ مغلق' }) : h('span', { class: active ? 'badge' : 'badge ok', text: active ? `${active} جارية` : '✓' }));
@@ -115,6 +213,8 @@ async function home() {
   show(top('كل المعاملات', 'لوحة الإدارة · هشام فقط 🔐'), h('main', { class: 'wrap' },
     h('button', { class: 'btn pri', type: 'button', text: '＋ ملف زبون جديد', onclick: newCase }),
     h('div', { class: 'card list mt12' }, cases.length ? cases.map(row) : h('p', { class: 'muted', text: 'ماكو معاملات بعد.' })),
+    h('button', { class: 'btn ghost', type: 'button', text: '🔑 تغيير كلمة السر', onclick: changePassword }),
+    h('div', { class: 'gap8' }),
     h('button', { class: 'btn ghost', type: 'button', text: 'تسجيل خروج', onclick: () => api('a=logout', { method: 'POST' }).finally(() => signOut()) })));
 }
 

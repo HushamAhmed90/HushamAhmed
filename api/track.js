@@ -109,16 +109,21 @@ async function removeCase(c) {
 }
 const expired = (c) => c.doneAt && c.doneAt + KEEP_DAYS * DAY < now();
 
+// Sessions carry the password "generation": changing or resetting the password
+// bumps it, which signs out every other device.
+const genOf = (rec) => String((rec && rec.gen) || 1);
 async function adminFromReq(req) {
   const m = String(req.headers.authorization || '').match(/^Bearer ([A-Za-z0-9_-]{30,})$/);
   if (!m) return false;
-  return !!(await r1('GET', `sess:${sha(m[1])}`));
+  const [sess, raw] = await redis([['GET', `sess:${sha(m[1])}`], ['GET', 'admin:pw']]);
+  return !!sess && sess === genOf(JSON.parse(raw || 'null'));
 }
-async function newSession() {
+async function newSession(rec) {
   const s = rand(32);
-  await r1('SET', `sess:${sha(s)}`, '1', 'EX', 30 * DAY);
+  await r1('SET', `sess:${sha(s)}`, genOf(rec), 'EX', 30 * DAY);
   return s;
 }
+const validSalt = (w) => typeof w === 'string' && /^[A-Za-z0-9_-]{16,64}$/.test(w);
 
 // ---------- handler ----------
 module.exports = async (req, res) => {
@@ -166,7 +171,22 @@ module.exports = async (req, res) => {
       }
       const rec = JSON.parse((await r1('GET', 'admin:pw')) || 'null');
       if (!rec || !same(scrypt(pw, rec.salt), rec.hash)) return send(res, 403, { error: 'password' });
-      return send(res, 200, { session: await newSession(), wsalt: rec.wsalt });
+      return send(res, 200, { session: await newSession(rec), wsalt: rec.wsalt });
+    }
+    // Forgotten password: the setup code sets a new one. Case keys wrapped with the
+    // old password stay unreadable until each case is re-opened with its customer link.
+    if (a === 'reset') {
+      if (req.method !== 'POST') return send(res, 405, {});
+      if (!(await allow(`login:${sha(ip)}`, 10, 3600)) || !(await allow('login:all', 60, 3600))) return send(res, 429, { error: 'slow' });
+      const b = await jsonBody(req);
+      if (!same(sha(String(b.code || '').trim().toUpperCase()), SETUP_HASH)) return send(res, 403, { error: 'code' });
+      if (String(b.password || '').length < 8) return send(res, 400, { error: 'short' });
+      if (!validSalt(b.wsalt)) return send(res, 400, { error: 'bad' });
+      const old = JSON.parse((await r1('GET', 'admin:pw')) || 'null');
+      const salt = rand(16);
+      const rec = { salt, hash: scrypt(b.password, salt), wsalt: b.wsalt, gen: Number(genOf(old)) + 1 };
+      await r1('SET', 'admin:pw', JSON.stringify(rec));
+      return send(res, 200, { session: await newSession(rec), wsalt: rec.wsalt });
     }
     if (a === 'logout') {
       const m = String(req.headers.authorization || '').match(/^Bearer (.+)$/);
@@ -200,6 +220,22 @@ module.exports = async (req, res) => {
       }
       return send(res, 200, { cases: out, keepDays: KEEP_DAYS });
     }
+    // Change password while signed in: every case key arrives re-wrapped with the new one.
+    if (a === 'chpw') {
+      const b = await jsonBody(req);
+      if (String(b.password || '').length < 8) return send(res, 400, { error: 'short' });
+      if (!validSalt(b.wsalt) || !Array.isArray(b.cases)) return send(res, 400, { error: 'bad' });
+      for (const x of b.cases) {
+        if (!x || !validId(x.id) || typeof x.wrapped !== 'string' || x.wrapped.length > 2000) continue;
+        const c = await getCase(x.id);
+        if (c) { c.wrapped = x.wrapped; await putCase(c); }
+      }
+      const old = JSON.parse((await r1('GET', 'admin:pw')) || 'null');
+      const salt = rand(16);
+      const rec = { salt, hash: scrypt(b.password, salt), wsalt: b.wsalt, gen: Number(genOf(old)) + 1 };
+      await r1('SET', 'admin:pw', JSON.stringify(rec));
+      return send(res, 200, { session: await newSession(rec), wsalt: rec.wsalt });
+    }
     if (a === 'create') {
       const b = await jsonBody(req);
       if (!validHash(b.secretHash) || typeof b.wrapped !== 'string' || typeof b.data !== 'string' || b.data.length > MAX_DATA) return send(res, 400, { error: 'bad' });
@@ -213,6 +249,12 @@ module.exports = async (req, res) => {
     if (!validId(id)) return send(res, 400, { error: 'bad' });
     const c = await getCase(id);
     if (!c) return send(res, 404, { error: 'none' });
+    // Re-open a locked case with its customer link (proves the link secret).
+    if (a === 'rewrap') {
+      if (typeof b.wrapped !== 'string' || b.wrapped.length > 2000 || !same(sha(String(b.s || '')), c.secretHash)) return send(res, 403, { error: 'link' });
+      c.wrapped = b.wrapped; await putCase(c);
+      return send(res, 200, { ok: true });
+    }
     if (a === 'save') {
       if (typeof b.data !== 'string' || b.data.length > MAX_DATA) return send(res, 400, { error: 'bad' });
       c.data = b.data; c.updated = now();
