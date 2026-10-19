@@ -87,6 +87,18 @@
     {
       "path": "/api/track?a=cleanup",
       "schedule": "17 3 * * *"
+    },
+    {
+      "path": "/api/push?a=cron",
+      "schedule": "*/10 * * * *"
     }
-  ]
+  ],
+  "functions": {
+    "api/scan.js": {
+      "maxDuration": 60
+    },
+    "api/push.js": {
+      "maxDuration": 60
+    }
+  }
 }

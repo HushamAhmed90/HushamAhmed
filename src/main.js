@@ -7,6 +7,7 @@ import { MISSIONS, OWN_FORMS, NO_FORM, missionTitle, findMission } from './missi
 import { toLatin, hasArabic } from './translit.js';
 import { GUIDES, findGuide } from './guides.js';
 import { NATUR, NATUR_SOURCES, QUIZ, INTERVIEW } from './natur.js';
+import { pushSupported, needsInstall, pushOn, enablePush, disablePush, refreshPushLang, scheduleReminder, cancelReminder } from './push.js';
 import { FIELDS as C_FIELDS, POA_PURPOSES, REQUIRED as C_REQUIRED, MARITAL, drawConsular, consularFontsReady } from './consular.js';
 
 const KEY = 'bitaqa.forms.v2';
@@ -368,7 +369,8 @@ function showRating() {
     [...stars.children].forEach((b, i) => { b.classList.toggle('on', i < n); b.setAttribute('aria-pressed', String(i === n - 1)); });
     after.replaceChildren(...(n === 5 ? [
       h('p', { class: 'note', text: u.rateThanks }),
-      h('button', { class: 'btn primary wide', type: 'button', text: u.shareApp, onclick: () => { closeSheet(); shareApp(); } }),
+      isAndroid() ? h('a', { class: 'btn primary wide', href: PLAY_URL, target: '_blank', rel: 'noopener', onclick: () => count('rate_play', { place: 'rating' }) }, u.ratePlay) : null,
+      h('button', { class: 'btn ' + (isAndroid() ? 'soft' : 'primary') + ' wide', type: 'button', text: u.shareApp, onclick: () => { closeSheet(); shareApp(); } }),
       h('a', { class: 'btn tt wide', href: OWNER.tiktok, target: '_blank', rel: 'noopener', html: ICON.tt, onclick: () => count('tiktok_click', { place: 'rating' }) }, u.followTiktok),
     ] : [
       h('p', { class: 'note', text: u.rateSorry }),
@@ -706,7 +708,8 @@ function header() {
       h('h1', { text: t().appName }),
       installBtn(),
       bigBtn(),
-      h('button', { class: 'chip', type: 'button', text: t().otherLang, onclick: () => setLang(app.lang === 'Ara' ? 'Kur' : 'Ara') })),
+      h('button', { class: 'chip', type: 'button', text: t().otherLang, onclick: () => setLang(app.lang === 'Ara' ? 'Kur' : 'Ara') }),
+      h('button', { class: 'chip menu', type: 'button', 'aria-label': t().more, title: t().more, html: ICONS.menu, onclick: openMore })),
     h('div', { class: 'owner' },
       h('a', { class: 'owner-who', href: waLink(t().waHello), target: '_blank', rel: 'noopener', onclick: () => count('whatsapp_click', { place: 'header' }) },
         h('img', { src: o.photo, alt: '', width: 30, height: 30 }),
@@ -1012,8 +1015,8 @@ function openGuide(id, fromList) {
     fromList ? h('button', { class: 'linkbtn', type: 'button', text: u.gBack, onclick: openGuides }) : null,
     h('p', { class: 'note', text: x.intro }),
     videoBtn('guide_' + g.id),
-    h('p', { class: 'qlabel', text: u.gNeed }),
-    h('ul', { class: 'docs' }, x.need.map((n) => h('li', { text: n }))),
+    checklist('g:' + g.id, x.need),
+    apptButton('g:' + g.id),
     h('p', { class: 'qlabel', text: u.gSteps }),
     h('ol', { class: 'steps' }, x.steps.map((n) => h('li', { text: n }))),
     h('p', { class: 'notice', text: x.note }),
@@ -1381,9 +1384,9 @@ function renderConsular(keepScroll) {
         keys.map(cField))),
       cState.form === 'apostille' ? null : bookingCard(),
       h('section', { class: 'card open' }, h('div', { class: 'card-body flat' },
-        h('p', { class: 'qlabel', text: u.cRequired }),
-        h('ul', { class: 'docs' }, docs.map(([ar, ku]) => h('li', { text: app.lang === 'Kur' ? ku : ar }))),
-        h('p', { class: 'hint', text: u.cRequiredNote }))),
+        checklist('c:' + cState.form, docs.map(([ar, ku]) => (app.lang === 'Kur' ? ku : ar))),
+        h('p', { class: 'hint', text: u.cRequiredNote }),
+        cState.form === 'apostille' ? null : apptButton('c:' + cState.form, currentMission()))),
       disclaimerNote()),
     h('div', { class: 'dock' }, h('button', { class: 'btn primary wide big', type: 'button', text: noForm() ? u.cOptionalSheet : u.review, onclick: () => cGoReview() })),
     bottomNav(),
@@ -1565,6 +1568,7 @@ const ICONS = {
   printer: svgI('<path d="M7 9V3h10v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/>'),
   pen: svgI('<path d="M4 20l4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10z"/><path d="M13.5 6.5l3 3"/>'),
   flag: svgI('<path d="M5 21V4"/><path d="M5 4h13l-2.5 4L18 12H5"/>'),
+  menu: svgI('<path d="M4 7h16M4 12h16M4 17h16"/>'),
   calendar: svgI('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18M8 14h3v3H8z"/>'),
 };
 const GUIDE_ICON = { passport: 'passport', record: 'shield', birth: 'baby', marriage: 'rings', laissez: 'plane' };
@@ -1603,6 +1607,8 @@ function renderHome() {
     newsTicker(),
     noticeCards(),
     h('main', { class: 'home' },
+      nextApptCard(),
+      notifPromo(),
       started ? h('button', { class: 'continue', type: 'button', onclick: () => openForms('nid') },
         h('b', { text: u.homeContinue(personName(cur.values)) }),
         h('small', { text: formMissing(cur.values) ? `${u.formMissing} (${formMissing(cur.values)})` : u.formDone })) : null,
@@ -1680,6 +1686,333 @@ function renderServices() {
   );
 }
 
+// ---------- light / dark ----------
+const THEME_KEY = 'bitaqa.theme';
+const themePref = () => { try { return localStorage.getItem(THEME_KEY) || 'auto'; } catch (e) { return 'auto'; } };
+function applyTheme(pref) {
+  try { localStorage.setItem(THEME_KEY, pref); } catch (e) { /* ignore */ }
+  const dark = pref === 'dark' || (pref === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.classList.toggle('dk', dark);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', dark ? '#0B1622' : '#173F5F');
+}
+try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (themePref() === 'auto') applyTheme('auto'); }); } catch (e) { /* old browsers */ }
+
+const APP_VERSION = '2.0';
+const PLAY_URL = 'https://play.google.com/store/apps/details?id=com.hushamahmed.bitaqa';
+const isAndroid = () => /android/i.test(navigator.userAgent);
+
+function infoSheet(title, text) {
+  sheet(h('div', { class: 'msg' }, h('h2', { text: title }), h('p', { text }),
+    h('button', { class: 'btn primary wide', type: 'button', text: t().close, onclick: closeSheet })));
+}
+
+// ---------- phone notifications ----------
+async function turnOnPush() {
+  const u = t();
+  if (!pushSupported()) { infoSheet(u.notifLabel, u.notifUnsupported); return false; }
+  if (needsInstall()) { infoSheet(u.notifLabel, u.notifIos); return false; }
+  const r = await enablePush(app.lang);
+  if (r === 'on') { toast(u.notifDone); count('push_on'); return true; }
+  if (r === 'denied') infoSheet(u.notifLabel, u.notifDenied);
+  else toast(r === 'unsupported' ? u.notifUnsupported : u.notifFailed, 5000);
+  count('push_fail', { r });
+  return false;
+}
+const NOTIF_ASK = 'bitaqa.notifAsk';
+// A card on the home screen until notifications are on (or "not now", asked again after 3 weeks).
+function notifPromo() {
+  if (!pushSupported() && !needsInstall()) return null;
+  let later = 0;
+  try { later = Number(localStorage.getItem(NOTIF_ASK)) || 0; } catch (e) { /* ignore */ }
+  if (Date.now() - later < 21 * 864e5) return null;
+  const u = t();
+  const card = h('div', { class: 'notif-card', hidden: true },
+    h('b', { text: u.notifCardTitle }),
+    h('p', { text: u.notifCardText }),
+    h('div', { class: 'two' },
+      h('button', { class: 'btn primary', type: 'button', text: u.notifEnable, onclick: async () => { if (await turnOnPush()) card.remove(); } }),
+      h('button', { class: 'btn ghost', type: 'button', text: u.notifLater, onclick: () => {
+        try { localStorage.setItem(NOTIF_ASK, String(Date.now())); } catch (e) { /* ignore */ }
+        card.remove(); count('push_later');
+      } })));
+  pushOn().then((on) => { if (!on) card.hidden = false; else card.remove(); });
+  return card;
+}
+
+// ---------- "more" menu ----------
+async function openMore() {
+  const u = t();
+  count('more_open');
+  const themeRow = h('div', { class: 'chips' }, ['auto', 'light', 'dark'].map((k) => h('button', {
+    class: 'chipbtn' + (themePref() === k ? ' on' : ''), type: 'button', text: u.themes[k],
+    onclick: (e) => { applyTheme(k); [...themeRow.children].forEach((b) => b.classList.toggle('on', b === e.currentTarget)); count('theme', { k }); } })));
+  const state = h('small', { class: 'state', text: '…' });
+  const nbtn = h('button', { class: 'btn soft wide', type: 'button', text: u.notifEnable });
+  const refresh = async () => {
+    const on = await pushOn();
+    state.textContent = on ? u.notifOnState : u.notifOffState;
+    state.classList.toggle('on', on);
+    nbtn.textContent = on ? u.notifStop : u.notifEnable;
+    nbtn.onclick = on ? async () => { await disablePush(); toast(u.notifStopped); count('push_off'); refresh(); }
+      : async () => { await turnOnPush(); refresh(); };
+  };
+  const row = (icon, label, onclick) => h('button', { class: 'more-row', type: 'button', onclick }, h('span', { text: icon }), h('b', { text: label }), h('i', { html: ICON.chevron }));
+  sheet(h('div', { class: 'more' },
+    h('div', { class: 'picker-top' }, h('h2', { text: u.moreTitle }), h('button', { class: 'x', type: 'button', 'aria-label': u.close, onclick: closeSheet, text: '✕' })),
+    h('p', { class: 'qlabel', text: u.themeLabel }), themeRow,
+    h('div', { class: 'qhead mt' }, h('p', { class: 'qlabel', text: u.notifLabel }), state), nbtn,
+    h('div', { class: 'more-list' },
+      row('ℹ️', u.aboutApp, () => { closeSheet(); openAboutApp(); }),
+      row('👤', u.meTitle, () => { closeSheet(); openAboutMe(); }),
+      isAndroid() ? row('⭐', u.rateApp, () => { count('rate_play', { place: 'more' }); window.open(PLAY_URL, '_blank', 'noopener'); }) : null,
+      row('📤', u.shareApp, () => { closeSheet(); shareApp(); }),
+      row('🔒', u.privacyPolicy, () => { window.open('/privacy.html', '_blank', 'noopener'); })),
+    h('p', { class: 'hint center', text: `${u.appVersion} ${APP_VERSION}` }),
+  ), { tall: true });
+  refresh();
+}
+function openAboutApp() {
+  const u = t();
+  count('about_app_open');
+  sheet(h('div', { class: 'about' },
+    h('div', { class: 'picker-top' }, h('h2', { text: u.aboutApp }), h('button', { class: 'x', type: 'button', 'aria-label': u.close, onclick: closeSheet, text: '✕' })),
+    h('div', { class: 'about-head' }, h('img', { src: '/icons/icon-192.png', alt: '', width: 72, height: 72 }),
+      h('div', {}, h('b', { text: u.appName }), h('small', { text: `${u.appVersion} ${APP_VERSION}` }))),
+    u.aboutAppText.map((x) => h('p', { text: x })),
+    h('ul', { class: 'docs' }, u.aboutFeatures.map((x) => h('li', { text: x }))),
+    isAndroid() ? h('a', { class: 'btn primary wide', href: PLAY_URL, target: '_blank', rel: 'noopener', onclick: () => count('rate_play', { place: 'about' }) }, u.ratePlay) : null,
+    h('div', { class: 'two' },
+      h('button', { class: 'btn soft', type: 'button', text: u.shareApp, onclick: shareApp }),
+      h('button', { class: 'btn soft', type: 'button', text: u.meTitle, onclick: () => { closeSheet(); openAboutMe(); } })),
+    h('a', { class: 'btn ghost wide', href: '/privacy.html', target: '_blank', rel: 'noopener', text: u.privacyPolicy }),
+  ), { tall: true });
+}
+
+// ---------- my file: document checklists and appointments (kept on this device) ----------
+const MINE_KEY = 'bitaqa.mine.v1';
+function mine() {
+  try { const m = JSON.parse(localStorage.getItem(MINE_KEY) || '{}'); return { checks: m.checks || {}, appts: Array.isArray(m.appts) ? m.appts : [] }; } catch (e) { return { checks: {}, appts: [] }; }
+}
+function saveMine(m) { try { localStorage.setItem(MINE_KEY, JSON.stringify(m)); } catch (e) { /* ignore */ } }
+const ymdLocal = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const daysUntil = (date) => Math.round((new Date(`${date}T00:00`) - new Date(`${ymdLocal()}T00:00`)) / 864e5);
+
+function checklist(key, items) {
+  const u = t();
+  const done = new Set(mine().checks[key] || []);
+  const prog = h('small', { class: 'check-prog' });
+  const upd = () => { const n = items.filter((_, i) => done.has(i)).length; prog.textContent = u.checkProgress(n, items.length); prog.classList.toggle('all', n === items.length); };
+  const list = h('ul', { class: 'checks' }, items.map((txt, i) => {
+    const cb = h('input', { type: 'checkbox' });
+    cb.checked = done.has(i);
+    cb.addEventListener('change', () => {
+      if (cb.checked) done.add(i); else done.delete(i);
+      const m = mine(); m.checks[key] = [...done]; saveMine(m); upd();
+      if (cb.checked) count('check_item', { key });
+    });
+    return h('li', {}, h('label', {}, cb, h('span', { text: txt })));
+  }));
+  upd();
+  return h('div', { class: 'checkcard' }, h('div', { class: 'qhead' }, h('p', { class: 'qlabel', text: u.checkTitle }), prog), list, h('p', { class: 'hint', text: u.checkHint }));
+}
+
+// Which screen an appointment belongs to: g:<guide id>, c:<consular form>, nid.
+function apptLabel(key) {
+  const u = t();
+  if (key.startsWith('g:')) { const g = findGuide(key.slice(2)); return g ? (g[app.lang] || g.Ara).title : ''; }
+  if (key.startsWith('c:')) return u.cForms[key.slice(2)] || '';
+  return u.homeTiles.nid[0];
+}
+function apptItems(key) {
+  if (key.startsWith('g:')) { const g = findGuide(key.slice(2)); return g ? (g[app.lang] || g.Ara).need : []; }
+  if (key.startsWith('c:')) return (C_REQUIRED[key.slice(2)] || []).map(([ar, ku]) => (app.lang === 'Kur' ? ku : ar));
+  return t().nidNeed;
+}
+function openApptTarget(key) {
+  closeSheet();
+  if (key.startsWith('g:')) { openGuide(key.slice(2)); return; }
+  if (key.startsWith('c:')) { cState.form = key.slice(2); cSave(); openForms('consular'); return; }
+  openForms('nid');
+}
+function apptButton(key, place) {
+  return h('button', { class: 'btn soft wide appt-btn', type: 'button', text: t().apptBtn, onclick: () => openAppt(key, place) });
+}
+function icsFor(a) {
+  const u = t();
+  const esc = (x) => String(x).replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+  const enc = new TextEncoder();
+  const fold = (line) => { let out = ''; let n = 0; for (const ch of line) { const b = enc.encode(ch).length; if (n + b > 73) { out += '\r\n '; n = 1; } out += ch; n += b; } return out; };
+  const d = a.date.replace(/-/g, '');
+  const next = ymdLocal(new Date(new Date(`${a.date}T12:00`).getTime() + 864e5)).replace(/-/g, '');
+  const [hh, mm] = (a.time || '').split(':');
+  const start = a.time ? `DTSTART:${d}T${hh}${mm}00` : `DTSTART;VALUE=DATE:${d}`;
+  const end = a.time ? `DTEND:${d}T${String(Math.min(23, Number(hh) + 1)).padStart(2, '0')}${mm}00` : `DTEND;VALUE=DATE:${next}`;
+  const title = u.apptCalTitle(a.label);
+  const text = `${u.apptOpen}:\n${apptItems(a.key).map((x) => `- ${x}`).join('\n')}\n\n${location.origin}`;
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//husham-ahmed//bitaqa//AR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'BEGIN:VEVENT',
+    `UID:${a.id}@husham-ahmed.vercel.app`, `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').slice(0, 15)}Z`, start, end,
+    `SUMMARY:${esc(title)}`, a.place ? `LOCATION:${esc(a.place)}` : null, `DESCRIPTION:${esc(text)}`,
+    'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${esc(title)}`, 'TRIGGER:-P1D', 'END:VALARM',
+    'END:VEVENT', 'END:VCALENDAR'].filter(Boolean).map(fold).join('\r\n');
+}
+function downloadIcs(a) {
+  const url = URL.createObjectURL(new Blob([icsFor(a)], { type: 'text/calendar;charset=utf-8' }));
+  if (isIOS()) location.href = url;
+  else { const el = h('a', { href: url, download: 'موعد.ics' }); document.body.append(el); el.click(); el.remove(); }
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  count('appt_calendar');
+}
+function openAppt(key, place) {
+  const u = t();
+  const label = apptLabel(key);
+  const date = h('input', { class: 'input', type: 'date', id: 'appt_date', min: ymdLocal() });
+  const time = h('input', { class: 'input', type: 'time', id: 'appt_time', value: '09:00' });
+  const where = h('input', { class: 'input', type: 'text', id: 'appt_place', value: place || '' });
+  const err = h('p', { class: 'err' });
+  const saveBtn = h('button', { class: 'btn primary wide', type: 'button', text: u.apptSave, onclick: async () => {
+    if (!date.value) { err.textContent = u.apptNeedDate; return; }
+    if (date.value < ymdLocal()) { err.textContent = u.apptPast; return; }
+    saveBtn.disabled = true;
+    const a = { id: newId(), key, label, date: date.value, time: time.value || '', place: where.value.trim().slice(0, 80) };
+    a.remId = await scheduleReminder({ date: a.date, time: a.time, label, lang: app.lang });
+    const m = mine(); m.appts = m.appts.filter((x) => x.key !== key || x.date < ymdLocal()); m.appts.push(a); saveMine(m);
+    count('appt_saved', { key, push: !!a.remId });
+    apptSaved(a);
+  } });
+  sheet(h('div', { class: 'msg appt' },
+    h('h2', { text: u.apptTitle }),
+    h('p', { class: 'note', text: `${u.apptFor}: ${label}` }),
+    h('div', { class: 'field' }, h('label', { for: 'appt_date', text: u.apptDate }), date),
+    h('div', { class: 'field' }, h('label', { for: 'appt_time', text: u.apptTime }), time),
+    h('div', { class: 'field' }, h('label', { for: 'appt_place', text: u.apptPlace }), where),
+    err, saveBtn,
+    h('button', { class: 'btn ghost wide', type: 'button', text: u.close, onclick: closeSheet })));
+}
+function apptSaved(a) {
+  const u = t();
+  const push = h('div', {});
+  const fill = (on) => push.replaceChildren(on ? h('p', { class: 'trust', text: u.apptPushOn })
+    : h('button', { class: 'btn soft wide', type: 'button', text: u.apptPushAsk, onclick: async () => {
+      if (!(await turnOnPush())) return;
+      a.remId = await scheduleReminder({ date: a.date, time: a.time, label: a.label, lang: app.lang });
+      const m = mine(); m.appts = m.appts.map((x) => (x.id === a.id ? a : x)); saveMine(m);
+      fill(!!a.remId);
+    } }));
+  fill(!!a.remId);
+  sheet(h('div', { class: 'msg appt' },
+    h('h2', { text: u.apptSaved }),
+    h('p', { class: 'note', text: `${a.label} · ${a.date.split('-').reverse().join('/')} ${u.apptAt(a.time)}` }),
+    h('button', { class: 'btn primary wide', type: 'button', text: u.apptCal, onclick: () => downloadIcs(a) }),
+    push,
+    h('button', { class: 'btn ghost wide', type: 'button', text: u.close, onclick: () => { closeSheet(); renderCurrent(); } })));
+}
+// Home: the next appointment, with how many documents are ready.
+function nextApptCard() {
+  const today = ymdLocal();
+  const m = mine();
+  const keep = m.appts.filter((a) => a.date >= today);
+  if (keep.length !== m.appts.length) { m.appts = keep; saveMine(m); }
+  const a = keep.sort((x, y) => (x.date + x.time).localeCompare(y.date + y.time))[0];
+  if (!a) return null;
+  const u = t();
+  const items = apptItems(a.key);
+  const ready = (m.checks[a.key] || []).filter((i) => i < items.length).length;
+  const days = daysUntil(a.date);
+  return h('div', { class: 'appt-card' + (days <= 1 ? ' soon' : '') },
+    h('div', { class: 'appt-top' }, h('small', { text: `📅 ${u.apptNext}` }), h('span', { class: 'appt-in', text: u.apptIn(days) })),
+    h('b', { text: apptLabel(a.key) || a.label }),
+    h('p', { text: [a.date.split('-').reverse().join('/'), u.apptAt(a.time), a.place].filter(Boolean).join(' · ') }),
+    items.length ? h('p', { class: 'appt-ready', text: u.checkProgress(ready, items.length) }) : null,
+    h('div', { class: 'two' },
+      h('button', { class: 'btn primary', type: 'button', text: u.apptOpen, onclick: () => openApptTarget(a.key) }),
+      h('button', { class: 'btn ghost', type: 'button', text: u.apptDelete, onclick: () => {
+        const mm = mine(); mm.appts = mm.appts.filter((x) => x.id !== a.id); saveMine(mm);
+        cancelReminder(a.remId); toast(u.apptDeleted); count('appt_deleted'); renderCurrent();
+      } })));
+}
+
+// ---------- read an ID photo and fill in the national card form ----------
+const SCAN_OK = 'bitaqa.scanConsent';
+async function shrinkToJpeg(file, max = 1600) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+    const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.naturalWidth * scale); c.height = Math.round(img.naturalHeight * scale);
+    const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', 0.85).split(',')[1];
+  } finally { URL.revokeObjectURL(url); }
+}
+function openScan() {
+  const u = t();
+  count('scan_open');
+  let agreed = false;
+  try { agreed = localStorage.getItem(SCAN_OK) === '1'; } catch (e) { /* ignore */ }
+  const consent = h('input', { type: 'checkbox', id: 'scan_ok' });
+  consent.checked = agreed;
+  const status = h('div', { class: 'scan-status' });
+  const cam = h('input', { type: 'file', accept: 'image/*', capture: 'environment', class: 'offscreen', 'aria-hidden': 'true', tabindex: '-1' });
+  const gal = h('input', { type: 'file', accept: 'image/*', class: 'offscreen', 'aria-hidden': 'true', tabindex: '-1' });
+  const ok = () => {
+    if (consent.checked) { try { localStorage.setItem(SCAN_OK, '1'); } catch (e) { /* ignore */ } return true; }
+    status.replaceChildren(h('p', { class: 'err', text: u.scanConsent }));
+    consent.focus();
+    return false;
+  };
+  const btnCam = h('button', { class: 'btn primary wide', type: 'button', text: u.scanCamera, onclick: () => { if (ok()) cam.click(); } });
+  const btnGal = h('button', { class: 'btn soft wide', type: 'button', text: u.scanGallery, onclick: () => { if (ok()) gal.click(); } });
+  const busy = (on) => { btnCam.disabled = on; btnGal.disabled = on; };
+  const run = async (file) => {
+    busy(true);
+    status.replaceChildren(h('p', { class: 'scan-busy' }, h('span', { class: 'spinner' }), u.scanBusy));
+    count('scan_start');
+    let out;
+    try {
+      const image = await shrinkToJpeg(file);
+      const res = await fetch('/api/scan?a=read', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image }) });
+      if (res.status === 429) { status.replaceChildren(h('p', { class: 'err', text: u.scanSlow })); busy(false); return; }
+      out = await res.json();
+    } catch (e) { status.replaceChildren(h('p', { class: 'err', text: u.scanOffline })); busy(false); count('scan_error'); return; }
+    busy(false);
+    if (!out || !out.ok) { status.replaceChildren(h('p', { class: 'err', text: u.scanFail })); count('scan_fail'); return; }
+    const values = fillValues(out.fields || {});
+    const keys = Object.keys(values);
+    if (!keys.length) { status.replaceChildren(h('p', { class: 'err', text: u.scanNone })); count('scan_empty'); return; }
+    count('scan_ok', { n: keys.length });
+    const L = LABELS[app.lang] || LABELS.Ara;
+    const shown = (k) => (FIELDS[k].type === 'pick' ? labelOf(k, values[k]) : values[k]);
+    status.replaceChildren(
+      h('p', { class: 'scan-found', text: u.scanFound(keys.length, out.doc) }),
+      h('ul', { class: 'scan-list' }, keys.map((k) => h('li', {}, h('small', { text: L[k] || k }), h('b', { text: shown(k) })))),
+      h('p', { class: 'notice', text: u.scanCheck }),
+      h('button', { class: 'btn primary wide', type: 'button', text: u.scanApply, onclick: () => {
+        const cur = currentForm() || addForm({});
+        cur.values = { ...cur.values, ...values };
+        useForm(cur); persist();
+        closeSheet(); renderCurrent();
+        toast(u.scanApplied(keys.length), 5000);
+        count('scan_applied', { n: keys.length });
+      } }),
+      h('button', { class: 'btn soft wide', type: 'button', text: u.scanAnother, onclick: () => {
+        const cur = currentForm() || addForm({});
+        cur.values = { ...cur.values, ...values };
+        useForm(cur); persist();
+        status.replaceChildren(h('p', { class: 'trust', text: u.scanApplied(keys.length) }));
+        cam.click();
+      } }));
+  };
+  [cam, gal].forEach((inp) => inp.addEventListener('change', () => { const f = inp.files && inp.files[0]; inp.value = ''; if (f) run(f); }));
+  sheet(h('div', { class: 'msg scan' },
+    h('div', { class: 'picker-top' }, h('h2', { text: u.scanTitle }), h('button', { class: 'x', type: 'button', 'aria-label': u.close, onclick: closeSheet, text: '✕' })),
+    h('p', { text: u.scanText }),
+    h('p', { class: 'hint', text: u.scanTips }),
+    h('label', { class: 'consent', for: 'scan_ok' }, consent, h('span', { text: u.scanConsent })),
+    h('p', { class: 'hint', text: u.scanPrivacy }),
+    btnCam, btnGal, cam, gal, status), { tall: true });
+}
+
 // ---------- screens ----------
 function renderForm() {
   app.section = 'forms'; persistSection();
@@ -1694,6 +2027,7 @@ function renderForm() {
         h('span', { class: 'fambar-btn' }, `${t().family} (${app.forms.length})`)),
       h('p', { id: 'progress-text' }),
       h('div', { class: 'track' }, h('div', { id: 'progress-bar', class: 'fill' })),
+      h('button', { class: 'btn scan wide', type: 'button', text: t().scanBtn, onclick: openScan }),
       videoBtn('nid')),
     h('main', { class: 'cards' }, SECTIONS.map(sectionCard),
       disclaimerNote()),
@@ -1758,6 +2092,7 @@ async function renderReview() {
       h('p', { class: 'hint center', text: u.tapZoom }),
       h('button', { class: 'btn wa wide', type: 'button', text: u.shareForm, onclick: (e) => sharePdf(e.currentTarget, paint, fileName('pdf'), 'nid') }),
       printMailCard(`استمارة البطاقة الوطنية باسم ${personName(app.values)}`),
+      h('section', { class: 'card open' }, h('div', { class: 'card-body flat' }, checklist('nid', u.nidNeed), apptButton('nid'))),
       h('div', { class: 'owner-card' },
         h('div', { class: 'oc-head' }, h('img', { src: OWNER.photo, alt: '', width: 52, height: 52 }),
           h('div', {}, h('b', { text: OWNER.name[app.lang] }), h('p', { text: u.helpTitle }))),
@@ -1862,6 +2197,7 @@ function setLang(lang) {
   tally('p', 'p');
   persist();
   renderCurrent();
+  refreshPushLang(lang);
 }
 
 let installEvent = null;

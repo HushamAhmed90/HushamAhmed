@@ -476,3 +476,97 @@ body { padding-bottom: calc(96px + var(--navh) + env(safe-area-inset-bottom, 0px
 .abroadbox .docs { font-size: 14px; }
 .disclaimer a { color: inherit; text-decoration: underline; }
 .offnotice-link { margin-top: 10px; }
+
+/* ---- more menu, checklists, appointments, scan, notifications ---- */
+.chip.menu { padding: 0; width: 38px; display: inline-flex; align-items: center; justify-content: center; }
+.chip.menu svg { width: 20px; height: 20px; }
+.more .chips { margin-bottom: 6px; }
+.more .mt { margin-top: 14px; }
+.more .state { font-weight: 700; color: var(--muted); }
+.more .state.on { color: var(--ok); }
+.more-list { margin: 14px 0 6px; border-top: 1px solid var(--line); }
+.more-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px 4px; border: 0; border-bottom: 1px solid var(--line); background: none; text-align: start; font: inherit; font-size: 16px; cursor: pointer; color: var(--ink); }
+.more-row b { flex: 1; font-weight: 600; }
+.more-row i { color: var(--muted); transform: scaleX(-1); display: inline-flex; }
+.checkcard .qhead { margin-bottom: 2px; }
+.check-prog { font-size: 13px; font-weight: 700; color: var(--muted); white-space: nowrap; }
+.check-prog.all { color: var(--ok); }
+.checks { list-style: none; margin: 6px 0 4px; padding: 0; }
+.checks li { border: 1px solid var(--line); border-radius: 12px; margin-bottom: 6px; background: var(--card); }
+.checks label { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; cursor: pointer; font-size: 14.5px; line-height: 1.7; }
+.checks input { width: 20px; height: 20px; margin-top: 3px; flex: none; accent-color: var(--ok); }
+.checks li:has(input:checked) { background: var(--ok-tint); border-color: var(--ok-line); }
+.checks li:has(input:checked) span { color: var(--muted); text-decoration: line-through; }
+.appt-btn { margin-top: 10px; }
+.appt-card { width: calc(100% - 0px); margin: 0 0 14px; padding: 12px 14px; border-radius: 16px; background: var(--card); border: 1px solid var(--line); border-inline-start: 5px solid var(--navy); box-shadow: var(--sh); }
+.appt-card.soon { border-inline-start-color: var(--gold); background: var(--gold-tint); }
+.appt-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-weight: 700; }
+.appt-in { background: var(--navy); color: #fff; border-radius: 999px; padding: 0 10px; font-size: 13px; }
+.appt-card b { display: block; font-size: 17px; margin-top: 2px; }
+.appt-card p { margin: 2px 0; font-size: 14px; color: var(--muted); }
+.appt-card .appt-ready { color: var(--ok); font-weight: 700; }
+.appt-card .two { margin-top: 8px; }
+.notif-card { margin: 0 0 14px; padding: 12px 14px; border-radius: 16px; background: var(--navy-tint); border: 1px solid var(--line); }
+.notif-card b { display: block; font-size: 16px; color: var(--navy); }
+.notif-card p { margin: 4px 0 8px; font-size: 14px; color: var(--ink); }
+.btn.scan { margin-top: 10px; background: var(--gold-tint); border: 1.5px dashed var(--gold); color: var(--gold-ink); font-weight: 700; }
+.consent { display: flex; align-items: center; gap: 10px; padding: 10px 12px; margin: 10px 0 4px; border: 1px solid var(--line); border-radius: 12px; font-weight: 700; cursor: pointer; }
+.consent input { width: 20px; height: 20px; accent-color: var(--navy); flex: none; }
+.scan .btn { margin-top: 8px; }
+.scan-status { margin-top: 10px; }
+.scan-busy { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--navy); }
+.spinner { width: 20px; height: 20px; border-radius: 50%; border: 3px solid var(--navy-tint); border-top-color: var(--navy); animation: spin .8s linear infinite; flex: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.scan-found { font-weight: 700; color: var(--ok); margin: 6px 0; }
+.scan-list { list-style: none; padding: 0; margin: 0 0 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.scan-list li { border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; background: var(--card); }
+.scan-list small { display: block; color: var(--muted); font-size: 12px; }
+.scan-list b { font-size: 14.5px; }
+:root { --ok-tint: #E8F5EE; --ok-line: #B7DFC8; }
+
+/* ---- dark theme (html.dk, set from the saved choice or the phone's setting) ---- */
+html.dk {
+  color-scheme: dark;
+  --navy: #2B6496;
+  --navy-2: #0B1622;
+  --navy-tint: #18293A;
+  --gold: #D4A740;
+  --gold-tint: #2A2414;
+  --gold-ink: #F1D58E;
+  --ground: #0E151D;
+  --card: #16202B;
+  --ink: #E5ECF2;
+  --muted: #9AA9B7;
+  --line: #2A3847;
+  --line-soft: #233140;
+  --ok: #3FB27A;
+  --ok-tint: #12291E;
+  --ok-line: #24533A;
+  --bad: #F07167;
+  --sh: 0 1px 2px rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.25);
+}
+html.dk .top, html.dk .news { background: #0F2133; }
+html.dk .promo, html.dk .notice, html.dk .warnitem, html.dk .hotcard, html.dk .me-ribbon, html.dk .offnotice, html.dk .notice-show { border-color: #4A3D1C; }
+html.dk .offnotice, html.dk .notice-show { background: #221D10; color: var(--ink); }
+html.dk .offnotice b { color: var(--gold-ink); }
+html.dk .input, html.dk .copyrow { background: #101A24; }
+html.dk .input:focus, html.dk .search:focus { background: #0E1720; }
+html.dk .input.badin, html.dk .field.bad .input { background: #2A1515; }
+html.dk .option { border-bottom-color: var(--line); }
+html.dk .btn.tt { color: #EEE; border-color: #EEE; }
+html.dk .btn.video { background: #000; border-color: #333; }
+html.dk .cwelcome .btn.soft { background: var(--card); border-color: var(--line); }
+html.dk .hot-top i { background: var(--card); }
+html.dk .me-ribbon.festive { background: linear-gradient(135deg, #2A2414, var(--card) 70%); }
+html.dk .hotcard.wide { background: linear-gradient(135deg, #2A2414, var(--card)); }
+html.dk .bottomnav { background: rgba(22,32,43,.94); }
+html.dk .tile.main { background: linear-gradient(160deg, #24557F, #1C4568 60%, #12324E); }
+html.dk .tile.main small { color: #C7D6E3; }
+html.dk .quiz-opt.ok { background: #12291E; }
+html.dk .quiz-opt.bad { background: #2A1515; }
+html.dk .wipe, html.dk .btn.small { border-color: #5A2A26; }
+html.dk .veil { background: rgba(0,0,0,.6); }
+html.dk .toast { background: #E5ECF2; color: #0E151D; }
+html.dk .notif-card b { color: #9CC8EE; }
+html.dk .paper, html.dk .zoom img { background: #fff; }
+html.dk img[src$="icon-192.png"] { border-radius: 16px; }

@@ -1,10 +1,10 @@
 // Offline support. Change VERSION whenever any file changes.
-const VERSION = 'bitaqa-75';
+const VERSION = 'bitaqa-76';
 const FILES = [
   '/', '/index.html', '/app.css', '/manifest.webmanifest',
   '/src/main.js', '/src/va.js', '/src/sheet.js', '/src/schema.js', '/src/texts.js', '/src/lists.js', '/src/qr.js', '/src/pdf.js', '/src/consular.js', '/src/missions.js', '/src/translit.js', '/src/guides.js', '/src/natur.js', '/src/vendor/qrcode.mjs',
-  '/fonts/cairo-regular.woff2', '/fonts/cairo-semibold.woff2', '/privacy.html', '/privacy.css', '/track.html', '/track.css', '/src/track.js', '/src/track-core.js',
-  '/img/emblem.png', '/img/iraq-emblem.png', '/img/owner.jpg', '/img/og.jpg', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.png',
+  '/fonts/cairo-regular.woff2', '/fonts/cairo-semibold.woff2', '/privacy.html', '/privacy.css', '/track.html', '/track.css', '/src/track.js', '/src/track-core.js', '/src/push.js', '/src/theme.js',
+  '/img/emblem.png', '/img/iraq-emblem.png', '/img/owner.jpg', '/img/og.jpg', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.png', '/icons/badge-72.png',
 ];
 
 self.addEventListener('install', (e) => {
@@ -25,4 +25,23 @@ self.addEventListener('fetch', (e) => {
     return;
   }
   e.respondWith(caches.match(e.request, { ignoreSearch: true }).then((hit) => hit || fetch(e.request)));
+});
+
+// Phone notifications (consulate notices, appointment reminders).
+self.addEventListener('push', (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (err) { d = { title: e.data ? e.data.text() : '' }; }
+  e.waitUntil(self.registration.showNotification(d.title || 'هشام للمعاملات', {
+    body: d.body || '', icon: '/icons/icon-192.png', badge: '/icons/badge-72.png',
+    tag: d.tag || undefined, dir: 'rtl', lang: 'ar', data: { url: d.url || '/' },
+  }));
+});
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const url = new URL((e.notification.data && e.notification.data.url) || '/', self.location.origin).href;
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+    const open = list.find((c) => c.url.startsWith(self.location.origin));
+    if (open) { open.focus(); return open.navigate ? open.navigate(url).catch(() => {}) : null; }
+    return self.clients.openWindow(url);
+  }));
 });

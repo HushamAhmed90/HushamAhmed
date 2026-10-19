@@ -2,6 +2,7 @@
   "name": "husham-ahmed",
   "private": true,
   "dependencies": {
-    "@vercel/blob": "^2.8.0"
+    "@vercel/blob": "^2.8.0",
+    "web-push": "^3.6.7"
   }
 }

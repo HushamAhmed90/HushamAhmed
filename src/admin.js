@@ -213,9 +213,39 @@ async function home() {
   show(top('كل المعاملات', 'لوحة الإدارة · هشام فقط 🔐'), h('main', { class: 'wrap' },
     h('button', { class: 'btn pri', type: 'button', text: '＋ ملف زبون جديد', onclick: newCase }),
     h('div', { class: 'card list mt12' }, cases.length ? cases.map(row) : h('p', { class: 'muted', text: 'ماكو معاملات بعد.' })),
+    pushCard(),
     h('button', { class: 'btn ghost', type: 'button', text: '🔑 تغيير كلمة السر', onclick: changePassword }),
     h('div', { class: 'gap8' }),
     h('button', { class: 'btn ghost', type: 'button', text: 'تسجيل خروج', onclick: () => api('a=logout', { method: 'POST' }).finally(() => signOut()) })));
+}
+
+// ---------- phone notifications to everyone who turned them on ----------
+function pushCard() {
+  const count = h('small', { class: 'muted', text: '…' });
+  const title = h('input', { class: 'in', maxlength: '80', placeholder: 'مثلاً: فتح مواعيد الجوازات' });
+  const body = h('textarea', { class: 'in', maxlength: '200', placeholder: 'نص قصير يظهر تحت العنوان' });
+  const err = h('p', { class: 'err' });
+  const go = h('button', { class: 'btn pri mt8', type: 'button', text: 'إرسال للكل', onclick: async () => {
+    err.textContent = '';
+    if (!title.value.trim()) { err.textContent = 'اكتب عنوان'; return; }
+    if (!confirm('يوصل هذا الإشعار لكل المشتركين. متأكد؟')) return;
+    go.disabled = true;
+    try {
+      const res = await fetch('/api/push?a=send', { method: 'POST', headers: { Authorization: `Bearer ${session()}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ title: title.value, body: body.value }) });
+      if (res.status === 401) { signOut(true); return; }
+      const out = await res.json();
+      if (!res.ok) throw new Error();
+      toast(`انرسل لـ ${out.sent} جهاز ✓`); title.value = ''; body.value = '';
+    } catch (e) { err.textContent = 'ما انرسل، جرّب مرة ثانية'; } finally { go.disabled = false; }
+  } });
+  fetch('/api/push?a=stats', { headers: { Authorization: `Bearer ${session()}` }, cache: 'no-store' })
+    .then((r) => r.json()).then((x) => { count.textContent = `المشتركين: ${x.subscribers ?? 0}`; }).catch(() => { count.textContent = ''; });
+  return h('details', { class: 'card' }, h('summary', { class: 'lbl', text: '🔔 إرسال إشعار للموبايلات' }),
+    count,
+    h('p', { class: 'note-plain', text: 'إعلانات القنصلية بالتطبيق توصل كإشعار لحالها. هذا للرسائل الخاصة بس.' }),
+    h('label', { class: 'lbl', text: 'العنوان' }), title,
+    h('label', { class: 'lbl', text: 'النص' }), body,
+    err, go);
 }
 
 // ---------- new case ----------
