@@ -570,3 +570,8 @@ html.dk .toast { background: #E5ECF2; color: #0E151D; }
 html.dk .notif-card b { color: #9CC8EE; }
 html.dk .paper, html.dk .zoom img { background: #fff; }
 html.dk img[src$="icon-192.png"] { border-radius: 16px; }
+
+/* "I finished" share picture */
+.brag h2 { margin: 0 0 4px; }
+.brag-prev { display: block; width: 62%; max-width: 260px; margin: 10px auto 14px; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
+.brag .btn { margin-top: 8px; }

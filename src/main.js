@@ -341,9 +341,104 @@ async function sharePdf(btn, paintFn, name, place) {
     const big = await paintFn(2.5);
     const jpg = await new Promise((res) => big.toBlob(res, 'image/jpeg', 0.92));
     const pdf = jpegPagePdf(new Uint8Array(await jpg.arrayBuffer()), big.width, big.height);
-    if (await shareFile(pdf, name, place)) askRating();
+    if (await shareFile(pdf, name, place)) afterDone(place === 'nid' ? 'nid' : cState.form);
   } catch (e) { console.error(e); toast(t().failed); }
   finally { busy = false; btn.textContent = label; btn.disabled = false; }
+}
+
+// ---------- "I finished" picture to share (WhatsApp status, TikTok, Instagram) ----------
+// Shown once every few days after a form is saved, printed or shared. The picture has
+// no personal data, only what was done and the app's address.
+const BRAG_KEY = 'bitaqa.brag';
+function afterDone(kind) {
+  let last = 0;
+  try { last = Number(localStorage.getItem(BRAG_KEY)) || 0; } catch (e) { /* ignore */ }
+  if (Date.now() - last < 3 * 864e5) { askRating(); return; }
+  try { localStorage.setItem(BRAG_KEY, String(Date.now())); } catch (e) { /* ignore */ }
+  setTimeout(() => showBrag(kind), 1200);
+}
+function bragWhat(kind) {
+  const u = t();
+  if (kind === 'nid') return u.bragNid;
+  if (kind === 'apostille') return u.cForms.apostille;
+  return u.bragForm(u.cForms[kind] || '');
+}
+function wrapLines(ctx, text, max) {
+  const words = text.split(' '); const lines = []; let line = '';
+  for (const w of words) {
+    const test = line ? `${line} ${w}` : w;
+    if (ctx.measureText(test).width > max && line) { lines.push(line); line = w; } else line = test;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+async function drawBrag(kind) {
+  const u = t();
+  const W = 1080; const H = 1920;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d');
+  await Promise.all([document.fonts.load('700 80px CairoSheet'), document.fonts.load('400 40px CairoSheet')]).catch(() => {});
+  const g = x.createRadialGradient(W * 0.6, H * 0.3, 50, W * 0.5, H * 0.5, H * 0.8);
+  g.addColorStop(0, '#24527f'); g.addColorStop(0.55, '#123150'); g.addColorStop(1, '#0b2238');
+  x.fillStyle = g; x.fillRect(0, 0, W, H);
+  x.direction = 'rtl'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  const font = (w, px) => `${w} ${px}px CairoSheet, system-ui, sans-serif`;
+  // app icon and name
+  const icon = new Image(); icon.src = '/icons/icon-192.png';
+  try {
+    await icon.decode();
+    x.save(); x.beginPath(); x.roundRect(W / 2 - 80, 170, 160, 160, 36); x.clip(); x.drawImage(icon, W / 2 - 80, 170, 160, 160); x.restore();
+  } catch (e) { /* no icon */ }
+  x.fillStyle = '#fff'; x.font = font(700, 60); x.fillText(u.appName, W / 2, 400);
+  // gold tick
+  x.fillStyle = '#d6a93a'; x.beginPath(); x.arc(W / 2, 640, 140, 0, Math.PI * 2); x.fill();
+  x.strokeStyle = '#123150'; x.lineWidth = 34; x.lineCap = 'round'; x.lineJoin = 'round';
+  x.beginPath(); x.moveTo(W / 2 - 62, 645); x.lineTo(W / 2 - 15, 695); x.lineTo(W / 2 + 70, 590); x.stroke();
+  // what was done
+  let y = 880;
+  x.fillStyle = '#f0c35a'; x.font = font(700, 100); x.fillText(u.bragDone, W / 2, y); y += 130;
+  x.fillStyle = '#fff'; x.font = font(700, 84);
+  for (const l of wrapLines(x, bragWhat(kind), W - 160)) { x.fillText(l, W / 2, y); y += 112; }
+  x.fillStyle = '#dbe6f2'; x.font = font(400, 54); x.fillText(u.bragFast, W / 2, y + 10); y += 110;
+  const f = kind === 'nid' ? currentForm() : null;
+  if (f && f.scanned) {
+    x.font = font(400, 46);
+    for (const l of wrapLines(x, u.bragScan, W - 200)) { x.fillText(l, W / 2, y); y += 66; }
+  }
+  // bottom panel
+  x.fillStyle = '#fff'; x.beginPath(); x.roundRect(60, 1440, W - 120, 380, 48); x.fill();
+  x.fillStyle = '#123150'; x.font = font(700, 54); x.fillText(u.bragFree, W / 2, 1530);
+  x.fillStyle = '#4c5d70'; x.font = font(400, 44); x.fillText(u.bragTry, W / 2, 1620);
+  x.fillStyle = '#123150'; x.font = font(700, 58); x.direction = 'ltr'; x.fillText(location.host, W / 2, 1700);
+  x.fillStyle = '#4c5d70'; x.font = font(400, 40); x.fillText('▶ Google Play', W / 2, 1775);
+  return new Promise((res) => c.toBlob(res, 'image/png'));
+}
+async function showBrag(kind) {
+  if ($('#veil')) return;
+  const u = t();
+  count('brag_shown', { kind });
+  let blob;
+  try { blob = await drawBrag(kind); } catch (e) { askRating(); return; }
+  const url = URL.createObjectURL(blob);
+  const text = `${u.bragMsg(bragWhat(kind))}\n${location.origin}`;
+  sheet(h('div', { class: 'brag' },
+    h('h2', { text: u.bragTitle }),
+    h('p', { class: 'note', text: u.bragText }),
+    h('img', { class: 'brag-prev', src: url, alt: '' }),
+    h('button', { class: 'btn primary wide', type: 'button', text: u.bragShare, onclick: async () => {
+      const file = new File([blob], 'hesham-app.png', { type: 'image/png' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], text }); count('brag_shared', { kind, how: 'share' }); closeSheet(); return; }
+        catch (e) { if (e.name === 'AbortError') return; }
+      }
+      const a = h('a', { href: url, download: 'hesham-app.png' });
+      document.body.append(a); a.click(); a.remove();
+      toast(t().shareFallback, 5000);
+      count('brag_shared', { kind, how: 'download' });
+    } }),
+    h('a', { class: 'btn wa wide', href: `https://wa.me/?text=${encodeURIComponent(text)}`, target: '_blank', rel: 'noopener', html: ICON.wa, onclick: () => count('brag_shared', { kind, how: 'wa' }) }, u.bragWa),
+    h('button', { class: 'btn ghost wide', type: 'button', text: u.bragLater, onclick: closeSheet })),
+  { tall: true, onClose: () => setTimeout(() => URL.revokeObjectURL(url), 1000) });
 }
 
 // ---------- "did the app help you?" (asked once, after saving) ----------
@@ -1533,7 +1628,7 @@ async function cExport(kind, btn, fname) {
     const blob = await new Promise((res) => big.toBlob(res, kind === 'png' ? 'image/png' : 'image/jpeg', 0.92));
     const ok = kind === 'png' ? await hand(blob, fname('png'))
       : await hand(jpegPagePdf(new Uint8Array(await blob.arrayBuffer()), big.width, big.height), fname('pdf'));
-    if (ok) { toast(t().saved); count('consular_saved', { kind, form: cState.form }); tally(`c:${cState.form}:${new Date().toISOString().slice(0, 10)}`, 'f'); askRating(); }
+    if (ok) { toast(t().saved); count('consular_saved', { kind, form: cState.form }); tally(`c:${cState.form}:${new Date().toISOString().slice(0, 10)}`, 'f'); afterDone(cState.form); }
   } catch (e) { console.error(e); toast(t().failed); }
   finally { busy = false; btn.textContent = label; btn.disabled = false; }
 }
@@ -1989,7 +2084,7 @@ function openScan() {
       h('p', { class: 'notice', text: u.scanCheck }),
       h('button', { class: 'btn primary wide', type: 'button', text: u.scanApply, onclick: () => {
         const cur = currentForm() || addForm({});
-        cur.values = { ...cur.values, ...values };
+        cur.values = { ...cur.values, ...values }; cur.scanned = true;
         useForm(cur); persist();
         closeSheet(); renderCurrent();
         toast(u.scanApplied(keys.length), 5000);
@@ -1997,7 +2092,7 @@ function openScan() {
       } }),
       h('button', { class: 'btn soft wide', type: 'button', text: u.scanAnother, onclick: () => {
         const cur = currentForm() || addForm({});
-        cur.values = { ...cur.values, ...values };
+        cur.values = { ...cur.values, ...values }; cur.scanned = true;
         useForm(cur); persist();
         status.replaceChildren(h('p', { class: 'trust', text: u.scanApplied(keys.length) }));
         cam.click();
@@ -2172,7 +2267,7 @@ async function save(kind, btn) {
     let ok;
     if (kind === 'png') ok = await hand(blob, fileName('png'));
     else ok = await hand(jpegPagePdf(new Uint8Array(await blob.arrayBuffer()), big.width, big.height), fileName('pdf'));
-    if (ok) { toast(t().saved); count(kind === 'png' ? 'saved_image' : 'saved_pdf'); askRating(); }
+    if (ok) { toast(t().saved); count(kind === 'png' ? 'saved_image' : 'saved_pdf'); afterDone('nid'); }
   } catch (e) {
     console.error(e); toast(t().failed);
   } finally {
