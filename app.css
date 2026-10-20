@@ -575,3 +575,7 @@ html.dk img[src$="icon-192.png"] { border-radius: 16px; }
 .brag h2 { margin: 0 0 4px; }
 .brag-prev { display: block; width: 62%; max-width: 260px; margin: 10px auto 14px; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
 .brag .btn { margin-top: 8px; }
+
+/* "N people finished their form in the last 7 days" */
+.week-done { margin: 8px 14px 0; padding: 8px 12px; border-radius: 12px; background: var(--ok-tint); border: 1px solid var(--ok-line); color: var(--ok, #1e7a46); font-weight: 600; font-size: 14px; text-align: center; }
+.page .week-done, .home .week-done { margin-inline: 0; }

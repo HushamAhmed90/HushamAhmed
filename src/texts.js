@@ -58,7 +58,7 @@ export const NOTICES = [
 
 // Impact numbers shown in the app. Keep them real: update them from the
 // Vercel Analytics page (visitors, and form_completed + consular_form).
-export const IMPACT = { people: 200, forms: 35, asOf: { Ara: 'أيلول 2026', Kur: 'ئەیلوولی 2026' } };
+export const IMPACT = { people: 200, forms: 35, week: 0, asOf: { Ara: 'أيلول 2026', Kur: 'ئەیلوولی 2026' } };
 
 // Greetings shown in the personal ribbon on these days. Yearly dates use MM-DD;
 // Islamic dates are the expected ones (moon sighting can move them a day).
@@ -478,6 +478,7 @@ export const UI = {
     scanNone: 'ما لگيت معلومات بالصورة. تأكد إنها هوية أو شهادة جنسية واضحة.',
     scanApply: 'عبّي الاستمارة بهذي المعلومات',
     scanAnother: 'صوّر وثيقة ثانية (مثلاً شهادة الجنسية)',
+    weekDone: (n) => `✅ ${n} شخص خلصوا استمارتهم خلال آخر 7 أيام`,
     bragTitle: '🎉 مبروك، خلصت!',
     bragText: 'شارك هالصورة بحالة الواتساب أو التيك توك، وخلّي غيرك يخلص معاملته بسهولة مثلك 🤝',
     bragShare: 'شارك الصورة 📤',
@@ -874,6 +875,7 @@ export const UI = {
     scanNone: 'هیچ زانیارییەک لە وێنەکەدا نەدۆزرایەوە. دڵنیابە کە ناسنامە یان ڕەگەزنامەیەکی ڕوونە.',
     scanApply: 'فۆرمەکە بەم زانیارییانە پڕ بکەرەوە',
     scanAnother: 'وێنەی بەڵگەنامەیەکی تر بگرە (بۆ نموونە ڕەگەزنامە)',
+    weekDone: (n) => `✅ ${n} کەس لە 7 ڕۆژی ڕابردوودا فۆرمەکەیان تەواو کرد`,
     bragTitle: '🎉 پیرۆزە، تەواوت کرد!',
     bragText: 'ئەم وێنەیە لە ستاتوسی واتسئەپ یان تیکتۆک بڵاو بکەرەوە، با کەسانی تریش بە ئاسانی مامەڵەکانیان تەواو بکەن 🤝',
     bragShare: 'وێنەکە بنێرە 📤',

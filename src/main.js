@@ -1039,7 +1039,9 @@ function meRibbon() {
     stat(`+${IMPACT.forms}`, u.impForms),
     stat(u.impFree, u.impFreeSub),
     h('small', { class: 'imp-date', text: u.impAsOf(IMPACT.asOf[L]) }));
-  return h('div', { class: 'me-wrap' }, ribbon, impact);
+  // Real number from the last 7 days; hidden while it is still small.
+  const week = IMPACT.week >= 5 ? h('p', { class: 'week-done', text: u.weekDone(IMPACT.week) }) : null;
+  return h('div', { class: 'me-wrap' }, ribbon, week, impact);
 }
 // Independent-app notice (required by Google Play for apps with government information).
 const disclaimerNote = () => h('p', { class: 'disclaimer' }, t().disclaimer, h('br'),
@@ -2380,7 +2382,7 @@ async function loadImpact() {
     const d = await res.json();
     if (!(d.people > 0 && d.forms > 0)) return;
     const now = new Date();
-    IMPACT.people = d.people; IMPACT.forms = d.forms;
+    IMPACT.people = d.people; IMPACT.forms = d.forms; IMPACT.week = Number(d.week) || 0;
     IMPACT.asOf = { Ara: `${UI.Ara.cMonths[now.getMonth()]} ${now.getFullYear()}`, Kur: `${UI.Kur.cMonths[now.getMonth()]} ${now.getFullYear()}` };
     if (app.section === 'home' && !$('#veil') && app.lang) renderHome();
   } catch (e) { /* keep built-in numbers */ }

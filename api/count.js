@@ -23,9 +23,14 @@ async function redis(commands) {
   return (await res.json()).map((r) => r.result);
 }
 
+// Forms done per day (UTC), kept for 9 days, so the home screen can show the last 7 days.
+const dayKey = (offset) => `fd:${new Date(Date.now() - offset * 864e5).toISOString().slice(0, 10)}`;
+
 async function totals() {
-  const [people, forms] = await redis([['GET', 'people'], ['GET', 'forms']]);
-  return { people: BASE.people + (Number(people) || 0), forms: BASE.forms + (Number(forms) || 0) };
+  const days = [0, 1, 2, 3, 4, 5, 6].map(dayKey);
+  const [people, forms, perDay] = await redis([['GET', 'people'], ['GET', 'forms'], ['MGET', ...days]]);
+  const week = (perDay || []).reduce((s, n) => s + (Number(n) || 0), 0);
+  return { people: BASE.people + (Number(people) || 0), forms: BASE.forms + (Number(forms) || 0), week };
 }
 
 module.exports = async (req, res) => {
@@ -47,7 +52,11 @@ module.exports = async (req, res) => {
     const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
     const guard = 'rl:' + crypto.createHash('sha256').update(`${day}|${ip}|bitaqa`).digest('hex').slice(0, 24);
     const [used] = await redis([['INCR', guard], ['EXPIRE', guard, 86400]]);
-    if (used <= DAILY_LIMIT) await redis([['INCR', key]]);
+    if (used <= DAILY_LIMIT) {
+      const cmds = [['INCR', key]];
+      if (key === 'forms') cmds.push(['INCR', dayKey(0)], ['EXPIRE', dayKey(0), 9 * 86400]);
+      await redis(cmds);
+    }
     res.setHeader('Cache-Control', 'no-store');
     res.end('{"ok":true}');
   } catch (e) {
