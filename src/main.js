@@ -1963,7 +1963,15 @@ function downloadIcs(a) {
 function openAppt(key, place) {
   const u = t();
   const label = apptLabel(key);
-  const date = h('input', { class: 'input', type: 'date', id: 'appt_date', min: ymdLocal() });
+  // The phone's own date box shows broken Arabic placeholders ("موي/رهش"), so the
+  // native input is kept invisible on top of our own text and only opens the picker.
+  const dateText = h('span', { class: 'date-text empty', text: u.apptPick });
+  const date = h('input', { class: 'date-native', type: 'date', id: 'appt_date', min: ymdLocal(), onchange: () => {
+    const [y, mo, d] = (date.value || '').split('-');
+    dateText.textContent = date.value ? `${+d}/${+mo}/${y}` : u.apptPick;
+    dateText.classList.toggle('empty', !date.value);
+  } });
+  const dateBox = h('div', { class: 'input date-box' }, dateText, h('span', { class: 'date-ico', 'aria-hidden': 'true', text: '📅' }), date);
   const time = h('input', { class: 'input', type: 'time', id: 'appt_time', value: '09:00' });
   const where = h('input', { class: 'input', type: 'text', id: 'appt_place', value: place || '' });
   const err = h('p', { class: 'err' });
@@ -1980,7 +1988,7 @@ function openAppt(key, place) {
   sheet(h('div', { class: 'msg appt' },
     h('h2', { text: u.apptTitle }),
     h('p', { class: 'note', text: `${u.apptFor}: ${label}` }),
-    h('div', { class: 'field' }, h('label', { for: 'appt_date', text: u.apptDate }), date),
+    h('div', { class: 'field' }, h('label', { for: 'appt_date', text: u.apptDate }), dateBox),
     h('div', { class: 'field' }, h('label', { for: 'appt_time', text: u.apptTime }), time),
     h('div', { class: 'field' }, h('label', { for: 'appt_place', text: u.apptPlace }), where),
     err, saveBtn,
