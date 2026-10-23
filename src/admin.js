@@ -213,6 +213,7 @@ async function home() {
   show(top('كل المعاملات', 'لوحة الإدارة · هشام فقط 🔐'), h('main', { class: 'wrap' },
     h('button', { class: 'btn pri', type: 'button', text: '＋ ملف زبون جديد', onclick: newCase }),
     h('div', { class: 'card list mt12' }, cases.length ? cases.map(row) : h('p', { class: 'muted', text: 'ماكو معاملات بعد.' })),
+    qaCard(),
     pushCard(),
     h('button', { class: 'btn ghost', type: 'button', text: '🔑 تغيير كلمة السر', onclick: changePassword }),
     h('div', { class: 'gap8' }),
@@ -246,6 +247,72 @@ function pushCard() {
     h('label', { class: 'lbl', text: 'العنوان' }), title,
     h('label', { class: 'lbl', text: 'النص' }), body,
     err, go);
+}
+
+// ---------- سؤال وجواب ----------
+const QA_CATS = { nid: 'البطاقة الوطنية', passport: 'الجواز', poa: 'الوكالات', pension: 'التقاعد', germany: 'ألمانيا', travel: 'السفر', other: 'عام' };
+function qaCard() {
+  const box = h('div', {});
+  const qaCall = async (a, body) => {
+    const res = await fetch(`/api/qa?a=${a}`, body ? { method: 'POST', headers: { Authorization: `Bearer ${session()}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+      : { headers: { Authorization: `Bearer ${session()}` }, cache: 'no-store' });
+    if (res.status === 401) { signOut(true); throw new Error('auth'); }
+    if (!res.ok) throw new Error('fail');
+    return res.json();
+  };
+  const catSel = (v) => h('select', { class: 'in' }, Object.entries(QA_CATS).map(([k, l]) => h('option', { value: k, text: l, selected: k === (v || 'other') })));
+  // One editor for a waiting question, a published one, or a new one.
+  const editor = ({ id, from, q = '', a = '', cat }, onDone) => {
+    const qi = h('textarea', { class: 'in', maxlength: '400' }); qi.value = q;
+    const ai = h('textarea', { class: 'in tall', maxlength: '2000', placeholder: 'الجواب، بكلام بسيط ومختصر' }); ai.value = a;
+    const ci = catSel(cat);
+    const err = h('p', { class: 'err' });
+    const save = h('button', { class: 'btn pri mt8', type: 'button', text: id ? 'حفظ التعديل' : 'نشر الجواب', onclick: async () => {
+      if (!qi.value.trim() || !ai.value.trim()) { err.textContent = 'اكتب السؤال والجواب'; return; }
+      save.disabled = true;
+      try { await qaCall('save', { id, from, q: qi.value, a: ai.value, cat: ci.value }); toast('انحفظ ✓ (يبين بالتطبيق خلال دقيقة)'); onDone(); }
+      catch (e) { err.textContent = 'ما انحفظ، جرّب مرة ثانية'; save.disabled = false; }
+    } });
+    return h('div', { class: 'qa-ed' }, h('label', { class: 'lbl', text: 'السؤال' }), qi, h('label', { class: 'lbl', text: 'الجواب' }), ai, h('label', { class: 'lbl', text: 'القسم' }), ci, err, save);
+  };
+  const load = async () => {
+    box.replaceChildren(h('p', { class: 'muted', text: '…' }));
+    let pending = []; let pub = [];
+    try {
+      pending = (await qaCall('pending')).items || [];
+      pub = ((await (await fetch('/api/qa?a=list', { cache: 'no-store' })).json()).items) || [];
+    } catch (e) { box.replaceChildren(h('p', { class: 'err', text: 'ما تحمّلت الأسئلة' })); return; }
+    const pendRows = pending.map((p) => {
+      const slot = h('div', {});
+      return h('div', { class: 'qa-row' },
+        h('p', { class: 'qa-q', text: p.q }),
+        h('small', { class: 'muted', text: `${new Date(p.t * 1000).toLocaleString('ar-IQ')}${p.lang === 'Kur' ? ' · كوردي' : ''}` }),
+        h('div', { class: 'small-btns' },
+          h('button', { class: 'btn ghost', type: 'button', text: 'جاوب', onclick: () => slot.replaceChildren(editor({ from: p.id, q: p.q }, load)) }),
+          h('button', { class: 'btn ghost', type: 'button', text: 'حذف', onclick: async () => { if (!confirm('تحذف هذا السؤال؟')) return; try { await qaCall('drop', { id: p.id }); load(); } catch (e) { toast('ما انحذف'); } } })),
+        slot);
+    });
+    const pubRows = pub.map((x) => {
+      const slot = h('div', {});
+      return h('details', { class: 'qa-row' }, h('summary', { text: x.q }),
+        h('p', { class: 'note-plain', text: x.a }),
+        h('div', { class: 'small-btns' },
+          h('button', { class: 'btn ghost', type: 'button', text: 'تعديل', onclick: () => slot.replaceChildren(editor(x, load)) }),
+          h('button', { class: 'btn ghost', type: 'button', text: 'حذف', onclick: async () => { if (!confirm('تحذف هذا الجواب من التطبيق؟')) return; try { await qaCall('del', { id: x.id }); load(); } catch (e) { toast('ما انحذف'); } } })),
+        slot);
+    });
+    const newSlot = h('div', {});
+    box.replaceChildren(
+      h('p', { class: 'lbl', text: `أسئلة تنتظر جواب (${pending.length})` }),
+      ...(pendRows.length ? pendRows : [h('p', { class: 'muted', text: 'ماكو أسئلة جديدة' })]),
+      h('button', { class: 'btn ghost mt8', type: 'button', text: '+ إضافة سؤال وجواب من عندي', onclick: () => newSlot.replaceChildren(editor({}, load)) }),
+      newSlot,
+      h('p', { class: 'lbl mt8', text: `المنشورة بالتطبيق (${pub.length})` }),
+      ...pubRows);
+  };
+  const d = h('details', { class: 'card' }, h('summary', { class: 'lbl', text: '💬 سؤال وجواب' }), box);
+  d.addEventListener('toggle', () => { if (d.open) load(); });
+  return d;
 }
 
 // ---------- new case ----------

@@ -83,3 +83,10 @@ a.it { color: inherit; text-decoration: none; }
 .tick:has(input:checked) { background: var(--okt); border-color: #B7DFC8; }
 .tick.final { font-weight: 700; }
 .linkbtn { background: none; border: 0; width: 100%; font: inherit; cursor: pointer; }
+
+/* Q&A admin */
+textarea.in.tall { min-height: 140px; }
+.qa-row { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; margin-top: 8px; }
+.qa-row summary { cursor: pointer; font-weight: 700; }
+.qa-q { margin: 0 0 2px; font-weight: 700; white-space: pre-line; }
+.qa-ed { margin-top: 8px; }

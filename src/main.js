@@ -859,6 +859,70 @@ function openPension() {
   ), { tall: true });
 }
 
+// ---------- سؤال وجواب (questions people send, answered by the admin; see api/qa.js) ----------
+const QA_KEY = 'bitaqa.qa.v1';
+const QA_CATS = ['all', 'nid', 'passport', 'poa', 'pension', 'germany', 'travel', 'other'];
+let qaItems = null;
+try { qaItems = JSON.parse(localStorage.getItem(QA_KEY) || 'null'); } catch (e) { /* ignore */ }
+async function loadQA() {
+  try {
+    const res = await fetch('/api/qa?a=list');
+    if (!res.ok) return qaItems;
+    const d = await res.json();
+    if (Array.isArray(d.items)) {
+      qaItems = d.items;
+      try { localStorage.setItem(QA_KEY, JSON.stringify(qaItems)); } catch (e) { /* ignore */ }
+    }
+  } catch (e) { /* offline: keep the saved copy */ }
+  return qaItems;
+}
+const qaNorm = (s) => String(s || '').toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/[ً-ْـ]/g, '');
+function openQA(focusAsk) {
+  const u = t();
+  count('qa_open');
+  let cat = 'all';
+  const search = h('input', { class: 'input', type: 'search', id: 'qa_search', placeholder: u.qaSearch, autocomplete: 'off' });
+  const list = h('div', { class: 'qa-list' });
+  const chips = h('div', { class: 'chips qa-chips' });
+  const draw = () => {
+    chips.replaceChildren(...QA_CATS.map((c) => h('button', { class: 'chipbtn' + (cat === c ? ' on' : ''), type: 'button', text: u.qaCats[c], onclick: () => { cat = c; draw(); } })));
+    if (!qaItems) { list.replaceChildren(h('p', { class: 'note', text: u.qaLoading })); return; }
+    const words = qaNorm(search.value).split(/\s+/).filter(Boolean);
+    const shown = qaItems.filter((x) => (cat === 'all' || x.cat === cat) && words.every((w) => qaNorm(x.q + ' ' + x.a).includes(w)));
+    list.replaceChildren(...(shown.length ? shown.map((x) => h('details', { class: 'qa-item', ontoggle: (e) => { if (e.target.open) count('qa_read', { id: x.id }); } },
+      h('summary', { text: x.q }),
+      h('p', { text: x.a }))) : [h('p', { class: 'note', text: u.qaNone })]));
+  };
+  search.addEventListener('input', draw);
+  const ask = h('textarea', { class: 'input area', id: 'qa_ask', rows: 3, maxlength: 400, placeholder: u.qaAskPh });
+  const askMsg = h('p', { class: 'hint' });
+  const askBtn = h('button', { class: 'btn primary wide', type: 'button', text: u.qaSend, onclick: async () => {
+    const q = ask.value.trim();
+    if (q.length < 8) { askMsg.className = 'err'; askMsg.textContent = u.qaShortQ; return; }
+    askBtn.disabled = true;
+    try {
+      const res = await fetch('/api/qa?a=ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ q, lang: app.lang }) });
+      if (res.status === 429) throw new Error('slow');
+      if (!res.ok) throw new Error('fail');
+      ask.value = ''; askMsg.className = 'trust'; askMsg.textContent = u.qaThanks;
+      count('qa_asked');
+    } catch (e) { askMsg.className = 'err'; askMsg.textContent = e.message === 'slow' ? u.qaSlow : u.qaFail; }
+    finally { askBtn.disabled = false; }
+  } });
+  sheet(h('div', { class: 'request tvisa qa' },
+    h('div', { class: 'picker-top' }, h('h2', { text: u.qaTitle }), h('button', { class: 'x', type: 'button', 'aria-label': u.close, onclick: closeSheet, text: '✕' })),
+    h('p', { class: 'note', text: u.qaIntro }),
+    search, chips, list,
+    h('div', { class: 'qa-askbox', id: 'qa_askbox' },
+      h('b', { text: u.qaAskTitle }),
+      h('p', { class: 'hint', text: u.qaAskNote }),
+      ask, askMsg, askBtn),
+  ), { tall: true });
+  draw();
+  loadQA().then(() => { if ($('#qa_search')) draw(); });
+  if (focusAsk) setTimeout(() => { const b = $('#qa_askbox'); if (b) b.scrollIntoView({ behavior: 'smooth' }); }, 300);
+}
+
 // ---------- German citizenship preparation ----------
 function openNatur() {
   const u = t();
@@ -1118,7 +1182,7 @@ function openGuide(id, fromList) {
     h('ol', { class: 'steps' }, x.steps.map((n) => h('li', { text: n }))),
     h('p', { class: 'notice', text: x.note }),
     (g.actions || []).map((a) => h('button', { class: 'btn soft wide', type: 'button', text: u.gActions[a], onclick: () => guideAction(a) })),
-    h('a', { class: 'btn primary wide', href: ICASS_URL, target: '_blank', rel: 'noopener', onclick: () => count('guide_book', { id }) }, u.gBook),
+    g.noBook ? null : h('a', { class: 'btn primary wide', href: ICASS_URL, target: '_blank', rel: 'noopener', onclick: () => count('guide_book', { id }) }, u.gBook),
     h('button', { class: 'btn soft wide', type: 'button', text: u.gHelp, onclick: () => { closeSheet(); openRequest(g.service, `${UI.Ara.gTitle}: ${g.Ara.title}`); } }),
     h('p', { class: 'trust small', html: ICON.check }, u.noUpfront),
     h('p', { class: 'hint' }, u.gSource, ' ', ...g.source.map((url, i) => h('a', { href: url, target: '_blank', rel: 'noopener', text: `(${i + 1})` }))),
@@ -1132,6 +1196,7 @@ function quickNav() {
     u.quick[id], hot ? h('small', { text: u.quickNew }) : null);
   const design = UI.Ara.promos.find((p) => p.key === 'design');
   return h('nav', { class: 'quick', 'aria-label': u.quickTitle },
+    item('qa', () => openQA(), true),
     item('pension', openPension, true),
     item('tvisa', openTvisa, true),
     item('guides', openGuides),
@@ -1651,6 +1716,11 @@ function navPush() { try { history.pushState(navState(), ''); } catch (e) { /* i
 // One consistent line-icon set for tiles, guide rows and services.
 const svgI = (body) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
 const ICONS = {
+  chat: svgI('<path d="M4 5h16v11H9l-5 4z"/><path d="M9.5 9.2a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.7-.9 1.3M12 14.6v.1"/>'),
+  car: svgI('<path d="M5 17h14v-4l-2-5H7l-2 5z"/><path d="M5 13h14"/><circle cx="8" cy="17.5" r="1.6"/><circle cx="16" cy="17.5" r="1.6"/>'),
+  cap: svgI('<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2.5 9 2.5 12 0v-5M22 9v6"/>'),
+  stamp: svgI('<path d="M9 3h6l-1 7h-4z"/><path d="M5 14h14v3H5zM6 20h12"/>'),
+  suitcase: svgI('<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V4h6v3M3 12h18"/>'),
   idcard: svgI('<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2.2"/><path d="M5.8 16.2c.7-1.6 1.8-2.3 3.2-2.3s2.5.7 3.2 2.3M14.5 10h4M14.5 13.5h3"/>'),
   doc: svgI('<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M9.5 12h6M9.5 16h6"/>'),
   book: svgI('<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5M8 7h8M8 10.5h5"/>'),
@@ -1668,7 +1738,7 @@ const ICONS = {
   menu: svgI('<path d="M4 7h16M4 12h16M4 17h16"/>'),
   calendar: svgI('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18M8 14h3v3H8z"/>'),
 };
-const GUIDE_ICON = { passport: 'passport', record: 'shield', birth: 'baby', marriage: 'rings', laissez: 'plane' };
+const GUIDE_ICON = { passport: 'passport', record: 'shield', birth: 'baby', marriage: 'rings', laissez: 'plane', licence: 'car', degree: 'cap', iqdocs: 'stamp', travel: 'suitcase' };
 function goSection(sec, fromHistory) {
   closeSheet();
   app.section = sec; persistSection();
@@ -1716,6 +1786,9 @@ function renderHome() {
         tile('guide', () => goSection('guide')),
         tile('services', () => goSection('services'))),
       h('div', { class: 'hots' },
+        h('button', { class: 'hotcard wide qa-home', type: 'button', onclick: () => { count('home_tile', { tile: 'qa' }); openQA(); } },
+          h('span', { class: 'hot-top' }, h('i', { html: ICONS.chat }), h('em', { text: u.quickNew })),
+          h('b', { text: u.qaTitle }), h('small', { text: u.qaShort })),
         hot('wallet', u.pnTitle, u.pnShort, openPension),
         hot('plane', u.tvTitle, u.tvShort, openTvisa),
         h('button', { class: 'hotcard wide natur-hot', type: 'button', onclick: openNatur },
@@ -1739,10 +1812,21 @@ function renderGuide() {
     h('main', { class: 'page' },
       h('h2', { text: u.gTitle }),
       h('p', { class: 'note', text: u.gIntro }),
+      h('button', { class: 'qa-hot', type: 'button', onclick: () => openQA() },
+        h('span', { class: 'gicon', html: ICONS.chat }),
+        h('span', { class: 'gtext' }, h('b', { text: u.qaTitle }), h('small', { text: u.qaShort })),
+        h('i', { html: ICON.chevron })),
+      h('h3', { class: 'ggroup', text: u.gGroups.iq }),
       h('div', { class: 'glist' },
-        row('flag', (NATUR[app.lang] || NATUR.Ara).title, (NATUR[app.lang] || NATUR.Ara).short, openNatur),
-        GUIDES.map((g) => row(GUIDE_ICON[g.id] || 'doc', g[app.lang].title, g[app.lang].short, () => openGuide(g.id))),
-        row('wallet', u.pnTitle, u.pnShort, openPension),
+        GUIDES.filter((g) => !g.group).map((g) => row(GUIDE_ICON[g.id] || 'doc', g[app.lang].title, g[app.lang].short, () => openGuide(g.id))),
+        row('wallet', u.pnTitle, u.pnShort, openPension)),
+      h('h3', { class: 'ggroup', text: u.gGroups.de }),
+      h('div', { class: 'glist' },
+        GUIDES.filter((g) => g.group === 'de').map((g) => row(GUIDE_ICON[g.id] || 'doc', g[app.lang].title, g[app.lang].short, () => openGuide(g.id))),
+        row('flag', (NATUR[app.lang] || NATUR.Ara).title, (NATUR[app.lang] || NATUR.Ara).short, openNatur)),
+      h('h3', { class: 'ggroup', text: u.gGroups.travel }),
+      h('div', { class: 'glist' },
+        GUIDES.filter((g) => g.group === 'travel').map((g) => row(GUIDE_ICON[g.id] || 'doc', g[app.lang].title, g[app.lang].short, () => openGuide(g.id))),
         row('plane', u.tvTitle, u.tvShort, openTvisa)),
       disclaimerNote()),
     bottomNav(),
