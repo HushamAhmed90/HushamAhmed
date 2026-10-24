@@ -855,9 +855,22 @@ function openPension() {
     h('p', { class: 'warnitem static', text: u.pnWarn }),
     h('a', { class: 'btn primary wide', href: PENSION_URL, target: '_blank', rel: 'noopener', onclick: () => count('pension_site_open') }, u.pnOpen),
     h('button', { class: 'btn soft wide', type: 'button', text: u.pnHelp, onclick: () => { closeSheet(); openRequest('pension'); } }),
+    shareBtn(u.pnTitle, `/g/pension${app.lang === 'Kur' ? '-ku' : ''}.html`, 'pension'),
     h('p', { class: 'trust small', html: ICON.check }, u.noUpfront),
   ), { tall: true });
 }
+
+// ---------- share a guide or an answer (link with a preview picture) ----------
+async function shareLink(title, path, place) {
+  const url = location.origin + path;
+  const text = `${title}\n${t().shareVia}`;
+  count('link_shared', { place });
+  if (navigator.share) {
+    try { await navigator.share({ title, text, url }); return; } catch (e) { if (e.name === 'AbortError') return; }
+  }
+  window.open(`https://wa.me/?text=${encodeURIComponent(`${text}\n${url}`)}`, '_blank', 'noopener');
+}
+const shareBtn = (title, path, place) => h('button', { class: 'btn soft wide sharebtn', type: 'button', text: t().shareGuide, onclick: () => shareLink(title, path, place) });
 
 // ---------- سؤال وجواب (questions people send, answered by the admin; see api/qa.js) ----------
 const QA_KEY = 'bitaqa.qa.v1';
@@ -877,7 +890,7 @@ async function loadQA() {
   return qaItems;
 }
 const qaNorm = (s) => String(s || '').toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/[ً-ْـ]/g, '');
-function openQA(focusAsk) {
+function openQA(focusAsk, openId = null) {
   const u = t();
   count('qa_open');
   let cat = 'all';
@@ -889,9 +902,11 @@ function openQA(focusAsk) {
     if (!qaItems) { list.replaceChildren(h('p', { class: 'note', text: u.qaLoading })); return; }
     const words = qaNorm(search.value).split(/\s+/).filter(Boolean);
     const shown = qaItems.filter((x) => (cat === 'all' || x.cat === cat) && words.every((w) => qaNorm(x.q + ' ' + x.a).includes(w)));
-    list.replaceChildren(...(shown.length ? shown.map((x) => h('details', { class: 'qa-item', ontoggle: (e) => { if (e.target.open) count('qa_read', { id: x.id }); } },
+    list.replaceChildren(...(shown.length ? shown.map((x) => h('details', { class: 'qa-item', 'data-id': x.id, ontoggle: (e) => { if (e.target.open) count('qa_read', { id: x.id }); } },
       h('summary', { text: x.q }),
-      h('p', { text: x.a }))) : [h('p', { class: 'note', text: u.qaNone })]));
+      h('p', { text: x.a }),
+      h('button', { class: 'linkbtn qa-sharebtn', type: 'button', text: u.shareAnswer, onclick: () => shareLink(x.q, `/qa#q-${x.id}`, 'qa') }))) : [h('p', { class: 'note', text: u.qaNone })]));
+    if (openId) { const el = list.querySelector(`[data-id="${openId}"]`); if (el) { el.open = true; setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 250); openId = null; } }
   };
   search.addEventListener('input', draw);
   const ask = h('textarea', { class: 'input area', id: 'qa_ask', rows: 3, maxlength: 400, placeholder: u.qaAskPh });
@@ -940,6 +955,7 @@ function openNatur() {
     h('p', { class: 'notice', text: n.interviewNote }),
     h('p', { class: 'hint', text: n.help }),
     h('button', { class: 'btn soft wide', type: 'button', text: u.gHelp, onclick: () => { closeSheet(); openRequest(null, 'مساعدة بالأوراق العراقية المطلوبة للتجنيس (الجنسية الألمانية)'); } }),
+    shareBtn(n.title, `/g/natur${app.lang === 'Kur' ? '-ku' : ''}.html`, 'natur'),
     h('p', { class: 'hint' }, n.source, ...NATUR_SOURCES.map(([name, url]) => h('a', { class: 'srclink', href: url, target: '_blank', rel: 'noopener', text: name }))),
   ), { tall: true });
 }
@@ -1182,6 +1198,7 @@ function openGuide(id, fromList) {
     h('ol', { class: 'steps' }, x.steps.map((n) => h('li', { text: n }))),
     h('p', { class: 'notice', text: x.note }),
     (g.actions || []).map((a) => h('button', { class: 'btn soft wide', type: 'button', text: u.gActions[a], onclick: () => guideAction(a) })),
+    shareBtn(x.title, `/g/${g.id}${app.lang === 'Kur' ? '-ku' : ''}.html`, 'guide_' + g.id),
     g.noBook ? null : h('a', { class: 'btn primary wide', href: ICASS_URL, target: '_blank', rel: 'noopener', onclick: () => count('guide_book', { id }) }, u.gBook),
     h('button', { class: 'btn soft wide', type: 'button', text: u.gHelp, onclick: () => { closeSheet(); openRequest(g.service, `${UI.Ara.gTitle}: ${g.Ara.title}`); } }),
     h('p', { class: 'trust small', html: ICON.check }, u.noUpfront),
@@ -2580,6 +2597,23 @@ function start() {
   }
 }
 start();
+// Links from the web pages, shared links and the poster: ?g=<guide> ?qa=<answer|ask> ?src=<where from>
+(function openFromLink() {
+  let q;
+  try { q = new URLSearchParams(location.search); } catch (e) { return; }
+  const src = (q.get('src') || '').replace(/[^a-z0-9_-]/gi, '').slice(0, 20);
+  if (src) count('visit_src', { src });
+  const g = q.get('g'); const qa = q.get('qa');
+  if (g || qa || src) { try { history.replaceState(history.state, '', location.pathname); } catch (e) { /* ignore */ } }
+  if (!app.lang || (!g && !qa)) return;
+  setTimeout(() => {
+    if (g === 'pension') openPension();
+    else if (g === 'natur') openNatur();
+    else if (g === 'tvisa') openTvisa();
+    else if (g && findGuide(g)) openGuide(g);
+    else if (qa) openQA(qa === 'ask', qa === 'ask' ? null : qa.replace(/[^A-Za-z0-9_-]/g, ''));
+  }, 400);
+}());
 loadContent();
 loadImpact();
 if (app.lang) tally('p', 'p');

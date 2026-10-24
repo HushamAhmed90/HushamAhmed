@@ -100,5 +100,11 @@
     "api/push.js": {
       "maxDuration": 60
     }
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/qa",
+      "destination": "/api/qa-page"
+    }
+  ]
 }

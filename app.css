@@ -613,3 +613,4 @@ html.dk .hotcard.qa-home, html.dk .qa-hot { background: linear-gradient(160deg, 
 .qa-hot > i svg { width: 20px; height: 20px; }
 .qa-hot .gtext b, .hotcard.qa-home b { color: #fff; }
 html.dk .ggroup { color: var(--ink); }
+.qa-sharebtn { margin: -4px 0 12px; font-size: 14px; }

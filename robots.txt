@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin.html
+Disallow: /track.html
+Disallow: /api/
+
+Sitemap: https://husham-ahmed.vercel.app/sitemap.xml
