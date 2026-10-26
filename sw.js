@@ -1,5 +1,5 @@
 // Offline support. Change VERSION whenever any file changes.
-const VERSION = 'bitaqa-88';
+const VERSION = 'bitaqa-89';
 const FILES = [
   '/', '/index.html', '/app.css', '/manifest.webmanifest',
   '/src/main.js', '/src/va.js', '/src/sheet.js', '/src/schema.js', '/src/texts.js', '/src/lists.js', '/src/qr.js', '/src/pdf.js', '/src/consular.js', '/src/missions.js', '/src/translit.js', '/src/guides.js', '/src/natur.js', '/src/vendor/qrcode.mjs',
@@ -21,7 +21,17 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/_vercel/') || url.pathname === '/content.json' || url.pathname.startsWith('/api/')) return;
   if (e.request.mode === 'navigate') {
-    e.respondWith(fetch(e.request).catch(() => caches.match('/index.html')));
+    // Weak signal: don't leave an empty screen while the network hangs. After 3.5 s the
+    // saved copy is shown; the fresh page is still fetched and used next time.
+    const net = fetch(e.request);
+    const saved = () => caches.match('/index.html');
+    e.respondWith(new Promise((resolve) => {
+      let done = false;
+      const finish = (r) => { if (!done && r) { done = true; resolve(r); } };
+      const timer = setTimeout(() => saved().then(finish), 3500);
+      net.then((r) => { clearTimeout(timer); finish(r); })
+        .catch(() => { clearTimeout(timer); saved().then((r) => finish(r || Response.error())); });
+    }));
     return;
   }
   e.respondWith(caches.match(e.request, { ignoreSearch: true }).then((hit) => hit || fetch(e.request)));
