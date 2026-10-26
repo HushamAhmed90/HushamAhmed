@@ -1710,9 +1710,10 @@ async function cExport(kind, btn, fname) {
   try {
     const big = await cPaint(2.5);
     const blob = await new Promise((res) => big.toBlob(res, kind === 'png' ? 'image/png' : 'image/jpeg', 0.92));
+    afterSave = () => afterDone(cState.form);
     const ok = kind === 'png' ? await hand(blob, fname('png'))
       : await hand(jpegPagePdf(new Uint8Array(await blob.arrayBuffer()), big.width, big.height), fname('pdf'));
-    if (ok) { toast(t().saved); count('consular_saved', { kind, form: cState.form }); tally(`c:${cState.form}:${new Date().toISOString().slice(0, 10)}`, 'f'); afterDone(cState.form); }
+    if (ok) { if (isIOS()) toast(t().saved); count('consular_saved', { kind, form: cState.form }); tally(`c:${cState.form}:${new Date().toISOString().slice(0, 10)}`, 'f'); if (isIOS()) afterDone(cState.form); }
   } catch (e) { console.error(e); toast(t().failed); }
   finally { busy = false; btn.textContent = label; btn.disabled = false; }
 }
@@ -2352,7 +2353,11 @@ function fileName(ext) {
 }
 const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
+// Day and time in the name: Android Chrome stops with "the file already exists" otherwise.
+const stamp = () => { const d = new Date(); const p = (x) => String(x).padStart(2, '0'); return `${p(d.getDate())}-${p(d.getMonth() + 1)}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`; };
+const withStamp = (name) => name.replace(/(\.[a-z]+)$/i, `-${stamp()}$1`);
 async function hand(blob, name) {
+  name = withStamp(name);
   if (isIOS() && navigator.canShare) {
     const file = new File([blob], name, { type: blob.type });
     if (navigator.canShare({ files: [file] })) {
@@ -2363,7 +2368,27 @@ async function hand(blob, name) {
   const a = h('a', { href: url, download: name });
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 5000);
+  // Android saves straight to «Download» without asking where; say so, and offer the share sheet
+  // (WhatsApp, Drive, Files…) for anyone who wants it somewhere else.
+  if (!isIOS()) setTimeout(() => savedSheet(blob, name), 600);
   return true;
+}
+let afterSave = null;   // what to show once the «saved» sheet is closed (rating, share picture)
+function savedSheet(blob, name) {
+  const next = afterSave; afterSave = null;
+  if ($('#veil')) return;
+  const u = t();
+  const file = new File([blob], name, { type: blob.type });
+  const canShare = !!(navigator.canShare && navigator.canShare({ files: [file] }));
+  sheet(h('div', { class: 'msg' },
+    h('h2', { text: u.savedTitle }),
+    h('p', { text: u.savedWhere }),
+    h('p', { class: 'hint' }, h('span', { dir: 'ltr', text: '📁 Download' }), h('br'), h('bdi', { text: name })),
+    canShare ? h('button', { class: 'btn primary wide', type: 'button', text: u.savedShare, onclick: async () => {
+      try { await navigator.share({ files: [file], title: name }); count('saved_shared'); closeSheet(); } catch (e) { /* cancelled */ }
+    } }) : null,
+    h('button', { class: 'btn ghost wide', type: 'button', text: u.close, onclick: closeSheet })),
+  { onClose: () => { if (next) setTimeout(next, 400); } });
 }
 
 let busy = false;
@@ -2376,9 +2401,10 @@ async function save(kind, btn) {
     const big = await paint(2.5);
     const blob = await new Promise((res) => big.toBlob(res, kind === 'png' ? 'image/png' : 'image/jpeg', 0.92));
     let ok;
+    afterSave = () => afterDone('nid');
     if (kind === 'png') ok = await hand(blob, fileName('png'));
     else ok = await hand(jpegPagePdf(new Uint8Array(await blob.arrayBuffer()), big.width, big.height), fileName('pdf'));
-    if (ok) { toast(t().saved); count(kind === 'png' ? 'saved_image' : 'saved_pdf'); afterDone('nid'); }
+    if (ok) { if (isIOS()) toast(t().saved); count(kind === 'png' ? 'saved_image' : 'saved_pdf'); if (isIOS()) afterDone('nid'); }
   } catch (e) {
     console.error(e); toast(t().failed);
   } finally {
