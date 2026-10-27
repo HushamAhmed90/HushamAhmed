@@ -874,42 +874,57 @@ const shareBtn = (title, path, place) => h('button', { class: 'btn soft wide sha
 
 // ---------- «تعلّم تحجز بنفسك»: teaches booking on the official site, never books for anyone ----------
 // The person's own link to the slots page is kept on this device only.
-const BOOKLINK_KEY = 'bitaqa.booklink';
-const bookLink = () => { try { return localStorage.getItem(BOOKLINK_KEY) || ''; } catch (e) { return ''; } };
+const BOOKLINKS_KEY = 'bitaqa.booklinks';   // [{ id, name, url }] – one per family member
 const isIcass = (s) => /^https:\/\/icass\.mofa\.gov\.iq\//i.test(String(s).trim());
-function openBookLink(place) {
-  const url = bookLink();
-  if (!isIcass(url)) { openSelfBook(); return; }
+function bookLinks() {
+  let list = [];
+  try { list = JSON.parse(localStorage.getItem(BOOKLINKS_KEY) || '[]'); } catch (e) { list = []; }
+  // earlier version kept a single link without a name
+  try {
+    const old = localStorage.getItem('bitaqa.booklink');
+    if (old && isIcass(old)) { list.unshift({ id: newId(), name: '', url: old }); localStorage.setItem(BOOKLINKS_KEY, JSON.stringify(list)); }
+    if (old !== null) localStorage.removeItem('bitaqa.booklink');
+  } catch (e) { /* ignore */ }
+  return Array.isArray(list) ? list.filter((x) => x && isIcass(x.url)) : [];
+}
+const saveBookLinks = (list) => { try { localStorage.setItem(BOOKLINKS_KEY, JSON.stringify(list.slice(0, 12))); } catch (e) { /* ignore */ } };
+const linkLabel = (x) => (x.name && !/^(أنا|انا|آني|اني|خۆم)$/.test(x.name.trim()) ? t().sbOpenFor(x.name) : t().sbLinkOpen);
+function openBookLink(x, place) {
+  if (!x || !isIcass(x.url)) { openSelfBook(); return; }
   count('booklink_open', { place });
-  window.open(url, '_blank', 'noopener');
+  window.open(x.url, '_blank', 'noopener');
 }
 function openSelfBook(focusLink) {
   const u = t();
   count('selfbook_open');
   const ol = (items) => h('ol', { class: 'steps' }, items.map((x) => h('li', { text: x })));
-  // ② my link
+  // ② my links (one per family member)
   const linkBox = h('div', { class: 'sb-link', id: 'sb_link' });
   const drawLink = () => {
-    const saved = bookLink();
-    const inp = h('input', { class: 'input', type: 'url', id: 'sb_url', dir: 'ltr', placeholder: u.sbLinkPh, autocomplete: 'off', value: saved });
+    const list = bookLinks();
+    const name = h('input', { class: 'input', type: 'text', id: 'sb_name', placeholder: u.sbNamePh, autocomplete: 'off', maxlength: 40 });
+    const inp = h('input', { class: 'input', type: 'url', id: 'sb_url', dir: 'ltr', placeholder: u.sbLinkPh, autocomplete: 'off' });
     const msg = h('p', { class: 'hint' });
     linkBox.replaceChildren(
       h('p', { class: 'qlabel', text: u.sbLinkTitle }),
       h('p', { class: 'hint', text: u.sbLinkNote }),
-      saved ? h('button', { class: 'btn primary wide big', type: 'button', text: u.sbLinkOpen, onclick: () => openBookLink('selfbook') }) : null,
-      inp, msg,
-      h('div', { class: 'two' },
-        h('button', { class: 'btn soft', type: 'button', text: u.sbLinkSave, onclick: () => {
-          const v = inp.value.trim();
-          if (!isIcass(v)) { msg.className = 'err'; msg.textContent = u.sbLinkBad; return; }
-          try { localStorage.setItem(BOOKLINK_KEY, v); } catch (e) { /* ignore */ }
-          count('booklink_saved'); drawLink();
-          toast(u.sbLinkSaved, 4000);
-        } }),
-        saved ? h('button', { class: 'btn ghost', type: 'button', text: u.sbLinkDel, onclick: () => {
-          try { localStorage.removeItem(BOOKLINK_KEY); } catch (e) { /* ignore */ }
-          drawLink();
-        } }) : null));
+      ...list.map((x) => h('div', { class: 'sb-row' },
+        h('button', { class: 'btn primary', type: 'button', text: linkLabel(x), onclick: () => openBookLink(x, 'selfbook') }),
+        h('button', { class: 'btn ghost sb-del', type: 'button', 'aria-label': u.sbLinkDel, text: '✕', onclick: () => {
+          if (!confirm(u.sbDelAsk(x.name || u.sbLinkOpen))) return;
+          saveBookLinks(bookLinks().filter((y) => y.id !== x.id)); drawLink();
+        } }))),
+      h('p', { class: 'sb-addtitle', text: list.length ? u.sbAddMore : u.sbAddFirst }),
+      name, inp, msg,
+      h('button', { class: 'btn soft wide', type: 'button', text: u.sbLinkSave, onclick: () => {
+        const v = inp.value.trim(); const n = name.value.trim().slice(0, 40);
+        if (!n) { msg.className = 'err'; msg.textContent = u.sbNameNeed; return; }
+        if (!isIcass(v)) { msg.className = 'err'; msg.textContent = u.sbLinkBad; return; }
+        const all = bookLinks().filter((y) => y.name !== n);
+        all.push({ id: newId(), name: n, url: v }); saveBookLinks(all);
+        count('booklink_saved', { n: all.length }); drawLink();
+        toast(u.sbLinkSaved, 4000);
+      } }));
   };
   drawLink();
   // readiness per service
@@ -1886,7 +1901,7 @@ function renderHome() {
         tile('guide', () => goSection('guide')),
         tile('services', () => goSection('services'))),
       h('div', { class: 'hots' },
-        isIcass(bookLink()) ? h('button', { class: 'btn primary wide big booklink-home', type: 'button', text: u.sbHomeBtn, onclick: () => openBookLink('home') }) : null,
+        bookLinks().length ? h('div', { class: 'booklink-home' }, bookLinks().map((x) => h('button', { class: 'btn primary wide big', type: 'button', text: linkLabel(x), onclick: () => openBookLink(x, 'home') }))) : null,
         h('button', { class: 'hotcard wide sb-home', type: 'button', onclick: () => { count('home_tile', { tile: 'selfbook' }); openSelfBook(); } },
           h('span', { class: 'hot-top' }, h('i', { html: ICONS.calendar }), h('em', { text: u.quickNew })),
           h('b', { text: u.sbTitle }), h('small', { text: u.sbShort })),
