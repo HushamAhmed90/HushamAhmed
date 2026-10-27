@@ -614,3 +614,15 @@ html.dk .hotcard.qa-home, html.dk .qa-hot { background: linear-gradient(160deg, 
 .qa-hot .gtext b, .hotcard.qa-home b { color: #fff; }
 html.dk .ggroup { color: var(--ink); }
 .qa-sharebtn { margin: -4px 0 12px; font-size: 14px; }
+
+/* تعلّم تحجز بنفسك */
+.sb-nopay { background: var(--ok-tint); border: 1px solid var(--ok-line); color: var(--ok); border-radius: 12px; padding: 10px 12px; font-weight: 700; font-size: 14.5px; }
+.sb-link { margin-top: 14px; padding: 14px; border-radius: 16px; background: var(--navy-tint); display: flex; flex-direction: column; gap: 8px; }
+.sb-link .two { display: flex; gap: 8px; }
+.sb-link .two .btn { flex: 1; }
+.selfbook .chips { margin: 6px 0 8px; }
+.hotcard.sb-home { background: linear-gradient(135deg, #E7F4EC, #fff); }
+html.dk .hotcard.sb-home { background: linear-gradient(135deg, #14281E, var(--card)); }
+.hotcard.sb-home .hot-top em { font-style: normal; font-size: 12px; font-weight: 700; background: #D6A93A; color: #1b2430; padding: 2px 10px; border-radius: 20px; }
+.booklink-home { grid-column: 1 / -1; }
+.sb-gcard { margin-top: 10px; width: 100%; }

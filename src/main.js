@@ -872,6 +872,87 @@ async function shareLink(title, path, place) {
 }
 const shareBtn = (title, path, place) => h('button', { class: 'btn soft wide sharebtn', type: 'button', text: t().shareGuide, onclick: () => shareLink(title, path, place) });
 
+// ---------- «تعلّم تحجز بنفسك»: teaches booking on the official site, never books for anyone ----------
+// The person's own link to the slots page is kept on this device only.
+const BOOKLINK_KEY = 'bitaqa.booklink';
+const bookLink = () => { try { return localStorage.getItem(BOOKLINK_KEY) || ''; } catch (e) { return ''; } };
+const isIcass = (s) => /^https:\/\/icass\.mofa\.gov\.iq\//i.test(String(s).trim());
+function openBookLink(place) {
+  const url = bookLink();
+  if (!isIcass(url)) { openSelfBook(); return; }
+  count('booklink_open', { place });
+  window.open(url, '_blank', 'noopener');
+}
+function openSelfBook(focusLink) {
+  const u = t();
+  count('selfbook_open');
+  const ol = (items) => h('ol', { class: 'steps' }, items.map((x) => h('li', { text: x })));
+  // ② my link
+  const linkBox = h('div', { class: 'sb-link', id: 'sb_link' });
+  const drawLink = () => {
+    const saved = bookLink();
+    const inp = h('input', { class: 'input', type: 'url', id: 'sb_url', dir: 'ltr', placeholder: u.sbLinkPh, autocomplete: 'off', value: saved });
+    const msg = h('p', { class: 'hint' });
+    linkBox.replaceChildren(
+      h('p', { class: 'qlabel', text: u.sbLinkTitle }),
+      h('p', { class: 'hint', text: u.sbLinkNote }),
+      saved ? h('button', { class: 'btn primary wide big', type: 'button', text: u.sbLinkOpen, onclick: () => openBookLink('selfbook') }) : null,
+      inp, msg,
+      h('div', { class: 'two' },
+        h('button', { class: 'btn soft', type: 'button', text: u.sbLinkSave, onclick: () => {
+          const v = inp.value.trim();
+          if (!isIcass(v)) { msg.className = 'err'; msg.textContent = u.sbLinkBad; return; }
+          try { localStorage.setItem(BOOKLINK_KEY, v); } catch (e) { /* ignore */ }
+          count('booklink_saved'); drawLink();
+          toast(u.sbLinkSaved, 4000);
+        } }),
+        saved ? h('button', { class: 'btn ghost', type: 'button', text: u.sbLinkDel, onclick: () => {
+          try { localStorage.removeItem(BOOKLINK_KEY); } catch (e) { /* ignore */ }
+          drawLink();
+        } }) : null));
+  };
+  drawLink();
+  // readiness per service
+  let svc = 'nid';
+  const readyBox = h('div', {});
+  const drawReady = () => {
+    readyBox.replaceChildren(
+      h('div', { class: 'chips' }, ['nid', 'passport', 'poa'].map((k) => h('button', { class: 'chipbtn' + (svc === k ? ' on' : ''), type: 'button', text: u.sbSvc[k], onclick: () => { svc = k; drawReady(); } }))),
+      checklist('b:' + svc, u.sbReady[svc]),
+      h('button', { class: 'linkbtn', type: 'button', text: `← ${u.sbFill[svc]}`, onclick: () => {
+        closeSheet();
+        if (svc === 'nid') openForms('nid');
+        else if (svc === 'passport') openGuide('passport');
+        else { cState.form = 'poa'; cSave(); openForms('consular'); }
+      } }));
+  };
+  drawReady();
+  const apptKey = () => (svc === 'nid' ? 'nid' : svc === 'passport' ? 'g:passport' : 'c:poa');
+  sheet(h('div', { class: 'request tvisa selfbook' },
+    h('div', { class: 'picker-top' }, h('h2', { text: u.sbTitle }), h('button', { class: 'x', type: 'button', 'aria-label': u.close, onclick: closeSheet, text: '✕' })),
+    h('p', { class: 'note', text: u.sbIntro }),
+    h('p', { class: 'sb-nopay', text: u.sbNoPay }),
+    videoBtn('selfbook'),
+    h('p', { class: 'qlabel', text: u.sbPrepTitle }),
+    ol(u.sbPrep),
+    h('a', { class: 'btn soft wide', href: ICASS_URL, target: '_blank', rel: 'noopener', onclick: () => count('selfbook_site') }, u.sbOpenSite),
+    linkBox,
+    h('p', { class: 'qlabel', text: u.sbDayTitle }),
+    ol(u.sbDay),
+    h('p', { class: 'qlabel', text: u.sbReadyTitle }),
+    readyBox,
+    h('div', { class: 'abroadbox' }, h('b', { text: u.sbParentsTitle }), h('p', { text: u.sbParents })),
+    h('p', { class: 'qlabel', text: u.sbAfterTitle }),
+    h('p', { class: 'hint', text: u.sbAfter }),
+    h('button', { class: 'btn soft wide appt-btn', type: 'button', text: u.apptBtn, onclick: () => openAppt(apptKey()) }),
+    h('p', { class: 'qlabel', text: u.sbFaqTitle }),
+    h('div', { class: 'qa-list' }, u.sbFaq.map(([q, a]) => h('details', { class: 'qa-item' }, h('summary', { text: q }), h('p', { text: a })))),
+    h('p', { class: 'trust small', html: ICON.check }, u.sbTrust),
+    shareBtn(u.sbTitle, '/?g=selfbook&src=share', 'selfbook'),
+  ), { tall: true, onClose: () => { if (app.section === 'home' && app.lang) setTimeout(renderHome, 50); } });
+  if (focusLink) setTimeout(() => { const el = $('#sb_link'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 300);
+}
+
 // ---------- سؤال وجواب (questions people send, answered by the admin; see api/qa.js) ----------
 const QA_KEY = 'bitaqa.qa.v1';
 const QA_CATS = ['all', 'nid', 'passport', 'poa', 'pension', 'germany', 'travel', 'other'];
@@ -1213,6 +1294,7 @@ function quickNav() {
     u.quick[id], hot ? h('small', { text: u.quickNew }) : null);
   const design = UI.Ara.promos.find((p) => p.key === 'design');
   return h('nav', { class: 'quick', 'aria-label': u.quickTitle },
+    item('selfbook', () => openSelfBook(), true),
     item('qa', () => openQA(), true),
     item('pension', openPension, true),
     item('tvisa', openTvisa, true),
@@ -1804,6 +1886,10 @@ function renderHome() {
         tile('guide', () => goSection('guide')),
         tile('services', () => goSection('services'))),
       h('div', { class: 'hots' },
+        isIcass(bookLink()) ? h('button', { class: 'btn primary wide big booklink-home', type: 'button', text: u.sbHomeBtn, onclick: () => openBookLink('home') }) : null,
+        h('button', { class: 'hotcard wide sb-home', type: 'button', onclick: () => { count('home_tile', { tile: 'selfbook' }); openSelfBook(); } },
+          h('span', { class: 'hot-top' }, h('i', { html: ICONS.calendar }), h('em', { text: u.quickNew })),
+          h('b', { text: u.sbTitle }), h('small', { text: u.sbShort })),
         h('button', { class: 'hotcard wide qa-home', type: 'button', onclick: () => { count('home_tile', { tile: 'qa' }); openQA(); } },
           h('span', { class: 'hot-top' }, h('i', { html: ICONS.chat }), h('em', { text: u.quickNew })),
           h('b', { text: u.qaTitle }), h('small', { text: u.qaShort })),
@@ -1833,6 +1919,10 @@ function renderGuide() {
       h('button', { class: 'qa-hot', type: 'button', onclick: () => openQA() },
         h('span', { class: 'gicon', html: ICONS.chat }),
         h('span', { class: 'gtext' }, h('b', { text: u.qaTitle }), h('small', { text: u.qaShort })),
+        h('i', { html: ICON.chevron })),
+      h('button', { class: 'gcard sb-gcard', type: 'button', onclick: () => openSelfBook() },
+        h('span', { class: 'gicon', html: ICONS.calendar }),
+        h('span', { class: 'gtext' }, h('b', { text: u.sbTitle }), h('small', { text: u.sbShort })),
         h('i', { html: ICON.chevron })),
       h('h3', { class: 'ggroup', text: u.gGroups.iq }),
       h('div', { class: 'glist' },
@@ -2633,7 +2723,8 @@ start();
   if (g || qa || src) { try { history.replaceState(history.state, '', location.pathname); } catch (e) { /* ignore */ } }
   if (!app.lang || (!g && !qa)) return;
   setTimeout(() => {
-    if (g === 'pension') openPension();
+    if (g === 'selfbook') openSelfBook();
+    else if (g === 'pension') openPension();
     else if (g === 'natur') openNatur();
     else if (g === 'tvisa') openTvisa();
     else if (g && findGuide(g)) openGuide(g);
