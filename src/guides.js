@@ -325,6 +325,32 @@ export const GUIDES = [
     group: 'de',
     noBook: true,
     service: null,
+    links: [
+      { url: 'https://anabin.kmk.org/', Ara: '🔎 تحقق من جامعتك بـ anabin الرسمي', Kur: '🔎 زانکۆکەت لە anabin بپشکنە' },
+      { url: 'https://www.anerkennung-in-deutschland.de/html/ar/ma-hwa-aleteraf.php', Ara: '🌐 البوابة الرسمية للاعتراف (بالعربي)', Kur: '🌐 دەروازەی فەرمیی دانپێدانان (بە عەرەبی)' },
+    ],
+    cards: {
+      Ara: {
+        title: 'حالة جامعتك بـ anabin',
+        items: [
+          ['ok', 'H+', 'معترف بيها', 'الجامعة معترف بيها بألمانيا. تكدر تعتمد على شهادتها للشغل والدراسة وطلب الاعتراف.'],
+          ['mid', 'H+/-', 'مشروط', 'الاعتراف يعتمد على الاختصاص والدرجة. شوف بـ anabin إذا شهادتك نفسها مذكورة.'],
+          ['bad', 'H-', 'غير معترف بيها', 'الجامعة غير معترف بيها. ممكن يصعب الاعتماد على شهادتها، اسأل ZAB أو الجهة المختصة.'],
+        ],
+        stepsTitle: 'شلون تدوّر بـ anabin؟',
+        steps: ['افتح anabin واختار «Institutionen».', 'اختار «Suchen nach Institutionen» وبعدها البلد: Irak.', 'اكتب اسم الجامعة (أو جزء منه) بالإنكليزي وابحث.', 'افتح النتيجة واقرا خانة «Status»: H+ أو H+/- أو H-.'],
+      },
+      Kur: {
+        title: 'دۆخی زانکۆکەت لە anabin',
+        items: [
+          ['ok', 'H+', 'دانپێدانراو', 'زانکۆکە لە ئەڵمانیا دانپێدانراوە. دەتوانیت پشت بە بڕوانامەکەی ببەستیت.'],
+          ['mid', 'H+/-', 'مەرجدار', 'دانپێدانان بەپێی پسپۆڕی و پلەیە. لە anabin بزانە بڕوانامەکەت ناوی هاتووە.'],
+          ['bad', 'H-', 'دانپێنەدانراو', 'زانکۆکە دانپێنەدانراوە. لە ZAB یان لایەنی پەیوەندیدار بپرسە.'],
+        ],
+        stepsTitle: 'چۆن لە anabin بگەڕێیت؟',
+        steps: ['anabin بکەرەوە و «Institutionen» هەڵبژێرە.', '«Suchen nach Institutionen» و پاشان وڵات: Irak.', 'ناوی زانکۆکە بە ئینگلیزی بنووسە و بگەڕێ.', 'ئەنجامەکە بکەرەوە و خانەی «Status» بخوێنەوە.'],
+      },
+    },
     source: ['https://www.anerkennung-in-deutschland.de/html/de/pro/bewertung-hochschulabschluesse.php', 'https://anabin.kmk.org/'],
     Ara: {
       title: 'الاعتراف بالشهادة العراقية',

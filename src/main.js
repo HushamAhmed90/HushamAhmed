@@ -7,6 +7,7 @@ import { MISSIONS, OWN_FORMS, NO_FORM, missionTitle, findMission } from './missi
 import { toLatin, hasArabic } from './translit.js';
 import { GUIDES, findGuide } from './guides.js';
 import { NATUR, NATUR_SOURCES, QUIZ, INTERVIEW } from './natur.js';
+import { EMERGENCY, EMERGENCY_SOURCE, STATES, upcomingHolidays, PHRASES, drawLetter, LETTER_FIELDS, LETTER_REQUIRED } from './life.js';
 import { pushSupported, needsInstall, pushOn, enablePush, disablePush, refreshPushLang, scheduleReminder, cancelReminder } from './push.js';
 import { FIELDS as C_FIELDS, POA_PURPOSES, REQUIRED as C_REQUIRED, MARITAL, drawConsular, consularFontsReady } from './consular.js';
 
@@ -1034,6 +1035,174 @@ function openQA(focusAsk, openId = null) {
   if (focusAsk) setTimeout(() => { const b = $('#qa_askbox'); if (b) b.scrollIntoView({ behavior: 'smooth' }); }, 300);
 }
 
+// ---------- «حياتك بألمانيا» ----------
+const FX = { iqd: { rate: 1510, date: '2026-10-07' }, eurUsd: null, ecbDate: '' };
+const lifeTop = (title, back = true) => h('div', {},
+  h('div', { class: 'picker-top' }, h('h2', { text: title }), h('button', { class: 'x', type: 'button', 'aria-label': t().close, onclick: closeSheet, text: '✕' })),
+  back ? h('button', { class: 'linkbtn', type: 'button', text: t().lfBack, onclick: () => openLife() }) : null);
+function openLife() {
+  const u = t();
+  count('life_open');
+  const row = (icon, title, sub, fn) => h('button', { class: 'gcard', type: 'button', onclick: fn },
+    h('span', { class: 'gicon', text: icon }), h('span', { class: 'gtext' }, h('b', { text: title }), h('small', { text: sub })), h('i', { html: ICON.chevron }));
+  sheet(h('div', { class: 'request tvisa life' },
+    lifeTop(u.lfTitle, false),
+    h('p', { class: 'note', text: u.lfIntro }),
+    h('div', { class: 'glist' },
+      row('🚨', u.lfEmTitle, u.lfEmShort, openEmergency),
+      row('📮', u.lfRateTitle, u.lfRateShort, () => openLetter('installment')),
+      row('📄', u.lfSchufaTitle, u.lfSchufaShort, () => openLetter('schufa')),
+      row('📺', u.lfRbTitle, u.lfRbShort, openRundfunk),
+      row('🗓️', u.lfHolTitle, u.lfHolShort, openHolidays),
+      row('🗣️', u.lfPhTitle, u.lfPhShort, openPhrases),
+      row('💱', u.lfFxTitle, u.lfFxShort, openFx)),
+  ), { tall: true });
+}
+function openEmergency() {
+  const u = t(); const L = app.lang === 'Kur' ? 'Kur' : 'Ara';
+  count('life_emergency');
+  sheet(h('div', { class: 'request tvisa life' }, lifeTop(u.lfEmTitle),
+    h('p', { class: 'notice', text: u.lfEmNote }),
+    h('div', { class: 'em-list' }, EMERGENCY.map((e) => h('a', { class: 'em-row', href: `tel:${e.num}`, onclick: () => count('life_call', { num: e.num.slice(0, 6) }) },
+      h('b', { dir: 'ltr', text: e.show || e.num }), h('span', { text: e[L] }), h('i', { text: '📞' })))),
+    h('p', { class: 'hint' }, u.gSource.replace(/:.*/, ':'), ' ', h('a', { href: EMERGENCY_SOURCE, target: '_blank', rel: 'noopener', text: 'Auswärtiges Amt' })),
+  ), { tall: true });
+}
+const STATE_KEY = 'bitaqa.state';
+function openHolidays() {
+  const u = t(); const L = app.lang === 'Kur' ? 2 : 1;
+  count('life_holidays');
+  let st = 'HE'; try { st = localStorage.getItem(STATE_KEY) || 'HE'; } catch (e) { /* ignore */ }
+  const list = h('ul', { class: 'hol-list' });
+  const sel = h('select', { class: 'input select', id: 'hol_state', onchange: () => { st = sel.value; try { localStorage.setItem(STATE_KEY, st); } catch (e) { /* ignore */ } draw(); } },
+    Object.entries(STATES).map(([k, [ar, de]]) => h('option', { value: k, text: `${ar} · ${de}`, selected: k === st })));
+  const fmt = (d) => (app.lang === 'Kur' ? `${d.getDate()} ${u.cMonths[d.getMonth()]} ${d.getFullYear()}` : d.toLocaleDateString('ar-IQ', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', numberingSystem: 'latn' }));
+  const draw = () => {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    list.replaceChildren(...upcomingHolidays(st).map((x) => {
+      const days = Math.round((x[3] - today) / 864e5);
+      return h('li', {}, h('b', { text: x[L] }), h('small', { dir: 'ltr', text: x[0] }), h('span', { text: `${fmt(x[3])} · ${days === 0 ? u.apptIn(0) : u.apptIn(days)}` }));
+    }));
+  };
+  draw();
+  sheet(h('div', { class: 'request tvisa life' }, lifeTop(u.lfHolTitle),
+    h('label', { class: 'qlabel', for: 'hol_state', text: u.lfHolState }), sel, list,
+    h('p', { class: 'notice', text: u.lfHolNote }),
+  ), { tall: true });
+}
+function openPhrases() {
+  const u = t(); const L = app.lang === 'Kur' ? 'Kur' : 'Ara';
+  count('life_phrases');
+  const canSpeak = 'speechSynthesis' in window;
+  const say = (txt) => {
+    try { speechSynthesis.cancel(); const s = new SpeechSynthesisUtterance(txt.replace(/…/g, '')); s.lang = 'de-DE'; s.rate = 0.85; speechSynthesis.speak(s); count('life_speak'); } catch (e) { /* ignore */ }
+  };
+  const group = (cat) => [h('p', { class: 'qlabel', text: u.lfPhCats[cat] }),
+    ...PHRASES.filter((p) => p.cat === cat).map((p) => h('div', { class: 'ph-row' },
+      h('div', {}, h('b', { dir: 'ltr', lang: 'de', text: p.de }), h('small', { text: p[L] })),
+      canSpeak ? h('button', { class: 'ph-say', type: 'button', 'aria-label': u.lfPhSay, text: '🔊', onclick: () => say(p.de) }) : null))];
+  sheet(h('div', { class: 'request tvisa life' }, lifeTop(u.lfPhTitle),
+    h('p', { class: 'note', text: u.lfPhIntro }),
+    ...group('office'), ...group('phone'), ...group('doctor'),
+  ), { tall: true, onClose: () => { try { speechSynthesis.cancel(); } catch (e) { /* ignore */ } } });
+}
+function openRundfunk() {
+  const u = t();
+  count('life_rundfunk');
+  sheet(h('div', { class: 'request tvisa life' }, lifeTop(u.lfRbTitle),
+    h('p', { class: 'note', text: u.lfRbIntro }),
+    h('p', { class: 'qlabel', text: u.lfRbWhoTitle }), h('ul', { class: 'docs' }, u.lfRbWho.map((x) => h('li', { text: x }))),
+    h('p', { class: 'qlabel', text: u.gSteps }), h('ol', { class: 'steps' }, u.lfRbSteps.map((x) => h('li', { text: x }))),
+    h('p', { class: 'notice', text: u.lfRbNote }),
+    h('a', { class: 'btn primary wide', href: 'https://www.rundfunkbeitrag.de/befreiung', target: '_blank', rel: 'noopener', onclick: () => count('life_rb_site') }, u.lfRbOpen),
+    h('p', { class: 'hint' }, u.gSource.replace(/:.*/, ':'), ' ', h('a', { href: 'https://www.rundfunkbeitrag.de/', target: '_blank', rel: 'noopener', text: 'rundfunkbeitrag.de' })),
+  ), { tall: true });
+}
+// German letters (instalment request, free SCHUFA copy): typed in, drawn as an A4 PDF.
+const LETTER_KEY = 'bitaqa.letters.v1';
+function openLetter(kind) {
+  const u = t();
+  count('life_letter', { kind });
+  let saved = {}; try { saved = JSON.parse(localStorage.getItem(LETTER_KEY) || '{}'); } catch (e) { /* ignore */ }
+  const v = { ...(saved.common || {}), ...(saved[kind] || {}) };
+  const common = ['name', 'street', 'plzCity', 'phone', 'place', 'birth', 'birthPlace'];
+  const keep = () => {
+    const c = {}; const own = {};
+    for (const k of LETTER_FIELDS[kind]) (common.includes(k) ? c : own)[k] = v[k] || '';
+    try { localStorage.setItem(LETTER_KEY, JSON.stringify({ ...saved, common: { ...(saved.common || {}), ...c }, [kind]: own })); } catch (e) { /* ignore */ }
+  };
+  const field = (k) => {
+    const latinOnly = !['__'].includes(k);
+    const inp = h('input', { class: 'input', id: 'lt_' + k, type: k === 'birth' ? 'date' : k === 'total' || k === 'rate' ? 'text' : 'text', inputmode: k === 'total' || k === 'rate' ? 'decimal' : null,
+      dir: 'ltr', autocomplete: 'off', value: v[k] || '', placeholder: u.lfLtPh[k] || '',
+      oninput: () => { v[k] = inp.value; keep(); } });
+    return h('div', { class: 'field' }, h('label', { for: 'lt_' + k, text: u.lfLtLabels[k] + (LETTER_REQUIRED[kind].includes(k) ? ' *' : '') }), inp);
+  };
+  const err = h('p', { class: 'err' });
+  const paint = async (scale) => { const c = document.createElement('canvas'); return drawLetter(c, kind, v, scale); };
+  const go = h('button', { class: 'btn primary wide', type: 'button', text: u.lfLtMake, onclick: async () => {
+    const missing = LETTER_REQUIRED[kind].filter((k) => !String(v[k] || '').trim());
+    if (missing.length) { err.textContent = `${u.lfLtMissing}: ${missing.map((k) => u.lfLtLabels[k]).join('، ')}`; return; }
+    if (LETTER_FIELDS[kind].some((k) => hasArabic(v[k]))) { err.textContent = u.lfLtLatin; return; }
+    err.textContent = '';
+    go.disabled = true;
+    try {
+      const big = await paint(2.5);
+      const jpg = await new Promise((r) => big.toBlob(r, 'image/jpeg', 0.92));
+      const pdf = jpegPagePdf(new Uint8Array(await jpg.arrayBuffer()), big.width, big.height);
+      const name = `${kind === 'schufa' ? 'SCHUFA-Datenkopie' : 'Ratenzahlung'}-${String(v.name || '').trim().replace(/[^A-Za-z0-9]+/g, '-')}.pdf`;
+      afterSave = null;
+      if (await hand(pdf, name)) { count('life_letter_made', { kind }); if (isIOS()) toast(u.saved); }
+    } catch (e) { toast(u.failed); } finally { go.disabled = false; }
+  } });
+  const isS = kind === 'schufa';
+  sheet(h('div', { class: 'request tvisa life letter' }, lifeTop(isS ? u.lfSchufaTitle : u.lfRateTitle),
+    h('p', { class: 'note', text: isS ? u.lfSchufaIntro : u.lfRateIntro }),
+    isS ? h('a', { class: 'btn soft wide', href: 'https://www.meineschufa.de/', target: '_blank', rel: 'noopener', onclick: () => count('life_schufa_site') }, u.lfSchufaOnline) : null,
+    h('p', { class: 'hint', text: u.lfLtLatinNote }),
+    h('p', { class: 'qlabel', text: u.lfLtYou }),
+    ...LETTER_FIELDS[kind].filter((k) => !['toName', 'toStreet', 'toPlzCity', 'ref', 'total', 'rate', 'start'].includes(k)).map(field),
+    isS ? null : h('p', { class: 'qlabel', text: u.lfLtTo }),
+    ...(isS ? [] : ['toName', 'toStreet', 'toPlzCity', 'ref', 'total', 'rate', 'start'].map(field)),
+    err, go,
+    h('p', { class: 'notice', text: isS ? u.lfSchufaNote : u.lfRateNote }),
+    h('p', { class: 'trust small', html: ICON.check }, u.lfLtPrivacy),
+  ), { tall: true });
+}
+async function loadFx() {
+  if (FX.eurUsd) return;
+  try { const r = await fetch('/api/fx'); if (r.ok) { const d = await r.json(); if (d.eurUsd > 0) { FX.eurUsd = d.eurUsd; FX.ecbDate = d.date; } } } catch (e) { /* offline */ }
+}
+function openFx() {
+  const u = t();
+  count('life_fx');
+  const amt = h('input', { class: 'input fx-amt', type: 'text', inputmode: 'decimal', dir: 'ltr', value: '100', id: 'fx_amt' });
+  let from = 'EUR';
+  const out = h('div', { class: 'fx-out' });
+  const chips = h('div', { class: 'chips' });
+  const nf = (n, d = 2) => n.toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d > 0 ? 2 : 0 });
+  const draw = () => {
+    chips.replaceChildren(...['EUR', 'USD', 'IQD'].map((c) => h('button', { class: 'chipbtn' + (from === c ? ' on' : ''), type: 'button', text: u.lfFxCur[c], onclick: () => { from = c; draw(); } })));
+    const a = Number(String(amt.value).replace(/,/g, '.').replace(/[^\d.]/g, ''));
+    if (!FX.eurUsd) { out.replaceChildren(h('p', { class: 'note', text: u.lfFxLoading })); return; }
+    const usd = from === 'USD' ? a : from === 'EUR' ? a * FX.eurUsd : a / FX.iqd.rate;
+    const vals = { EUR: usd / FX.eurUsd, USD: usd, IQD: usd * FX.iqd.rate };
+    out.replaceChildren(...['EUR', 'USD', 'IQD'].filter((c) => c !== from).map((c) => h('div', { class: 'fx-res' },
+      h('b', { dir: 'ltr', text: `${nf(vals[c], c === 'IQD' ? 0 : 2)} ${c === 'EUR' ? '€' : c === 'USD' ? '$' : 'IQD'}` }), h('small', { text: u.lfFxCur[c] }))));
+  };
+  amt.addEventListener('input', draw);
+  draw();
+  sheet(h('div', { class: 'request tvisa life' }, lifeTop(u.lfFxTitle),
+    h('label', { class: 'qlabel', for: 'fx_amt', text: u.lfFxAmount }), amt, chips, out,
+    h('p', { class: 'hint fx-src', text: '' }),
+    h('p', { class: 'notice', text: u.lfFxNote }),
+  ), { tall: true });
+  loadFx().then(() => {
+    draw();
+    const s = $('.fx-src'); if (s) s.textContent = u.lfFxSrc(FX.ecbDate || '—', FX.eurUsd ? FX.eurUsd.toFixed(4) : '—', FX.iqd.rate, FX.iqd.date);
+  });
+}
+
 // ---------- German citizenship preparation ----------
 function openNatur() {
   const u = t();
@@ -1277,6 +1446,15 @@ function guideAction(kind) {
   count('guide_action', { kind });
   renderConsular(); scrollTo(0, 0);
 }
+function guideCards(c) {
+  const ICO = { ok: '✓', mid: '?', bad: '✕' };
+  return h('div', { class: 'gcards' },
+    h('p', { class: 'qlabel', text: c.title }),
+    c.items.map(([k, code, name, txt]) => h('div', { class: 'gstat ' + k },
+      h('div', { class: 'gstat-top' }, h('i', { text: ICO[k] }), h('b', { dir: 'ltr', text: code }), h('span', { text: name })), h('p', { text: txt }))),
+    h('p', { class: 'qlabel', text: c.stepsTitle }),
+    h('ol', { class: 'steps' }, c.steps.map((x) => h('li', { text: x }))));
+}
 function openGuide(id, fromList) {
   const g = findGuide(id);
   if (!g) return;
@@ -1288,6 +1466,8 @@ function openGuide(id, fromList) {
     fromList ? h('button', { class: 'linkbtn', type: 'button', text: u.gBack, onclick: openGuides }) : null,
     h('p', { class: 'note', text: x.intro }),
     videoBtn('guide_' + g.id),
+    g.cards ? guideCards(g.cards[app.lang] || g.cards.Ara) : null,
+    g.links ? g.links.map((l) => h('a', { class: 'btn soft wide', href: l.url, target: '_blank', rel: 'noopener', onclick: () => count('guide_link', { id }) }, l[app.lang] || l.Ara)) : null,
     checklist('g:' + g.id, x.need),
     apptButton('g:' + g.id),
     h('p', { class: 'qlabel', text: u.gSteps }),
@@ -1311,6 +1491,7 @@ function quickNav() {
   return h('nav', { class: 'quick', 'aria-label': u.quickTitle },
     item('selfbook', () => openSelfBook(), true),
     item('qa', () => openQA(), true),
+    item('life', () => openLife(), true),
     item('pension', openPension, true),
     item('tvisa', openTvisa, true),
     item('guides', openGuides),
@@ -1947,6 +2128,9 @@ function renderGuide() {
       h('div', { class: 'glist' },
         GUIDES.filter((g) => g.group === 'de').map((g) => row(GUIDE_ICON[g.id] || 'doc', g[app.lang].title, g[app.lang].short, () => openGuide(g.id))),
         row('flag', (NATUR[app.lang] || NATUR.Ara).title, (NATUR[app.lang] || NATUR.Ara).short, openNatur)),
+      h('h3', { class: 'ggroup', text: u.gGroups.life }),
+      h('div', { class: 'glist' }, h('button', { class: 'gcard', type: 'button', onclick: openLife },
+        h('span', { class: 'gicon', text: '🧭' }), h('span', { class: 'gtext' }, h('b', { text: u.lfTitle }), h('small', { text: u.lfShort })), h('i', { html: ICON.chevron }))),
       h('h3', { class: 'ggroup', text: u.gGroups.travel }),
       h('div', { class: 'glist' },
         GUIDES.filter((g) => g.group === 'travel').map((g) => row(GUIDE_ICON[g.id] || 'doc', g[app.lang].title, g[app.lang].short, () => openGuide(g.id))),
@@ -2640,6 +2824,7 @@ async function loadContent() {
     if (data.videos && typeof data.videos === 'object') {
       for (const [k, v] of Object.entries(data.videos)) if (typeof v === 'string') VIDEOS[k] = v;
     }
+    if (data.fx && Number(data.fx.iqdPerUsd) > 100) FX.iqd = { rate: Number(data.fx.iqdPerUsd), date: String(data.fx.date || '') };
     if (Array.isArray(data.notices)) NOTICES.splice(0, NOTICES.length, ...data.notices.filter((n) => n && n.id && n.text));
     // Refresh only the parts that show this content, so nothing the person is typing is lost.
     const bar = $('.news'); const fresh = app.lang ? newsTicker() : null;
@@ -2739,6 +2924,7 @@ start();
   if (!app.lang || (!g && !qa)) return;
   setTimeout(() => {
     if (g === 'selfbook') openSelfBook();
+    else if (g === 'life') openLife();
     else if (g === 'pension') openPension();
     else if (g === 'natur') openNatur();
     else if (g === 'tvisa') openTvisa();
