@@ -1036,6 +1036,43 @@ function openQA(focusAsk, openId = null) {
 }
 
 // ---------- «حياتك بألمانيا» ----------
+// ---------- المواعيد المتاحة (written by hand from content.json; the app never watches the booking site) ----------
+const SLOTS = [];
+const slotAt = (s) => { const d = new Date(s.at); return isNaN(d) ? null : d; };
+function slotWhen(d) {
+  const u = t(); if (!d) return '';
+  const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const day = new Date(); day.setHours(0, 0, 0, 0);
+  const diff = Math.round((day - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 864e5);
+  if (diff === 0) return `${u.slToday} ${hm}`;
+  if (diff === 1) return `${u.slYesterday} ${hm}`;
+  return `${d.getDate()} ${u.cMonths[d.getMonth()]} ${hm}`;
+}
+const slotDay = (iso) => { const d = new Date(iso + 'T12:00'); return isNaN(d) ? iso : `${d.getDate()} ${t().cMonths[d.getMonth()]}`; };
+const slotOld = (s) => { const d = slotAt(s); return !d || Date.now() - d > 3 * 864e5; };
+const slotOpen = (s) => (s.status === 'open' || s.status === 'few') && !slotOld(s);
+const slotLatest = () => SLOTS.map(slotAt).filter(Boolean).sort((a, b) => b - a)[0] || null;
+function openSlots() {
+  const u = t(); const L = app.lang === 'Kur' ? 'Kur' : 'Ara';
+  count('slots_open');
+  const card = (s) => h('div', { class: 'slot ' + (slotOld(s) ? 'old' : s.status) },
+    h('div', { class: 'slot-top' }, h('b', { text: `${(s.service || {})[L] || ''} · ${(s.place || {})[L] || ''}` }), h('span', { class: 'slot-chip', text: u.slStatus[s.status] || '' })),
+    s.from && s.to ? h('p', { class: 'slot-range', text: u.slRange(slotDay(s.from), slotDay(s.to)) }) : null,
+    s.days && s.days[L] ? h('p', { class: 'hint', text: `${u.slDays}: ${s.days[L]}` }) : null,
+    s.note && s.note[L] ? h('p', { class: 'hint', text: s.note[L] }) : null,
+    h('p', { class: 'slot-at', text: `🕐 ${u.slAt}: ${slotWhen(slotAt(s))}${slotOld(s) ? ' · ' + u.slOld : ''}` }));
+  const list = SLOTS.slice().sort((a, b) => (slotOpen(b) - slotOpen(a)) || ((slotAt(b) || 0) - (slotAt(a) || 0)));
+  sheet(h('div', { class: 'request slots' },
+    h('div', { class: 'picker-top' }, h('h2', { text: u.slTitle }), h('button', { class: 'x', type: 'button', 'aria-label': u.close, onclick: closeSheet, text: '✕' })),
+    h('p', { class: 'note', text: u.slIntro }),
+    list.length ? h('div', { class: 'slot-list' }, list.map(card)) : h('p', { class: 'hint', text: u.slNone }),
+    h('a', { class: 'btn primary wide', href: ICASS_URL, target: '_blank', rel: 'noopener', onclick: () => count('slots_site') }, u.slBook),
+    h('button', { class: 'btn soft wide', type: 'button', text: u.slLearn, onclick: () => { closeSheet(); setTimeout(() => openSelfBook(), 250); } }),
+    h('p', { class: 'trust small', html: ICON.check }, u.slNote),
+    shareBtn(u.slTitle, '/?g=slots&src=share', 'slots'),
+  ), { tall: true });
+}
+
 const FX = { iqd: { rate: 1510, date: '2026-10-07' }, eurUsd: null, ecbDate: '' };
 const lifeTop = (title, back = true) => h('div', {},
   h('div', { class: 'picker-top' }, h('h2', { text: title }), h('button', { class: 'x', type: 'button', 'aria-label': t().close, onclick: closeSheet, text: '✕' })),
@@ -1489,6 +1526,7 @@ function quickNav() {
     u.quick[id], hot ? h('small', { text: u.quickNew }) : null);
   const design = UI.Ara.promos.find((p) => p.key === 'design');
   return h('nav', { class: 'quick', 'aria-label': u.quickTitle },
+    item('slots', () => openSlots(), true),
     item('selfbook', () => openSelfBook(), true),
     item('qa', () => openQA(), true),
     item('life', () => openLife(), true),
@@ -2083,6 +2121,9 @@ function renderHome() {
         tile('services', () => goSection('services'))),
       h('div', { class: 'hots' },
         bookLinks().length ? h('div', { class: 'booklink-home' }, bookLinks().map((x) => h('button', { class: 'btn primary wide big', type: 'button', text: linkLabel(x), onclick: () => openBookLink(x, 'home') }))) : null,
+        SLOTS.length ? h('button', { class: 'hotcard wide sl-home', type: 'button', onclick: () => { count('home_tile', { tile: 'slots' }); openSlots(); } },
+          h('span', { class: 'hot-top' }, h('i', { html: ICONS.calendar }), SLOTS.some(slotOpen) ? h('em', { text: u.slStatus.open }) : null),
+          h('b', { text: u.slTitle }), h('small', { text: u.slHomeSub(SLOTS.filter(slotOpen).length, slotWhen(slotLatest())) })) : null,
         h('button', { class: 'hotcard wide sb-home', type: 'button', onclick: () => { count('home_tile', { tile: 'selfbook' }); openSelfBook(); } },
           h('span', { class: 'hot-top' }, h('i', { html: ICONS.calendar }), h('em', { text: u.quickNew })),
           h('b', { text: u.sbTitle }), h('small', { text: u.sbShort })),
@@ -2825,6 +2866,7 @@ async function loadContent() {
       for (const [k, v] of Object.entries(data.videos)) if (typeof v === 'string') VIDEOS[k] = v;
     }
     if (data.fx && Number(data.fx.iqdPerUsd) > 100) FX.iqd = { rate: Number(data.fx.iqdPerUsd), date: String(data.fx.date || '') };
+    if (data.slots && Array.isArray(data.slots.items)) SLOTS.splice(0, SLOTS.length, ...data.slots.items.filter((s) => s && s.id && s.place && s.service));
     if (Array.isArray(data.notices)) NOTICES.splice(0, NOTICES.length, ...data.notices.filter((n) => n && n.id && n.text));
     // Refresh only the parts that show this content, so nothing the person is typing is lost.
     const bar = $('.news'); const fresh = app.lang ? newsTicker() : null;
@@ -2924,6 +2966,7 @@ start();
   if (!app.lang || (!g && !qa)) return;
   setTimeout(() => {
     if (g === 'selfbook') openSelfBook();
+    else if (g === 'slots') setTimeout(openSlots, 900);
     else if (g === 'life') openLife();
     else if (g === 'pension') openPension();
     else if (g === 'natur') openNatur();

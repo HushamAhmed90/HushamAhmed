@@ -662,3 +662,16 @@ html.dk .hol-list span { color: #8CB8E0; }
 .gstat p { margin: 4px 0 0; font-size: 14px; line-height: 1.7; }
 html.dk .gstat.ok { background: #12291E; } html.dk .gstat.mid { background: #2A2414; } html.dk .gstat.bad { background: #2c1515; }
 html.dk .gstat.ok span { color: #5fd39a; } html.dk .gstat.mid span { color: #f0c35a; } html.dk .gstat.bad span { color: #ff8a85; }
+
+/* المواعيد المتاحة */
+.hotcard.sl-home { background: linear-gradient(135deg, #E3F1FB, #fff); border-color: #9cc6e6; }
+html.dk .hotcard.sl-home { background: linear-gradient(135deg, #12273A, var(--card)); }
+.hotcard.sl-home .hot-top em { font-style: normal; font-size: 12px; font-weight: 700; background: #E7F4EC; color: #1e6b45; padding: 2px 10px; border-radius: 20px; }
+.slot-list { display: flex; flex-direction: column; gap: 10px; margin: 12px 0 16px; }
+.slot { border: 1.5px solid var(--line); border-radius: 16px; padding: 12px 14px; background: var(--card); }
+.slot.open { border-color: #5fb58a; background: #EEF8F2; } .slot.few { border-color: #d6a93a; background: #FBF4E2; }
+.slot.full { border-color: #d9534f; background: #FCEEEE; } .slot.far, .slot.old { opacity: .85; }
+html.dk .slot.open { background: #13261C; } html.dk .slot.few { background: #2A2412; } html.dk .slot.full { background: #2B1515; }
+.slot-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.slot-top b { font-size: 16px; } .slot-chip { flex: none; font-size: 13px; font-weight: 700; }
+.slot-range { font-weight: 700; margin: 6px 0 2px; } .slot-at { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
