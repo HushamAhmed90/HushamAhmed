@@ -1049,6 +1049,7 @@ function slotWhen(d) {
   return `${d.getDate()} ${u.cMonths[d.getMonth()]} ${hm}`;
 }
 const slotDay = (iso) => { const d = new Date(iso + 'T12:00'); return isNaN(d) ? iso : `${d.getDate()} ${t().cMonths[d.getMonth()]}`; };
+const slotNum = (iso) => '\u2066' + String(iso).split('-').reverse().join('-') + '\u2069';
 const slotOld = (s) => { const d = slotAt(s); return !d || Date.now() - d > 3 * 864e5; };
 const slotOpen = (s) => (s.status === 'open' || s.status === 'few') && !slotOld(s);
 const slotLatest = () => SLOTS.map(slotAt).filter(Boolean).sort((a, b) => b - a)[0] || null;
@@ -1058,6 +1059,7 @@ function openSlots() {
   const card = (s) => h('div', { class: 'slot ' + (slotOld(s) ? 'old' : s.status) },
     h('div', { class: 'slot-top' }, h('b', { text: `${(s.service || {})[L] || ''} · ${(s.place || {})[L] || ''}` }), h('span', { class: 'slot-chip', text: u.slStatus[s.status] || '' })),
     s.from && s.to ? h('p', { class: 'slot-range', text: u.slRange(slotDay(s.from), slotDay(s.to)) }) : null,
+    s.from && s.to ? h('p', { class: 'slot-num', text: u.slNum(slotNum(s.from), slotNum(s.to)) }) : null,
     s.days && s.days[L] ? h('p', { class: 'hint', text: `${u.slDays}: ${s.days[L]}` }) : null,
     s.note && s.note[L] ? h('p', { class: 'hint', text: s.note[L] }) : null,
     h('p', { class: 'slot-at', text: `🕐 ${u.slAt}: ${slotWhen(slotAt(s))}${slotOld(s) ? ' · ' + u.slOld : ''}` }));

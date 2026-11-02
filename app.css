@@ -674,4 +674,4 @@ html.dk .hotcard.sl-home { background: linear-gradient(135deg, #12273A, var(--ca
 html.dk .slot.open { background: #13261C; } html.dk .slot.few { background: #2A2412; } html.dk .slot.full { background: #2B1515; }
 .slot-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .slot-top b { font-size: 16px; } .slot-chip { flex: none; font-size: 13px; font-weight: 700; }
-.slot-range { font-weight: 700; margin: 6px 0 2px; } .slot-at { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+.slot-range { font-weight: 700; margin: 6px 0 0; } .slot-num { font-size: 13.5px; font-weight: 700; color: var(--muted); margin-bottom: 2px; } .slot-at { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
