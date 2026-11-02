@@ -2088,7 +2088,10 @@ function bottomNav() {
     onclick: () => { if (app.section === sec && sec !== 'forms') { scrollTo(0, 0); return; } goSection(sec); } },
     h('i', { html: NAV_ICON[sec] }), h('span', { text: label }));
   return h('nav', { class: 'bottomnav', 'aria-label': u.appName },
-    item('home', u.navHome), item('forms', u.navForms), item('guide', u.navGuide), item('services', u.navServices));
+    item('home', u.navHome), item('forms', u.navForms),
+    h('button', { class: 'navbtn nav-sl', type: 'button', onclick: () => { count('nav_slots'); openSlots(); } },
+      h('i', { html: ICONS.calendar }), SLOTS.some(slotOpen) ? h('b', { class: 'nav-dot' }) : null, h('span', { text: u.navSlots })),
+    item('guide', u.navGuide), item('services', u.navServices));
 }
 function openForms(view) {
   app.view = view; persistView();
