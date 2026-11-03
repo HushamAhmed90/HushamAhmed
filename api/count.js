@@ -23,14 +23,17 @@ async function redis(commands) {
   return (await res.json()).map((r) => r.result);
 }
 
-// Forms done per day (UTC), kept for 9 days, so the home screen can show the last 7 days.
-const dayKey = (offset) => `fd:${new Date(Date.now() - offset * 864e5).toISOString().slice(0, 10)}`;
+// Forms done per day by German local date (the day starts and ends at midnight in
+// Berlin), kept for 9 days. The home screen shows today's number.
+const berlinDay = (t) => new Date(t).toLocaleDateString('en-CA', { timeZone: 'Europe/Berlin' });
+const dayKey = (offset) => `fd:${berlinDay(Date.now() - offset * 864e5)}`;
 
 async function totals() {
   const days = [0, 1, 2, 3, 4, 5, 6].map(dayKey);
   const [people, forms, perDay] = await redis([['GET', 'people'], ['GET', 'forms'], ['MGET', ...days]]);
   const week = (perDay || []).reduce((s, n) => s + (Number(n) || 0), 0);
-  return { people: BASE.people + (Number(people) || 0), forms: BASE.forms + (Number(forms) || 0), week };
+  const today = Number((perDay || [])[0]) || 0;
+  return { people: BASE.people + (Number(people) || 0), forms: BASE.forms + (Number(forms) || 0), week, today };
 }
 
 module.exports = async (req, res) => {
