@@ -1523,6 +1523,7 @@ function openGuide(id, fromList) {
     h('p', { class: 'note', text: x.intro }),
     videoBtn('guide_' + g.id),
     g.cards ? guideCards(g.cards[app.lang] || g.cards.Ara) : null,
+    g.calc ? benefitCalc(g.calc) : null,
     g.links ? g.links.map((l) => h('a', { class: 'btn soft wide', href: l.url, target: '_blank', rel: 'noopener', onclick: () => count('guide_link', { id }) }, l[app.lang] || l.Ara)) : null,
     checklist('g:' + g.id, x.need),
     apptButton('g:' + g.id),
@@ -1532,10 +1533,41 @@ function openGuide(id, fromList) {
     (g.actions || []).map((a) => h('button', { class: 'btn soft wide', type: 'button', text: u.gActions[a], onclick: () => guideAction(a) })),
     shareBtn(x.title, `/g/${g.id}${app.lang === 'Kur' ? '-ku' : ''}.html`, 'guide_' + g.id),
     g.noBook ? null : h('a', { class: 'btn primary wide', href: ICASS_URL, target: '_blank', rel: 'noopener', onclick: () => count('guide_book', { id }) }, u.gBook),
-    h('button', { class: 'btn soft wide', type: 'button', text: u.gHelp, onclick: () => { closeSheet(); openRequest(g.service, `${UI.Ara.gTitle}: ${g.Ara.title}`); } }),
-    h('p', { class: 'trust small', html: ICON.check }, u.noUpfront),
-    h('p', { class: 'hint' }, g.group === 'de' ? u.gSource.replace(/:.*/, ':') : u.gSource, ' ', ...g.source.map((url, i) => h('a', { href: url, target: '_blank', rel: 'noopener', text: `(${i + 1})` }))),
+    g.noHelp ? null : h('button', { class: 'btn soft wide', type: 'button', text: u.gHelp, onclick: () => { closeSheet(); openRequest(g.service, `${UI.Ara.gTitle}: ${g.Ara.title}`); } }),
+    g.noHelp ? null : h('p', { class: 'trust small', html: ICON.check }, u.noUpfront),
+    h('p', { class: 'hint' }, g.group === 'de' || g.group === 'money' ? u.gSource.replace(/:.*/, ':') : u.gSource, ' ', ...g.source.map((url, i) => h('a', { href: url, target: '_blank', rel: 'noopener', text: `(${i + 1})` }))),
   ), { tall: true });
+}
+
+
+// Rough calculators for the money guides (the office decides the real amount).
+const KINDERGELD = 259;   // € per child and month from January 2026 (Bundesagentur für Arbeit)
+function elterngeldEstimate(net) {
+  const n = Math.max(0, Math.min(Number(net) || 0, 2770));
+  let rate = 0.65;
+  if (n < 1000) rate = Math.min(1, 0.67 + ((1000 - n) / 2) * 0.001);
+  else if (n <= 1200) rate = 0.67;
+  else if (n < 1240) rate = 0.67 - ((n - 1200) / 2) * 0.001;
+  const base = Math.round(Math.min(1800, Math.max(300, n * rate)));
+  return { base, plus: Math.round(Math.min(900, Math.max(150, base / 2))) };
+}
+function benefitCalc(kind) {
+  const u = t();
+  const out = h('p', { class: 'calc-out', 'aria-live': 'polite' });
+  const inp = h('input', { class: 'input', id: 'calc_in', type: 'number', inputmode: kind === 'kindergeld' ? 'numeric' : 'decimal', min: kind === 'kindergeld' ? 1 : 0, max: kind === 'kindergeld' ? 15 : 20000,
+    dir: 'ltr', placeholder: kind === 'kindergeld' ? '2' : '1800' });
+  const eur = (x) => `\u2066${x.toLocaleString('de-DE')} €\u2069`;
+  const run = () => {
+    const v = Number(String(inp.value).replace(',', '.'));
+    if (!(v > 0)) { out.textContent = ''; return; }
+    if (kind === 'kindergeld') { const n = Math.min(15, Math.round(v)); out.textContent = u.calcKg(n, eur(n * KINDERGELD), eur(n * KINDERGELD * 12)); }
+    else { const r = elterngeldEstimate(v); out.textContent = u.calcEg(eur(r.base), eur(r.plus)); }
+    count('calc_use', { kind });
+  };
+  inp.addEventListener('input', run);
+  return h('div', { class: 'calc' }, h('p', { class: 'qlabel', text: kind === 'kindergeld' ? u.calcKgTitle : u.calcEgTitle }),
+    h('label', { for: 'calc_in', text: kind === 'kindergeld' ? u.calcKgIn : u.calcEgIn }), inp, out,
+    h('small', { class: 'hint', text: u.calcNote }));
 }
 
 // Shortcuts to the services, in the header's free space (a scrolling row on phones).
@@ -2092,7 +2124,7 @@ const ICONS = {
   menu: svgI('<path d="M4 7h16M4 12h16M4 17h16"/>'),
   calendar: svgI('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18M8 14h3v3H8z"/>'),
 };
-const GUIDE_ICON = { passport: 'passport', record: 'shield', birth: 'baby', marriage: 'rings', laissez: 'plane', licence: 'car', degree: 'cap', iqdocs: 'stamp', invite: 'plane', travel: 'suitcase' };
+const GUIDE_ICON = { passport: 'passport', record: 'shield', birth: 'baby', marriage: 'rings', laissez: 'plane', licence: 'car', degree: 'cap', iqdocs: 'stamp', invite: 'plane', travel: 'suitcase', kindergeld: 'baby', elterngeld: 'baby', wohngeld: 'wallet', bafoeg: 'cap' };
 function goSection(sec, fromHistory) {
   closeSheet();
   app.section = sec; persistSection();
@@ -2190,6 +2222,9 @@ function renderGuide() {
       h('div', { class: 'glist' },
         GUIDES.filter((g) => g.group === 'de').map((g) => row(GUIDE_ICON[g.id] || 'doc', g[app.lang].title, g[app.lang].short, () => openGuide(g.id))),
         row('flag', (NATUR[app.lang] || NATUR.Ara).title, (NATUR[app.lang] || NATUR.Ara).short, openNatur)),
+      h('h3', { class: 'ggroup', text: u.gGroups.money }),
+      h('div', { class: 'glist' },
+        GUIDES.filter((g) => g.group === 'money').map((g) => row(GUIDE_ICON[g.id] || 'doc', g[app.lang].title, g[app.lang].short, () => openGuide(g.id)))),
       h('h3', { class: 'ggroup', text: u.gGroups.life }),
       h('div', { class: 'glist' }, h('button', { class: 'gcard', type: 'button', onclick: openLife },
         h('span', { class: 'gicon', text: '🧭' }), h('span', { class: 'gtext' }, h('b', { text: u.lfTitle }), h('small', { text: u.lfShort })), h('i', { html: ICON.chevron }))),

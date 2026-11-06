@@ -696,3 +696,7 @@ html.dk .wl-card.amber { background: #2A2412; } html.dk .wl-card.red, html.dk .w
   border: 1.5px solid #d6a93a; background: #FBF4E2; color: var(--ink); border-radius: 16px; padding: 12px 14px; margin: 0 0 12px; }
 .wl-home.red, .wl-home.gone { border-color: #d9534f; background: #FCEEEE; } .wl-home small { width: 100%; color: var(--muted); }
 html.dk .wl-home { background: #2A2412; } html.dk .wl-home.red, html.dk .wl-home.gone { background: #2B1515; }
+
+.calc { border: 1.5px dashed var(--gold, #d6a93a); border-radius: 16px; padding: 12px 14px; margin: 10px 0 14px; background: var(--card); }
+.calc .input { margin: 6px 0 4px; } .calc-out { font-weight: 700; font-size: 16px; color: var(--navy); margin: 6px 0; }
+html.dk .calc-out { color: #f0c35a; }
