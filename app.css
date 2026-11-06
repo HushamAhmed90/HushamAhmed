@@ -684,3 +684,15 @@ html.dk .tile.sl-tile { background: linear-gradient(135deg, #12273A, var(--card)
 .navbtn.nav-sl { position: relative; color: #1D6FA5; }
 .navbtn.nav-sl i svg { stroke-width: 2.2; }
 .nav-dot { position: absolute; top: 6px; inset-inline-start: calc(50% + 8px); width: 9px; height: 9px; border-radius: 50%; background: #2fb36a; box-shadow: 0 0 0 2px var(--card); }
+
+/* محفظة المستمسكات */
+.wl-list { display: flex; flex-direction: column; gap: 10px; margin: 10px 0 18px; }
+.wl-card { border: 1.5px solid var(--line); border-radius: 16px; padding: 12px 14px; background: var(--card); }
+.wl-card.ok { border-color: #9fd3b5; } .wl-card.amber { border-color: #d6a93a; background: #FBF4E2; } .wl-card.red, .wl-card.gone { border-color: #d9534f; background: #FCEEEE; }
+html.dk .wl-card.amber { background: #2A2412; } html.dk .wl-card.red, html.dk .wl-card.gone { background: #2B1515; }
+.wl-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; } .wl-days { font-weight: 700; font-size: 13.5px; flex: none; }
+.wl-card .two { margin-top: 8px; }
+.wl-home { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 10px; width: 100%; text-align: start; font: inherit; cursor: pointer;
+  border: 1.5px solid #d6a93a; background: #FBF4E2; color: var(--ink); border-radius: 16px; padding: 12px 14px; margin: 0 0 12px; }
+.wl-home.red, .wl-home.gone { border-color: #d9534f; background: #FCEEEE; } .wl-home small { width: 100%; color: var(--muted); }
+html.dk .wl-home { background: #2A2412; } html.dk .wl-home.red, html.dk .wl-home.gone { background: #2B1515; }

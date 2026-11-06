@@ -89,7 +89,47 @@ const de = (d) => `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth()
 const isoDe = (s) => { const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? `${m[3]}.${m[2]}.${m[1]}` : String(s || ''); };
 const money = (s) => { const n = Number(String(s || '').replace(',', '.')); return Number.isFinite(n) && n > 0 ? `${n.toFixed(2).replace('.', ',')} €` : ''; };
 
+export const CONTRACTS = {
+  mobile: ['Mobilfunkvertrag', 'الموبايل', 'مۆبایل'],
+  internet: ['Internet- und Festnetzvertrag', 'الإنترنت والتلفون الأرضي', 'ئینتەرنێت و تەلەفۆنی ماڵ'],
+  gym: ['Mitgliedschaft im Fitnessstudio', 'النادي الرياضي', 'هۆڵی وەرزش'],
+  power: ['Stromliefervertrag', 'الكهرباء', 'کارەبا'],
+  gas: ['Gasliefervertrag', 'الغاز', 'گاز'],
+  insurance: ['Versicherungsvertrag', 'التأمين', 'بیمە'],
+  tv: ['Pay-TV- bzw. Streaming-Abonnement', 'التلفزيون أو البث المدفوع', 'تەلەفیزیۆن یان ستریمینگ'],
+  magazine: ['Zeitungs- bzw. Zeitschriftenabonnement', 'اشتراك جريدة أو مجلة', 'ئابوونەی ڕۆژنامە'],
+  other: ['Vertrag', 'عقد ثاني', 'گرێبەستی تر'],
+};
+
 function body(kind, v) {
+  if (kind === 'cancel') {
+    const c = (CONTRACTS[v.ctype] || CONTRACTS.other)[0];
+    const when = v.endDate ? `zum ${isoDe(v.endDate)}, hilfsweise zum nächstmöglichen Zeitpunkt` : 'fristgerecht zum nächstmöglichen Zeitpunkt';
+    return {
+      to: [v.toName, v.toStreet, v.toPlzCity].filter(Boolean),
+      subject: `Kündigung: ${c}${v.ref ? ` – Kunden-/Vertragsnummer: ${v.ref}` : ''}`,
+      paras: [
+        'Sehr geehrte Damen und Herren,',
+        `hiermit kündige ich meinen ${c}${v.ref ? ` (Kunden-/Vertragsnummer ${v.ref})` : ''} ${when}.`,
+        'Bitte bestätigen Sie mir den Eingang dieser Kündigung sowie das genaue Vertragsende schriftlich.',
+        'Eine erteilte Einzugsermächtigung bzw. ein SEPA-Lastschriftmandat widerrufe ich zum Vertragsende. Einer Nutzung meiner Daten zu Werbezwecken sowie einer telefonischen Kontaktaufnahme zur Rückgewinnung widerspreche ich.',
+        'Mit freundlichen Grüßen',
+      ],
+    };
+  }
+  if (kind === 'objection') {
+    return {
+      to: [v.toName, v.toStreet, v.toPlzCity].filter(Boolean),
+      subject: `Widerspruch gegen den Bescheid vom ${isoDe(v.decDate)}${v.ref ? ` – Aktenzeichen/Kundennummer: ${v.ref}` : ''}`,
+      paras: [
+        'Sehr geehrte Damen und Herren,',
+        `hiermit lege ich gegen Ihren Bescheid vom ${isoDe(v.decDate)}${v.ref ? ` (Aktenzeichen/Kundennummer ${v.ref})` : ''}${v.birth ? `, betreffend ${v.name}, geboren am ${isoDe(v.birth)},` : ''} fristgerecht Widerspruch ein.`,
+        v.reason ? `Begründung: ${v.reason}` : 'Die Begründung reiche ich gesondert nach. Zu diesem Zweck bitte ich um Einsicht in meine Akte bzw. um Übersendung der für die Entscheidung maßgeblichen Unterlagen.',
+        'Bitte bestätigen Sie mir den Eingang dieses Widerspruchs schriftlich.',
+        'Mit freundlichen Grüßen',
+      ],
+    };
+  }
   if (kind === 'schufa') {
     return {
       to: SCHUFA_ADDR,
@@ -155,6 +195,12 @@ export function drawLetter(canvas, kind, v, scale = 2) {
 }
 export const LETTER_FIELDS = {
   installment: ['name', 'street', 'plzCity', 'phone', 'toName', 'toStreet', 'toPlzCity', 'ref', 'total', 'rate', 'start', 'place'],
+  cancel: ['name', 'street', 'plzCity', 'phone', 'ctype', 'toName', 'toStreet', 'toPlzCity', 'ref', 'endDate', 'place'],
+  objection: ['name', 'birth', 'street', 'plzCity', 'phone', 'toName', 'toStreet', 'toPlzCity', 'ref', 'decDate', 'reason', 'place'],
   schufa: ['name', 'birth', 'birthPlace', 'street', 'plzCity', 'prevAddr', 'place'],
 };
-export const LETTER_REQUIRED = { installment: ['name', 'street', 'plzCity', 'toName', 'rate'], schufa: ['name', 'birth', 'street', 'plzCity'] };
+export const LETTER_REQUIRED = { installment: ['name', 'street', 'plzCity', 'toName', 'rate'], schufa: ['name', 'birth', 'street', 'plzCity'],
+  cancel: ['name', 'street', 'plzCity', 'ctype', 'toName', 'toStreet', 'toPlzCity'], objection: ['name', 'street', 'plzCity', 'toName', 'toStreet', 'toPlzCity', 'decDate'] };
+// Fields that describe the receiver (shown under "the office you write to").
+export const LETTER_TO = ['ctype', 'toName', 'toStreet', 'toPlzCity', 'ref', 'total', 'rate', 'start', 'endDate', 'decDate', 'reason'];
+export const LETTER_FILE = { installment: 'Ratenzahlung', schufa: 'SCHUFA-Datenkopie', cancel: 'Kuendigung', objection: 'Widerspruch' };

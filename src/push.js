@@ -68,6 +68,20 @@ export async function scheduleReminder({ date, time, label, lang }) {
     return out.ok ? out.id : null;
   } catch (e) { return null; }
 }
+// A reminder that a document runs out: sent at 10:00 on the given day (yyyy-mm-dd), `days` before `expiry`.
+export async function scheduleExpiry({ on, expiry, days, label, lang }) {
+  const sub = await currentSub();
+  if (!sub) return null;
+  const [y, m, d] = on.split('-').map(Number);
+  const at = new Date(y, m - 1, d, 10, 0).getTime();
+  if (at < Date.now() || at > Date.now() + 395 * 864e5) return null;
+  const [ey, em, ed] = expiry.split('-').map(Number);
+  try {
+    const res = await post('remind', { endpoint: sub.endpoint, at: Math.floor(at / 1000), date: `${ed}/${em}/${ey}`, time: '', label, lang, kind: 'exp', days });
+    const out = await res.json();
+    return out.ok ? out.id : null;
+  } catch (e) { return null; }
+}
 export async function cancelReminder(id) {
   if (id) post('unremind', { id }).catch(() => {});
 }

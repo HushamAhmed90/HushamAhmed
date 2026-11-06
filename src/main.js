@@ -7,8 +7,8 @@ import { MISSIONS, OWN_FORMS, NO_FORM, missionTitle, findMission } from './missi
 import { toLatin, hasArabic } from './translit.js';
 import { GUIDES, findGuide } from './guides.js';
 import { NATUR, NATUR_SOURCES, QUIZ, INTERVIEW } from './natur.js';
-import { EMERGENCY, EMERGENCY_SOURCE, STATES, upcomingHolidays, PHRASES, drawLetter, LETTER_FIELDS, LETTER_REQUIRED } from './life.js';
-import { pushSupported, needsInstall, pushOn, enablePush, disablePush, refreshPushLang, scheduleReminder, cancelReminder } from './push.js';
+import { EMERGENCY, EMERGENCY_SOURCE, STATES, upcomingHolidays, PHRASES, drawLetter, LETTER_FIELDS, LETTER_REQUIRED, LETTER_TO, LETTER_FILE, CONTRACTS } from './life.js';
+import { pushSupported, needsInstall, pushOn, enablePush, disablePush, refreshPushLang, scheduleReminder, scheduleExpiry, cancelReminder } from './push.js';
 import { FIELDS as C_FIELDS, POA_PURPOSES, REQUIRED as C_REQUIRED, MARITAL, drawConsular, consularFontsReady } from './consular.js';
 
 const KEY = 'bitaqa.forms.v2';
@@ -1089,8 +1089,11 @@ function openLife() {
     h('p', { class: 'note', text: u.lfIntro }),
     h('div', { class: 'glist' },
       row('🚨', u.lfEmTitle, u.lfEmShort, openEmergency),
+      row('🪪', u.wlTitle, u.wlShort, openWallet),
       row('📮', u.lfRateTitle, u.lfRateShort, () => openLetter('installment')),
       row('📄', u.lfSchufaTitle, u.lfSchufaShort, () => openLetter('schufa')),
+      row('✂️', u.lfCancelTitle, u.lfCancelShort, () => openLetter('cancel')),
+      row('⚖️', u.lfObjTitle, u.lfObjShort, () => openLetter('objection')),
       row('📺', u.lfRbTitle, u.lfRbShort, openRundfunk),
       row('🗓️', u.lfHolTitle, u.lfHolShort, openHolidays),
       row('🗣️', u.lfPhTitle, u.lfPhShort, openPhrases),
@@ -1164,18 +1167,29 @@ function openLetter(kind) {
   count('life_letter', { kind });
   let saved = {}; try { saved = JSON.parse(localStorage.getItem(LETTER_KEY) || '{}'); } catch (e) { /* ignore */ }
   const v = { ...(saved.common || {}), ...(saved[kind] || {}) };
-  const common = ['name', 'street', 'plzCity', 'phone', 'place', 'birth', 'birthPlace'];
+  const common = ['name', 'street', 'plzCity', 'phone', 'place', 'birth', 'birthPlace'];   // shared by all letters
   const keep = () => {
     const c = {}; const own = {};
     for (const k of LETTER_FIELDS[kind]) (common.includes(k) ? c : own)[k] = v[k] || '';
     try { localStorage.setItem(LETTER_KEY, JSON.stringify({ ...saved, common: { ...(saved.common || {}), ...c }, [kind]: own })); } catch (e) { /* ignore */ }
   };
   const field = (k) => {
-    const latinOnly = !['__'].includes(k);
-    const inp = h('input', { class: 'input', id: 'lt_' + k, type: k === 'birth' ? 'date' : k === 'total' || k === 'rate' ? 'text' : 'text', inputmode: k === 'total' || k === 'rate' ? 'decimal' : null,
-      dir: 'ltr', autocomplete: 'off', value: v[k] || '', placeholder: u.lfLtPh[k] || '',
+    const lab = h('label', { for: 'lt_' + k, text: u.lfLtLabels[k] + (LETTER_REQUIRED[kind].includes(k) ? ' *' : '') });
+    if (k === 'ctype') {
+      const L = app.lang === 'Kur' ? 2 : 1;
+      const sel = h('select', { class: 'input select', id: 'lt_ctype', onchange: () => { v.ctype = sel.value; keep(); } },
+        h('option', { value: '', text: u.lfLtPick }),
+        Object.entries(CONTRACTS).map(([id, c]) => h('option', { value: id, text: `${c[L]} · ${c[0]}`, selected: v.ctype === id })));
+      return h('div', { class: 'field' }, lab, sel);
+    }
+    const isDate = ['birth', 'endDate', 'decDate'].includes(k);
+    const tag = k === 'reason' ? 'textarea' : 'input';
+    const inp = h(tag, { class: 'input', id: 'lt_' + k, type: tag === 'input' ? (isDate ? 'date' : 'text') : null, rows: tag === 'textarea' ? 3 : null,
+      inputmode: k === 'total' || k === 'rate' ? 'decimal' : null, maxlength: k === 'reason' ? 600 : null,
+      dir: 'ltr', autocomplete: 'off', placeholder: u.lfLtPh[k] || '',
       oninput: () => { v[k] = inp.value; keep(); } });
-    return h('div', { class: 'field' }, h('label', { for: 'lt_' + k, text: u.lfLtLabels[k] + (LETTER_REQUIRED[kind].includes(k) ? ' *' : '') }), inp);
+    inp.value = v[k] || '';
+    return h('div', { class: 'field' }, lab, inp, u.lfLtHelp[k] ? h('small', { class: 'hint', text: u.lfLtHelp[k] }) : null);
   };
   const err = h('p', { class: 'err' });
   const paint = async (scale) => { const c = document.createElement('canvas'); return drawLetter(c, kind, v, scale); };
@@ -1189,22 +1203,25 @@ function openLetter(kind) {
       const big = await paint(2.5);
       const jpg = await new Promise((r) => big.toBlob(r, 'image/jpeg', 0.92));
       const pdf = jpegPagePdf(new Uint8Array(await jpg.arrayBuffer()), big.width, big.height);
-      const name = `${kind === 'schufa' ? 'SCHUFA-Datenkopie' : 'Ratenzahlung'}-${String(v.name || '').trim().replace(/[^A-Za-z0-9]+/g, '-')}.pdf`;
+      const name = `${LETTER_FILE[kind] || 'Brief'}-${String(v.name || '').trim().replace(/[^A-Za-z0-9]+/g, '-')}.pdf`;
       afterSave = null;
       if (await hand(pdf, name)) { count('life_letter_made', { kind }); if (isIOS()) toast(u.saved); }
     } catch (e) { toast(u.failed); } finally { go.disabled = false; }
   } });
   const isS = kind === 'schufa';
-  sheet(h('div', { class: 'request tvisa life letter' }, lifeTop(isS ? u.lfSchufaTitle : u.lfRateTitle),
-    h('p', { class: 'note', text: isS ? u.lfSchufaIntro : u.lfRateIntro }),
+  const T = { installment: [u.lfRateTitle, u.lfRateIntro, u.lfRateNote], schufa: [u.lfSchufaTitle, u.lfSchufaIntro, u.lfSchufaNote],
+    cancel: [u.lfCancelTitle, u.lfCancelIntro, u.lfCancelNote], objection: [u.lfObjTitle, u.lfObjIntro, u.lfObjNote] }[kind];
+  const toKeys = LETTER_FIELDS[kind].filter((k) => LETTER_TO.includes(k));
+  sheet(h('div', { class: 'request tvisa life letter' }, lifeTop(T[0]),
+    h('p', { class: 'note', text: T[1] }),
     isS ? h('a', { class: 'btn soft wide', href: 'https://www.meineschufa.de/', target: '_blank', rel: 'noopener', onclick: () => count('life_schufa_site') }, u.lfSchufaOnline) : null,
     h('p', { class: 'hint', text: u.lfLtLatinNote }),
     h('p', { class: 'qlabel', text: u.lfLtYou }),
-    ...LETTER_FIELDS[kind].filter((k) => !['toName', 'toStreet', 'toPlzCity', 'ref', 'total', 'rate', 'start'].includes(k)).map(field),
-    isS ? null : h('p', { class: 'qlabel', text: u.lfLtTo }),
-    ...(isS ? [] : ['toName', 'toStreet', 'toPlzCity', 'ref', 'total', 'rate', 'start'].map(field)),
+    ...LETTER_FIELDS[kind].filter((k) => !LETTER_TO.includes(k)).map(field),
+    toKeys.length ? h('p', { class: 'qlabel', text: kind === 'objection' ? u.lfObjTo : u.lfLtTo }) : null,
+    ...toKeys.map(field),
     err, go,
-    h('p', { class: 'notice', text: isS ? u.lfSchufaNote : u.lfRateNote }),
+    h('p', { class: 'notice', text: T[2] }),
     h('p', { class: 'trust small', html: ICON.check }, u.lfLtPrivacy),
   ), { tall: true });
 }
@@ -1532,6 +1549,7 @@ function quickNav() {
     item('selfbook', () => openSelfBook(), true),
     item('qa', () => openQA(), true),
     item('life', () => openLife(), true),
+    item('wallet', () => openWallet(), true),
     item('pension', openPension, true),
     item('tvisa', openTvisa, true),
     item('guides', openGuides),
@@ -2113,6 +2131,7 @@ function renderHome() {
     newsTicker(),
     noticeCards(),
     h('main', { class: 'home' },
+      walletHomeCard(),
       nextApptCard(),
       notifPromo(),
       started ? h('button', { class: 'continue', type: 'button', onclick: () => openForms('nid') },
@@ -2446,6 +2465,128 @@ function apptSaved(a) {
     push,
     h('button', { class: 'btn ghost wide', type: 'button', text: u.close, onclick: () => { closeSheet(); renderCurrent(); } })));
 }
+
+// ---------- document wallet: expiry dates kept on the phone, with reminders 90 and 30 days before ----------
+const WALLET_KEY = 'bitaqa.wallet.v1';
+const WALLET_KINDS = ['passport', 'nid', 'residence', 'deid', 'licence', 'other'];
+const WALLET_BEFORE = [90, 30];
+function walletAll() { try { const x = JSON.parse(localStorage.getItem(WALLET_KEY) || '[]'); return Array.isArray(x) ? x : []; } catch (e) { return []; } }
+function walletSave(list) { try { localStorage.setItem(WALLET_KEY, JSON.stringify(list)); } catch (e) { /* ignore */ } }
+function walletLabel(it) {
+  const u = t();
+  const base = it.kind === 'other' ? (it.name || u.wlKinds.other) : u.wlKinds[it.kind];
+  return it.who ? `${base} · ${it.who}` : base;
+}
+const plusDays = (iso, n) => { const [y, mo, d] = iso.split('-').map(Number); return ymdLocal(new Date(y, mo - 1, d + n)); };
+// Ask the server for the reminders that now fall within its window (about a year ahead).
+async function walletSchedule(list = walletAll()) {
+  if (!list.length || !(await pushOn())) return list;
+  let changed = false;
+  for (const it of list) {
+    it.rem = it.rem || {};
+    for (const n of WALLET_BEFORE) {
+      if (it.rem[n]) continue;
+      const on = plusDays(it.date, -n);
+      if (on < ymdLocal()) continue;
+      const id = await scheduleExpiry({ on, expiry: it.date, days: n, label: walletLabel(it), lang: app.lang });
+      if (id) { it.rem[n] = id; changed = true; }
+    }
+  }
+  if (changed) walletSave(list);
+  return list;
+}
+function walletIcs(it) {
+  const u = t();
+  const esc = (x) => String(x).replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+  const enc = new TextEncoder();
+  const fold = (line) => { let out = ''; let n = 0; for (const ch of line) { const b = enc.encode(ch).length; if (n + b > 73) { out += '\r\n '; n = 1; } out += ch; n += b; } return out; };
+  const d = it.date.replace(/-/g, ''); const next = plusDays(it.date, 1).replace(/-/g, '');
+  const title = u.wlCalTitle(walletLabel(it));
+  const alarms = WALLET_BEFORE.flatMap((n) => ['BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${esc(title)}`, `TRIGGER:-P${n}D`, 'END:VALARM']);
+  const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//husham-ahmed//bitaqa//AR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'BEGIN:VEVENT',
+    `UID:${it.id}@husham-ahmed.vercel.app`, `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').slice(0, 15)}Z`,
+    `DTSTART;VALUE=DATE:${d}`, `DTEND;VALUE=DATE:${next}`, `SUMMARY:${esc(title)}`, `DESCRIPTION:${esc(u.wlCalText)}\\n${location.origin}`,
+    ...alarms, 'END:VEVENT', 'END:VCALENDAR'].map(fold).join('\r\n');
+  const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar;charset=utf-8' }));
+  if (isIOS()) location.href = url;
+  else { const el = h('a', { href: url, download: 'تذكير-مستمسك.ics' }); document.body.append(el); el.click(); el.remove(); }
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  count('wallet_calendar');
+}
+function walletState(days) { return days < 0 ? 'gone' : days <= 30 ? 'red' : days <= 90 ? 'amber' : 'ok'; }
+function openWallet() {
+  const u = t();
+  count('wallet_open');
+  const list = h('div', { class: 'wl-list' });
+  const pushBox = h('div', {});
+  const draw = () => {
+    const items = walletAll().sort((a, b) => a.date.localeCompare(b.date));
+    list.replaceChildren(...(items.length ? items.map((it) => {
+      const days = daysUntil(it.date);
+      return h('div', { class: 'wl-card ' + walletState(days) },
+        h('div', { class: 'wl-top' }, h('b', { text: walletLabel(it) }), h('span', { class: 'wl-days', text: u.wlLeft(days) })),
+        h('p', { class: 'hint', text: `${u.wlExpires}: ${it.date.split('-').reverse().join('/')}` }),
+        h('div', { class: 'two' },
+          h('button', { class: 'btn soft', type: 'button', text: u.wlCal, onclick: () => walletIcs(it) }),
+          h('button', { class: 'btn ghost', type: 'button', text: u.wlDelete, onclick: () => {
+            Object.values(it.rem || {}).forEach((id) => cancelReminder(id));
+            walletSave(walletAll().filter((x) => x.id !== it.id)); count('wallet_delete'); draw(); renderCurrent();
+          } })));
+    }) : [h('p', { class: 'hint', text: u.wlEmpty })]));
+  };
+  const fillPush = async () => {
+    if (await pushOn()) { pushBox.replaceChildren(h('p', { class: 'trust small', html: ICON.check }, u.wlPushOn)); return; }
+    pushBox.replaceChildren(h('button', { class: 'btn soft wide', type: 'button', text: u.wlPushAsk, onclick: async () => {
+      if (!(await turnOnPush())) return;
+      await walletSchedule(); fillPush();
+    } }));
+  };
+  // add form
+  const kind = h('select', { class: 'input select', id: 'wl_kind', onchange: () => { nameWrap.hidden = kind.value !== 'other'; } },
+    WALLET_KINDS.map((k) => h('option', { value: k, text: u.wlKinds[k] })));
+  const name = h('input', { class: 'input', id: 'wl_name', type: 'text', maxlength: 40, placeholder: u.wlNamePh });
+  const nameWrap = h('div', { class: 'field', hidden: true }, h('label', { for: 'wl_name', text: u.wlName }), name);
+  const who = h('input', { class: 'input', id: 'wl_who', type: 'text', maxlength: 30, placeholder: u.wlWhoPh });
+  const dateText = h('span', { class: 'date-text empty', text: u.apptPick });
+  const date = h('input', { class: 'date-native', type: 'date', id: 'wl_date', onchange: () => {
+    const [y, mo, d] = (date.value || '').split('-');
+    dateText.textContent = date.value ? `${+d}/${+mo}/${y}` : u.apptPick; dateText.classList.toggle('empty', !date.value);
+  } });
+  const dateBox = h('div', { class: 'input date-box' }, dateText, h('span', { class: 'date-ico', 'aria-hidden': 'true', text: '📅' }), date);
+  const err = h('p', { class: 'err' });
+  const add = h('button', { class: 'btn primary wide', type: 'button', text: u.wlAdd, onclick: async () => {
+    if (!date.value) { err.textContent = u.apptNeedDate; return; }
+    err.textContent = '';
+    const it = { id: newId(), kind: kind.value, name: kind.value === 'other' ? name.value.trim().slice(0, 40) : '', who: who.value.trim().slice(0, 30), date: date.value, rem: {} };
+    const all = walletAll(); all.push(it); walletSave(all);
+    count('wallet_add', { kind: it.kind });
+    add.disabled = true; await walletSchedule(); add.disabled = false;
+    who.value = ''; name.value = ''; date.value = ''; dateText.textContent = u.apptPick; dateText.classList.add('empty');
+    toast(u.wlAdded); draw(); renderCurrent();
+  } });
+  draw(); fillPush();
+  sheet(h('div', { class: 'request tvisa life wallet' }, lifeTop(u.wlTitle),
+    h('p', { class: 'note', text: u.wlIntro }),
+    list,
+    h('p', { class: 'qlabel', text: u.wlAddTitle }),
+    h('div', { class: 'field' }, h('label', { for: 'wl_kind', text: u.wlKind }), kind),
+    nameWrap,
+    h('div', { class: 'field' }, h('label', { for: 'wl_who', text: u.wlWho }), who),
+    h('div', { class: 'field' }, h('label', { for: 'wl_date', text: u.wlDate }), dateBox),
+    err, add, pushBox,
+    h('p', { class: 'trust small', html: ICON.check }, u.wlPrivacy),
+  ), { tall: true });
+}
+// Home: the document that runs out soonest, if it is within 90 days.
+function walletHomeCard() {
+  const items = walletAll().map((it) => ({ it, days: daysUntil(it.date) })).filter((x) => x.days <= 90).sort((a, b) => a.days - b.days);
+  if (!items.length) return null;
+  const u = t(); const { it, days } = items[0];
+  return h('button', { class: 'wl-home ' + walletState(days), type: 'button', onclick: () => { count('home_tile', { tile: 'wallet' }); openWallet(); } },
+    h('b', { text: `🪪 ${walletLabel(it)}` }), h('span', { text: u.wlLeft(days) }),
+    items.length > 1 ? h('small', { text: u.wlMore(items.length - 1) }) : null);
+}
+
 // Home: the next appointment, with how many documents are ready.
 function nextApptCard() {
   const today = ymdLocal();
@@ -2970,6 +3111,7 @@ start();
     if (g === 'selfbook') openSelfBook();
     else if (g === 'slots') setTimeout(openSlots, 900);
     else if (g === 'life') openLife();
+    else if (g === 'wallet') openWallet();
     else if (g === 'pension') openPension();
     else if (g === 'natur') openNatur();
     else if (g === 'tvisa') openTvisa();
@@ -2979,6 +3121,7 @@ start();
 }());
 loadContent();
 loadImpact();
+setTimeout(() => { walletSchedule().catch(() => {}); }, 4000);   // reminders that came within the server's one-year window
 if (app.lang) tally('p', 'p');
 window.addEventListener('hashchange', () => { const f = readFill(); if (f && app.lang) applyFill(f); });
 

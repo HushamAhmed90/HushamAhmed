@@ -4,6 +4,7 @@
 //   POST a=sub          save a subscription  { sub, lang }
 //   POST a=unsub        remove it            { endpoint }
 //   POST a=remind       appointment reminder { endpoint, at (unix s), date, time, label, lang }
+//   POST a=remind       or a document expiry reminder { ..., kind: 'exp', days } (date = expiry)
 //   POST a=unremind     cancel it            { id }
 //   GET  a=cron         every 10 minutes: new consulate notices + due reminders
 //   GET  a=stats        (admin) number of subscribers
@@ -21,10 +22,14 @@ const TEXT = {
   Ara: {
     apptTitle: '📅 تذكير بموعدك',
     apptBody: (label, date, time) => `موعدك${label ? ` (${label})` : ''} باجر ${date}${time ? ` الساعة ${time}` : ''}. جهّز أوراقك ✅`,
+    expTitle: '🪪 مستمسك قرّب ينتهي',
+    expBody: (label, date, days) => `${label} ينتهي بتاريخ ${date} (بعد ${days} يوم تقريباً). جدّده من هسه حتى ما تتأخر ✅`,
   },
   Kur: {
     apptTitle: '📅 بیرخستنەوەی ژوان',
     apptBody: (label, date, time) => `ژوانەکەت${label ? ` (${label})` : ''} سبەینێیە ${date}${time ? ` کاتژمێر ${time}` : ''}. بەڵگەنامەکانت ئامادە بکە ✅`,
+    expTitle: '🪪 بەڵگەنامەیەک خەریکە بەسەردەچێت',
+    expBody: (label, date, days) => `${label} لە ${date} بەسەردەچێت (نزیکەی ${days} ڕۆژی ماوە). لە ئێستاوە نوێی بکەرەوە ✅`,
   },
 };
 
@@ -111,9 +116,9 @@ async function cron(req) {
       const recRaw = await r1('HGET', 'push:subs', rem.k);
       if (!recRaw) continue;
       const rec = JSON.parse(recRaw); const L = langOf(rem.lang);
-      result.reminders += await deliver([{ id: rem.k, rec }], () => ({
-        title: TEXT[L].apptTitle, body: TEXT[L].apptBody(rem.label, rem.date, rem.time), url: '/', tag: `appt-${rem.id}`,
-      }));
+      result.reminders += await deliver([{ id: rem.k, rec }], () => (rem.kind === 'exp'
+        ? { title: TEXT[L].expTitle, body: TEXT[L].expBody(rem.label, rem.date, rem.days), url: '/?g=wallet', tag: `exp-${rem.id}` }
+        : { title: TEXT[L].apptTitle, body: TEXT[L].apptBody(rem.label, rem.date, rem.time), url: '/', tag: `appt-${rem.id}` }));
     }
   }
   return result;
@@ -156,6 +161,7 @@ module.exports = async (req, res) => {
       if (!(await r1('HEXISTS', 'push:subs', k))) return send(res, 404, { error: 'nosub' });
       const id = rand(9);
       const rem = { id, k, lang: langOf(b.lang), label: clip(b.label, 60), date: clip(b.date, 16), time: clip(b.time, 8) };
+      if (b.kind === 'exp') { rem.kind = 'exp'; rem.days = Math.max(0, Math.min(400, Math.round(Number(b.days) || 0))); }
       await r1('ZADD', 'push:rem', Math.floor(at), JSON.stringify(rem));
       return send(res, 200, { ok: true, id });
     }
