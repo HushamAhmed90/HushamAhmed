@@ -700,3 +700,11 @@ html.dk .wl-home { background: #2A2412; } html.dk .wl-home.red, html.dk .wl-home
 .calc { border: 1.5px dashed var(--gold, #d6a93a); border-radius: 16px; padding: 12px 14px; margin: 10px 0 14px; background: var(--card); }
 .calc .input { margin: 6px 0 4px; } .calc-out { font-weight: 700; font-size: 16px; color: var(--navy); margin: 6px 0; }
 html.dk .calc-out { color: #f0c35a; }
+
+.ex-list { display: flex; flex-direction: column; gap: 10px; margin: 10px 0 16px; }
+.ex-item { border: 1.5px solid var(--line); border-radius: 16px; background: var(--card); padding: 0 14px; }
+.ex-item[open] { padding-bottom: 12px; border-color: var(--navy); }
+.ex-item summary { list-style: none; display: flex; gap: 12px; align-items: center; padding: 12px 0; cursor: pointer; }
+.ex-item summary::-webkit-details-marker { display: none; }
+.ex-item summary b { display: block; } .ex-item summary small { display: block; color: var(--muted); font-size: 12.5px; text-align: start; }
+.ex-ico { font-size: 24px; flex: none; } .ex-time { font-weight: 700; color: #9a6b00; } html.dk .ex-time { color: #f0c35a; }

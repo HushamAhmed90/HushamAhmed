@@ -7,7 +7,7 @@ import { MISSIONS, OWN_FORMS, NO_FORM, missionTitle, findMission } from './missi
 import { toLatin, hasArabic } from './translit.js';
 import { GUIDES, findGuide } from './guides.js';
 import { NATUR, NATUR_SOURCES, QUIZ, INTERVIEW } from './natur.js';
-import { EMERGENCY, EMERGENCY_SOURCE, STATES, upcomingHolidays, PHRASES, drawLetter, LETTER_FIELDS, LETTER_REQUIRED, LETTER_TO, LETTER_FILE, CONTRACTS } from './life.js';
+import { EMERGENCY, EMERGENCY_SOURCE, STATES, upcomingHolidays, PHRASES, drawLetter, LETTER_FIELDS, LETTER_REQUIRED, LETTER_TO, LETTER_FILE, CONTRACTS, EXPLAIN } from './life.js';
 import { pushSupported, needsInstall, pushOn, enablePush, disablePush, refreshPushLang, scheduleReminder, scheduleExpiry, cancelReminder } from './push.js';
 import { FIELDS as C_FIELDS, POA_PURPOSES, REQUIRED as C_REQUIRED, MARITAL, drawConsular, consularFontsReady } from './consular.js';
 
@@ -1089,6 +1089,7 @@ function openLife() {
     h('p', { class: 'note', text: u.lfIntro }),
     h('div', { class: 'glist' },
       row('🚨', u.lfEmTitle, u.lfEmShort, openEmergency),
+      row('📬', u.exTitle, u.exShort, openExplain),
       row('🪪', u.wlTitle, u.wlShort, openWallet),
       row('📮', u.lfRateTitle, u.lfRateShort, () => openLetter('installment')),
       row('📄', u.lfSchufaTitle, u.lfSchufaShort, () => openLetter('schufa')),
@@ -1098,6 +1099,27 @@ function openLife() {
       row('🗓️', u.lfHolTitle, u.lfHolShort, openHolidays),
       row('🗣️', u.lfPhTitle, u.lfPhShort, openPhrases),
       row('💱', u.lfFxTitle, u.lfFxShort, openFx)),
+  ), { tall: true });
+}
+function openExplain() {
+  const u = t(); const L = app.lang === 'Kur' ? 'Kur' : 'Ara';
+  count('life_explain');
+  sheet(h('div', { class: 'request tvisa life explain' }, lifeTop(u.exTitle),
+    h('p', { class: 'note', text: u.exIntro }),
+    h('div', { class: 'ex-list' }, EXPLAIN.map((e) => {
+      const x = e[L];
+      const d = h('details', { class: 'ex-item' },
+        h('summary', {}, h('span', { class: 'ex-ico', text: e.icon }), h('span', {}, h('b', { text: x.title }), h('small', { dir: 'ltr', text: e.de }))),
+        h('p', { text: x.what }),
+        h('p', { class: 'ex-time', text: `⏰ ${x.time}` }),
+        h('p', { class: 'qlabel', text: u.exTodo }),
+        h('ul', { class: 'docs' }, x.todo.map((y) => h('li', { text: y }))),
+        e.id === 'bescheid' ? h('button', { class: 'btn soft wide', type: 'button', text: u.lfObjTitle, onclick: () => openLetter('objection') }) : null,
+        e.id === 'mahnung' || e.id === 'inkasso' ? h('button', { class: 'btn soft wide', type: 'button', text: u.lfRateTitle, onclick: () => openLetter('installment') }) : null);
+      d.addEventListener('toggle', () => { if (d.open) count('explain_open', { id: e.id }); });
+      return d;
+    })),
+    h('p', { class: 'notice', text: u.exNote }),
   ), { tall: true });
 }
 function openEmergency() {
@@ -1582,6 +1604,7 @@ function quickNav() {
     item('qa', () => openQA(), true),
     item('life', () => openLife(), true),
     item('wallet', () => openWallet(), true),
+    item('letters', () => openExplain(), true),
     item('pension', openPension, true),
     item('tvisa', openTvisa, true),
     item('guides', openGuides),
@@ -3147,6 +3170,7 @@ start();
     else if (g === 'slots') setTimeout(openSlots, 900);
     else if (g === 'life') openLife();
     else if (g === 'wallet') openWallet();
+    else if (g === 'letters') openExplain();
     else if (g === 'pension') openPension();
     else if (g === 'natur') openNatur();
     else if (g === 'tvisa') openTvisa();
