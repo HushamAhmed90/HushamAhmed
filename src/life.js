@@ -157,6 +157,54 @@ function body(kind, v) {
   };
 }
 
+
+// Parental consent for a child who travels with another adult (our own layout, German with English).
+export const CONSENT_GROUPS = [
+  ['p1', ['p1n', 'p1b', 'p1bp', 'p1a', 'p1t', 'p1d']],
+  ['p2', ['p2n', 'p2b', 'p2bp', 'p2a', 'p2t', 'p2d']],
+  ['kid', ['kn', 'kb', 'kbp', 'kd']],
+  ['comp', ['cn', 'cb', 'cbp', 'ca', 'ct', 'cd']],
+  ['trip', ['from', 'until', 'dest', 'place']],
+];
+export const DATE_KEYS = ['birth', 'endDate', 'decDate', 'p1b', 'p2b', 'kb', 'cb', 'from', 'until'];
+function drawConsent(g, v, font, line, wrap) {
+  const val = (x) => x || '—';
+  let y = 80;
+  line('Einverständniserklärung der Sorgeberechtigten', L, y, 18, true); y += 22;
+  line('Parental consent for a minor travelling with an accompanying adult', L, y, 11.5); y += 34;
+  const block = (title, en, rows) => {
+    line(title, L, y, 12.5, true); const tw = g.measureText(title).width; font(10, false); g.fillStyle = '#555'; g.fillText(en, L + tw + 12, y); g.fillStyle = '#000';
+    y += 8; g.beginPath(); g.moveTo(L, y); g.lineTo(R, y); g.lineWidth = 0.5; g.strokeStyle = '#999'; g.stroke(); g.strokeStyle = '#000'; y += 16;
+    for (let i = 0; i < rows.length; i += 2) {
+      [rows[i], rows[i + 1]].forEach((r, j) => {
+        if (!r) return;
+        const x = j ? (L + R) / 2 + 6 : L;
+        font(9.5, false); g.fillStyle = '#555'; g.fillText(r[0], x, y); g.fillStyle = '#000';
+        font(12, true); g.fillText(String(val(r[1])).slice(0, 48), x, y + 15);
+      });
+      y += 33;
+    }
+    y += 6;
+  };
+  const p = (k) => [['Name, Vorname / Name', v[k + 'n']], ['Geburtsdatum / Date of birth', isoDe(v[k + 'b'])], ['Geburtsort / Place of birth', v[k + 'bp']],
+    ['Telefon / Phone', v[k + 't']], ['Anschrift / Address', v[k + 'a']], ['Reisepass- bzw. Ausweis-Nr. / Passport or ID no.', v[k + 'd']]];
+  block('Sorgeberechtigte Person 1', 'Parent / guardian 1', p('p1'));
+  if (v.p2n) block('Sorgeberechtigte Person 2', 'Parent / guardian 2', p('p2'));
+  block('Kind', 'Child', [['Name, Vorname / Name', v.kn], ['Geburtsdatum / Date of birth', isoDe(v.kb)], ['Geburtsort / Place of birth', v.kbp], ['Reisepass- bzw. Ausweis-Nr. / Passport or ID no.', v.kd]]);
+  block('Begleitperson', 'Accompanying adult', p('c'));
+  const who = v.p2n ? 'Wir, die oben genannten Sorgeberechtigten, erklären unser' : 'Ich, die oben genannte sorgeberechtigte Person, erkläre mein';
+  y = wrap(`${who} Einverständnis, dass das oben genannte Kind in Begleitung der oben genannten Begleitperson im Zeitraum vom ${isoDe(v.from)} bis ${isoDe(v.until)} nach ${val(v.dest)} reist. Die Begleitperson ist berechtigt, während der Reise die Aufsicht über das Kind auszuüben.`, L, y + 4, R - L, 11.5, 17);
+  font(10, false); g.fillStyle = '#444';
+  y = wrap(`(EN) ${v.p2n ? 'We, the parents/guardians named above, consent' : 'I, the parent/guardian named above, consent'} to the child named above travelling with the accompanying adult named above from ${isoDe(v.from)} to ${isoDe(v.until)} to ${val(v.dest)}. The accompanying adult may supervise the child during the trip.`, L, y + 4, R - L, 10, 15);
+  g.fillStyle = '#000';
+  y += 14; line(`Ort, Datum / Place, date: ${v.place ? `${v.place}, ` : ''}${de(new Date())}`, L, y, 11.5);
+  y += 52;
+  const sig = (x, label) => { g.beginPath(); g.moveTo(x, y); g.lineTo(x + 220, y); g.lineWidth = 0.8; g.stroke(); line(label, x, y + 15, 9.5); };
+  sig(L, 'Unterschrift Sorgeberechtigte/r 1 / Signature 1');
+  if (v.p2n) sig((L + R) / 2 + 6, 'Unterschrift Sorgeberechtigte/r 2 / Signature 2');
+  line('Anlage: Kopien der Reisepässe bzw. Ausweise der Sorgeberechtigten / Enclosed: copies of the parents\' passports or IDs', L, Math.min(y + 48, H - 30), 9);
+}
+
 export function drawLetter(canvas, kind, v, scale = 2) {
   canvas.width = W * scale; canvas.height = H * scale;
   const g = canvas.getContext('2d');
@@ -175,6 +223,7 @@ export function drawLetter(canvas, kind, v, scale = 2) {
     if (cur) { g.fillText(cur, x, yy); yy += lh; }
     return yy;
   };
+  if (kind === 'consent') { drawConsent(g, v, font, line, wrap); return canvas; }
   const b = body(kind, v);
   // sender (small line above the address window, and full block on the right)
   line([v.name, v.street, v.plzCity].filter(Boolean).join(' · '), L, 150, 9);
@@ -198,12 +247,14 @@ export const LETTER_FIELDS = {
   cancel: ['name', 'street', 'plzCity', 'phone', 'ctype', 'toName', 'toStreet', 'toPlzCity', 'ref', 'endDate', 'place'],
   objection: ['name', 'birth', 'street', 'plzCity', 'phone', 'toName', 'toStreet', 'toPlzCity', 'ref', 'decDate', 'reason', 'place'],
   schufa: ['name', 'birth', 'birthPlace', 'street', 'plzCity', 'prevAddr', 'place'],
+  consent: ['p1n', 'p1b', 'p1bp', 'p1a', 'p1t', 'p1d', 'p2n', 'p2b', 'p2bp', 'p2a', 'p2t', 'p2d', 'kn', 'kb', 'kbp', 'kd', 'cn', 'cb', 'cbp', 'ca', 'ct', 'cd', 'from', 'until', 'dest', 'place'],
 };
 export const LETTER_REQUIRED = { installment: ['name', 'street', 'plzCity', 'toName', 'rate'], schufa: ['name', 'birth', 'street', 'plzCity'],
+  consent: ['p1n', 'p1b', 'p1a', 'p1d', 'kn', 'kb', 'cn', 'cb', 'cd', 'from', 'until', 'dest'],
   cancel: ['name', 'street', 'plzCity', 'ctype', 'toName', 'toStreet', 'toPlzCity'], objection: ['name', 'street', 'plzCity', 'toName', 'toStreet', 'toPlzCity', 'decDate'] };
 // Fields that describe the receiver (shown under "the office you write to").
 export const LETTER_TO = ['ctype', 'toName', 'toStreet', 'toPlzCity', 'ref', 'total', 'rate', 'start', 'endDate', 'decDate', 'reason'];
-export const LETTER_FILE = { installment: 'Ratenzahlung', schufa: 'SCHUFA-Datenkopie', cancel: 'Kuendigung', objection: 'Widerspruch' };
+export const LETTER_FILE = { installment: 'Ratenzahlung', schufa: 'SCHUFA-Datenkopie', cancel: 'Kuendigung', objection: 'Widerspruch', consent: 'Einverstaendniserklaerung-Reise' };
 
 // «اشرحلي رسالتي»: common German official letters, what they mean, the usual deadline and what to do.
 export const EXPLAIN = [

@@ -7,7 +7,7 @@ import { MISSIONS, OWN_FORMS, NO_FORM, missionTitle, findMission } from './missi
 import { toLatin, hasArabic } from './translit.js';
 import { GUIDES, findGuide } from './guides.js';
 import { NATUR, NATUR_SOURCES, QUIZ, INTERVIEW } from './natur.js';
-import { EMERGENCY, EMERGENCY_SOURCE, STATES, upcomingHolidays, PHRASES, drawLetter, LETTER_FIELDS, LETTER_REQUIRED, LETTER_TO, LETTER_FILE, CONTRACTS, EXPLAIN } from './life.js';
+import { EMERGENCY, EMERGENCY_SOURCE, STATES, upcomingHolidays, PHRASES, drawLetter, LETTER_FIELDS, LETTER_REQUIRED, LETTER_TO, LETTER_FILE, CONTRACTS, EXPLAIN, CONSENT_GROUPS, DATE_KEYS } from './life.js';
 import { pushSupported, needsInstall, pushOn, enablePush, disablePush, refreshPushLang, scheduleReminder, scheduleExpiry, cancelReminder } from './push.js';
 import { FIELDS as C_FIELDS, POA_PURPOSES, REQUIRED as C_REQUIRED, MARITAL, drawConsular, consularFontsReady } from './consular.js';
 
@@ -1094,6 +1094,7 @@ function openLife() {
       row('📮', u.lfRateTitle, u.lfRateShort, () => openLetter('installment')),
       row('📄', u.lfSchufaTitle, u.lfSchufaShort, () => openLetter('schufa')),
       row('✂️', u.lfCancelTitle, u.lfCancelShort, () => openLetter('cancel')),
+      row('🧒', u.lfConTitle, u.lfConShort, () => openLetter('consent')),
       row('⚖️', u.lfObjTitle, u.lfObjShort, () => openLetter('objection')),
       row('📺', u.lfRbTitle, u.lfRbShort, openRundfunk),
       row('🗓️', u.lfHolTitle, u.lfHolShort, openHolidays),
@@ -1204,7 +1205,7 @@ function openLetter(kind) {
         Object.entries(CONTRACTS).map(([id, c]) => h('option', { value: id, text: `${c[L]} · ${c[0]}`, selected: v.ctype === id })));
       return h('div', { class: 'field' }, lab, sel);
     }
-    const isDate = ['birth', 'endDate', 'decDate'].includes(k);
+    const isDate = DATE_KEYS.includes(k);
     const tag = k === 'reason' ? 'textarea' : 'input';
     const inp = h(tag, { class: 'input', id: 'lt_' + k, type: tag === 'input' ? (isDate ? 'date' : 'text') : null, rows: tag === 'textarea' ? 3 : null,
       inputmode: k === 'total' || k === 'rate' ? 'decimal' : null, maxlength: k === 'reason' ? 600 : null,
@@ -1225,14 +1226,26 @@ function openLetter(kind) {
       const big = await paint(2.5);
       const jpg = await new Promise((r) => big.toBlob(r, 'image/jpeg', 0.92));
       const pdf = jpegPagePdf(new Uint8Array(await jpg.arrayBuffer()), big.width, big.height);
-      const name = `${LETTER_FILE[kind] || 'Brief'}-${String(v.name || '').trim().replace(/[^A-Za-z0-9]+/g, '-')}.pdf`;
+      const name = `${LETTER_FILE[kind] || 'Brief'}-${String((kind === 'consent' ? v.kn : v.name) || '').trim().replace(/[^A-Za-z0-9]+/g, '-')}.pdf`;
       afterSave = null;
       if (await hand(pdf, name)) { count('life_letter_made', { kind }); if (isIOS()) toast(u.saved); }
     } catch (e) { toast(u.failed); } finally { go.disabled = false; }
   } });
   const isS = kind === 'schufa';
   const T = { installment: [u.lfRateTitle, u.lfRateIntro, u.lfRateNote], schufa: [u.lfSchufaTitle, u.lfSchufaIntro, u.lfSchufaNote],
-    cancel: [u.lfCancelTitle, u.lfCancelIntro, u.lfCancelNote], objection: [u.lfObjTitle, u.lfObjIntro, u.lfObjNote] }[kind];
+    cancel: [u.lfCancelTitle, u.lfCancelIntro, u.lfCancelNote], objection: [u.lfObjTitle, u.lfObjIntro, u.lfObjNote],
+    consent: [u.lfConTitle, u.lfConIntro, u.lfConNote] }[kind];
+  if (kind === 'consent') {
+    sheet(h('div', { class: 'request tvisa life letter' }, lifeTop(T[0]),
+      h('p', { class: 'note', text: T[1] }),
+      h('p', { class: 'hint', text: u.lfLtLatinNote }),
+      ...CONSENT_GROUPS.flatMap(([grp, keys]) => [h('p', { class: 'qlabel', text: u.lfConGroups[grp] }), ...keys.map(field)]),
+      err, go,
+      h('p', { class: 'notice', text: T[2] }),
+      h('p', { class: 'trust small', html: ICON.check }, u.lfLtPrivacy),
+    ), { tall: true });
+    return;
+  }
   const toKeys = LETTER_FIELDS[kind].filter((k) => LETTER_TO.includes(k));
   sheet(h('div', { class: 'request tvisa life letter' }, lifeTop(T[0]),
     h('p', { class: 'note', text: T[1] }),
