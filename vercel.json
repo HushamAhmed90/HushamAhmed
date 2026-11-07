@@ -105,6 +105,10 @@
     {
       "source": "/qa",
       "destination": "/api/qa-page"
+    },
+    {
+      "source": "/tester",
+      "destination": "/tester.html"
     }
   ]
 }
