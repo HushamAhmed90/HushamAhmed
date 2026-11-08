@@ -1570,7 +1570,7 @@ function openGuide(id, fromList) {
     g.noBook ? null : h('a', { class: 'btn primary wide', href: ICASS_URL, target: '_blank', rel: 'noopener', onclick: () => count('guide_book', { id }) }, u.gBook),
     g.noHelp ? null : h('button', { class: 'btn soft wide', type: 'button', text: u.gHelp, onclick: () => { closeSheet(); openRequest(g.service, `${UI.Ara.gTitle}: ${g.Ara.title}`); } }),
     g.noHelp ? null : h('p', { class: 'trust small', html: ICON.check }, u.noUpfront),
-    h('p', { class: 'hint' }, g.group === 'de' || g.group === 'money' ? u.gSource.replace(/:.*/, ':') : u.gSource, ' ', ...g.source.map((url, i) => h('a', { href: url, target: '_blank', rel: 'noopener', text: `(${i + 1})` }))),
+    h('p', { class: 'hint' }, g.group === 'de' || g.group === 'money' || g.group === 'inside' ? u.gSource.replace(/:.*/, ':') : u.gSource, ' ', ...g.source.map((url, i) => h('a', { href: url, target: '_blank', rel: 'noopener', text: `(${i + 1})` }))),
   ), { tall: true });
 }
 
@@ -2160,7 +2160,7 @@ const ICONS = {
   menu: svgI('<path d="M4 7h16M4 12h16M4 17h16"/>'),
   calendar: svgI('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18M8 14h3v3H8z"/>'),
 };
-const GUIDE_ICON = { passport: 'passport', record: 'shield', birth: 'baby', marriage: 'rings', laissez: 'plane', licence: 'car', degree: 'cap', iqdocs: 'stamp', invite: 'plane', travel: 'suitcase', kindergeld: 'baby', elterngeld: 'baby', wohngeld: 'wallet', bafoeg: 'cap' };
+const GUIDE_ICON = { passport: 'passport', record: 'shield', birth: 'baby', marriage: 'rings', laissez: 'plane', licence: 'car', degree: 'cap', iqdocs: 'stamp', invite: 'plane', travel: 'suitcase', kindergeld: 'baby', elterngeld: 'baby', wohngeld: 'wallet', bafoeg: 'cap', iqdrive: 'car' };
 function goSection(sec, fromHistory) {
   closeSheet();
   app.section = sec; persistSection();
@@ -2254,6 +2254,9 @@ function renderGuide() {
       h('div', { class: 'glist' },
         GUIDES.filter((g) => !g.group).map((g) => row(GUIDE_ICON[g.id] || 'doc', g[app.lang].title, g[app.lang].short, () => openGuide(g.id))),
         row('wallet', u.pnTitle, u.pnShort, openPension)),
+      h('h3', { class: 'ggroup', text: u.gGroups.inside }),
+      h('div', { class: 'glist' },
+        GUIDES.filter((g) => g.group === 'inside').map((g) => row(GUIDE_ICON[g.id] || 'doc', g[app.lang].title, g[app.lang].short, () => openGuide(g.id)))),
       h('h3', { class: 'ggroup', text: u.gGroups.de }),
       h('div', { class: 'glist' },
         GUIDES.filter((g) => g.group === 'de').map((g) => row(GUIDE_ICON[g.id] || 'doc', g[app.lang].title, g[app.lang].short, () => openGuide(g.id))),
