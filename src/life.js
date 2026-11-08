@@ -130,6 +130,36 @@ function body(kind, v) {
       ],
     };
   }
+  if (kind === 'kaution') {
+    return {
+      to: [v.toName, v.toStreet, v.toPlzCity].filter(Boolean),
+      subject: `Rückzahlung der Mietkaution – Wohnung ${v.oldAddr}`,
+      paras: [
+        'Sehr geehrte Damen und Herren,',
+        `das Mietverhältnis über die Wohnung ${v.oldAddr} ist beendet; die Wohnung habe ich am ${isoDe(v.outDate)} übergeben.`,
+        `Ich bitte Sie, über die von mir geleistete Mietkaution${v.kaution ? ` in Höhe von ${v.kaution} Euro` : ''} einschließlich der angefallenen Zinsen abzurechnen und den Betrag bis zum ${isoDe(v.dueDate)} auf das folgende Konto zu überweisen:`,
+        `IBAN: ${v.iban}${v.bank ? ` (${v.bank})` : ''}, Kontoinhaber: ${v.name}.`,
+        'Sollten Sie wegen einer noch ausstehenden Betriebskostenabrechnung einen Teilbetrag einbehalten wollen, bitte ich um eine kurze Mitteilung über die Höhe und um Auszahlung des übrigen Betrags.',
+        'Meine neue Anschrift entnehmen Sie bitte dem Absender dieses Schreibens.',
+        'Mit freundlichen Grüßen',
+      ],
+    };
+  }
+  if (kind === 'defect') {
+    return {
+      to: [v.toName, v.toStreet, v.toPlzCity].filter(Boolean),
+      subject: `Mängelanzeige – Wohnung ${v.street}, ${v.plzCity}`,
+      paras: [
+        'Sehr geehrte Damen und Herren,',
+        `hiermit zeige ich Ihnen folgenden Mangel in meiner Mietwohnung an, der ${v.since ? `seit dem ${isoDe(v.since)}` : 'seit Kurzem'} besteht:`,
+        v.defect,
+        `Ich bitte Sie, den Mangel bis zum ${isoDe(v.dueDate)} fachgerecht beseitigen zu lassen. Für einen Termin mit Handwerkern bin ich${v.phone ? ` unter ${v.phone}` : ''} erreichbar.`,
+        'Bis zur Beseitigung des Mangels behalte ich mir eine Minderung der Miete gemäß § 536 BGB vor; die Miete zahle ich ab sofort nur unter Vorbehalt.',
+        'Bitte bestätigen Sie mir den Eingang dieses Schreibens.',
+        'Mit freundlichen Grüßen',
+      ],
+    };
+  }
   if (kind === 'schufa') {
     return {
       to: SCHUFA_ADDR,
@@ -166,7 +196,7 @@ export const CONSENT_GROUPS = [
   ['comp', ['cn', 'cb', 'cbp', 'ca', 'ct', 'cd']],
   ['trip', ['from', 'until', 'dest', 'place']],
 ];
-export const DATE_KEYS = ['birth', 'endDate', 'decDate', 'p1b', 'p2b', 'kb', 'cb', 'from', 'until'];
+export const DATE_KEYS = ['birth', 'endDate', 'decDate', 'p1b', 'p2b', 'kb', 'cb', 'from', 'until', 'outDate', 'since', 'dueDate'];
 function drawConsent(g, v, font, line, wrap) {
   const val = (x) => x || '—';
   let y = 80;
@@ -247,14 +277,18 @@ export const LETTER_FIELDS = {
   cancel: ['name', 'street', 'plzCity', 'phone', 'ctype', 'toName', 'toStreet', 'toPlzCity', 'ref', 'endDate', 'place'],
   objection: ['name', 'birth', 'street', 'plzCity', 'phone', 'toName', 'toStreet', 'toPlzCity', 'ref', 'decDate', 'reason', 'place'],
   schufa: ['name', 'birth', 'birthPlace', 'street', 'plzCity', 'prevAddr', 'place'],
+  kaution: ['name', 'street', 'plzCity', 'phone', 'toName', 'toStreet', 'toPlzCity', 'oldAddr', 'outDate', 'kaution', 'iban', 'bank', 'dueDate', 'place'],
+  defect: ['name', 'street', 'plzCity', 'phone', 'toName', 'toStreet', 'toPlzCity', 'defect', 'since', 'dueDate', 'place'],
   consent: ['p1n', 'p1b', 'p1bp', 'p1a', 'p1t', 'p1d', 'p2n', 'p2b', 'p2bp', 'p2a', 'p2t', 'p2d', 'kn', 'kb', 'kbp', 'kd', 'cn', 'cb', 'cbp', 'ca', 'ct', 'cd', 'from', 'until', 'dest', 'place'],
 };
 export const LETTER_REQUIRED = { installment: ['name', 'street', 'plzCity', 'toName', 'rate'], schufa: ['name', 'birth', 'street', 'plzCity'],
+  kaution: ['name', 'street', 'plzCity', 'toName', 'toStreet', 'toPlzCity', 'oldAddr', 'outDate', 'iban', 'dueDate'],
+  defect: ['name', 'street', 'plzCity', 'toName', 'toStreet', 'toPlzCity', 'defect', 'dueDate'],
   consent: ['p1n', 'p1b', 'p1a', 'p1d', 'kn', 'kb', 'cn', 'cb', 'cd', 'from', 'until', 'dest'],
   cancel: ['name', 'street', 'plzCity', 'ctype', 'toName', 'toStreet', 'toPlzCity'], objection: ['name', 'street', 'plzCity', 'toName', 'toStreet', 'toPlzCity', 'decDate'] };
 // Fields that describe the receiver (shown under "the office you write to").
-export const LETTER_TO = ['ctype', 'toName', 'toStreet', 'toPlzCity', 'ref', 'total', 'rate', 'start', 'endDate', 'decDate', 'reason'];
-export const LETTER_FILE = { installment: 'Ratenzahlung', schufa: 'SCHUFA-Datenkopie', cancel: 'Kuendigung', objection: 'Widerspruch', consent: 'Einverstaendniserklaerung-Reise' };
+export const LETTER_TO = ['ctype', 'toName', 'toStreet', 'toPlzCity', 'ref', 'total', 'rate', 'start', 'endDate', 'decDate', 'reason', 'oldAddr', 'outDate', 'kaution', 'iban', 'bank', 'defect', 'since', 'dueDate'];
+export const LETTER_FILE = { installment: 'Ratenzahlung', schufa: 'SCHUFA-Datenkopie', cancel: 'Kuendigung', objection: 'Widerspruch', consent: 'Einverstaendniserklaerung-Reise', kaution: 'Kaution-Rueckzahlung', defect: 'Maengelanzeige' };
 
 // «اشرحلي رسالتي»: common German official letters, what they mean, the usual deadline and what to do.
 export const EXPLAIN = [
