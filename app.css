@@ -708,3 +708,6 @@ html.dk .calc-out { color: #f0c35a; }
 .ex-item summary::-webkit-details-marker { display: none; }
 .ex-item summary b { display: block; } .ex-item summary small { display: block; color: var(--muted); font-size: 12.5px; text-align: start; }
 .ex-ico { font-size: 24px; flex: none; } .ex-time { font-weight: 700; color: #9a6b00; } html.dk .ex-time { color: #f0c35a; }
+.calc label { display: block; font-size: 14px; color: var(--muted, #5b6775); margin-top: 6px; }
+.calc label.check { display: flex; align-items: center; gap: 8px; color: inherit; margin: 8px 0; }
+.calc label.check input { width: 20px; height: 20px; }

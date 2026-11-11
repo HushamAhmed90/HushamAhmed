@@ -1561,7 +1561,7 @@ function openGuide(id, fromList) {
     h('p', { class: 'note', text: x.intro }),
     videoBtn('guide_' + g.id),
     g.cards ? guideCards(g.cards[app.lang] || g.cards.Ara) : null,
-    g.calc ? benefitCalc(g.calc) : null,
+    g.calc ? (g.calc === 'cash' || g.calc === 'customs' ? customsCalc(g.calc) : benefitCalc(g.calc)) : null,
     g.links ? g.links.map((l) => h('a', { class: 'btn soft wide', href: l.url, target: '_blank', rel: 'noopener', onclick: () => count('guide_link', { id }) }, l[app.lang] || l.Ara)) : null,
     checklist('g:' + g.id, x.need),
     apptButton('g:' + g.id),
@@ -1606,6 +1606,40 @@ function benefitCalc(kind) {
   return h('div', { class: 'calc' }, h('p', { class: 'qlabel', text: kind === 'kindergeld' ? u.calcKgTitle : u.calcEgTitle }),
     h('label', { for: 'calc_in', text: kind === 'kindergeld' ? u.calcKgIn : u.calcEgIn }), inp, out,
     h('small', { class: 'hint', text: u.calcNote }));
+}
+
+// Customs calculators (travel guides): cash declaration and the return allowance.
+function customsCalc(kind) {
+  const u = t();
+  const eur = (x) => `⁦${Math.round(x).toLocaleString('de-DE')} €⁩`;
+  const num = (el) => { const v = Number(String(el.value).replace(/\./g, '').replace(',', '.')); return v > 0 ? v : 0; };
+  const field = (id, label, ph) => { const el = h('input', { class: 'input', id, type: 'text', inputmode: 'decimal', dir: 'ltr', placeholder: ph }); return [h('label', { for: id, text: label }), el]; };
+  const out = h('p', { class: 'calc-out', 'aria-live': 'polite' });
+  if (kind === 'cash') {
+    const [l1, cash] = field('cc_cash', u.ccCash, '6000'); const [l2, gold] = field('cc_gold', u.ccGold, '5000');
+    const run = () => { const s = num(cash) + num(gold); out.textContent = !s ? '' : s >= 10000 ? u.ccCashYes(eur(s)) : u.ccCashNo(eur(s)); if (s) count('calc_use', { kind }); };
+    [cash, gold].forEach((e) => e.addEventListener('input', run));
+    return h('div', { class: 'calc' }, h('p', { class: 'qlabel', text: u.ccCashTitle }), l1, cash, l2, gold, out, h('small', { class: 'hint', text: u.ccNote }));
+  }
+  const items = [1, 2, 3, 4, 5].map((i) => h('input', { class: 'input', id: 'cc_i' + i, type: 'text', inputmode: 'decimal', dir: 'ltr', placeholder: u.ccItemPh(i) }));
+  const kid = h('input', { type: 'checkbox', id: 'cc_kid' });
+  const run = () => {
+    const vals = items.map(num).filter((v) => v > 0);
+    if (!vals.length) { out.textContent = ''; return; }
+    const cap = kid.checked ? 175 : 430;
+    // The allowance covers whole items only; pick the set of items that uses it best.
+    let best = 0;
+    for (let mask = 0; mask < 1 << vals.length; mask++) {
+      let s = 0; vals.forEach((v, i) => { if (mask & (1 << i)) s += v; });
+      if (s <= cap && s > best) best = s;
+    }
+    const total = vals.reduce((a, b) => a + b, 0); const due = total - best;
+    out.textContent = due <= 0 ? u.ccFree(eur(total), eur(cap)) : due < 700 ? u.ccFlat(eur(due), eur(due * 0.175)) : u.ccFull(eur(due), eur(due * 0.19));
+    count('calc_use', { kind });
+  };
+  [...items, kid].forEach((e) => e.addEventListener('input', run));
+  return h('div', { class: 'calc' }, h('p', { class: 'qlabel', text: u.ccInTitle }), h('label', { text: u.ccItems }), ...items,
+    h('label', { class: 'check' }, kid, h('span', { text: u.ccKid })), out, h('small', { class: 'hint', text: u.ccNote }));
 }
 
 // Shortcuts to the services, in the header's free space (a scrolling row on phones).
@@ -2163,7 +2197,7 @@ const ICONS = {
   menu: svgI('<path d="M4 7h16M4 12h16M4 17h16"/>'),
   calendar: svgI('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18M8 14h3v3H8z"/>'),
 };
-const GUIDE_ICON = { passport: 'passport', record: 'shield', birth: 'baby', marriage: 'rings', laissez: 'plane', licence: 'car', degree: 'cap', iqdocs: 'stamp', invite: 'plane', travel: 'suitcase', kindergeld: 'baby', elterngeld: 'baby', wohngeld: 'wallet', bafoeg: 'cap', iqdrive: 'car', carpoa: 'car', poarevoke: 'stamp', propsale: 'stamp' };
+const GUIDE_ICON = { passport: 'passport', record: 'shield', birth: 'baby', marriage: 'rings', laissez: 'plane', licence: 'car', degree: 'cap', iqdocs: 'stamp', invite: 'plane', travel: 'suitcase', kindergeld: 'baby', elterngeld: 'baby', wohngeld: 'wallet', bafoeg: 'cap', iqdrive: 'car', carpoa: 'car', poarevoke: 'stamp', propsale: 'stamp', customsout: 'suitcase', customsin: 'suitcase' };
 function goSection(sec, fromHistory) {
   closeSheet();
   app.section = sec; persistSection();
