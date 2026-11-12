@@ -2,7 +2,8 @@ import { LISTS } from './lists.js';
 import { FIELDS, FIXED, SECTIONS, LABELS } from './schema.js';
 import { UI, OWNER, SERVICES, NOTICES, IMPACT, OCCASIONS, VIDEOS, NEWS } from './texts.js';
 import { drawSheet, sheetFontsReady } from './sheet.js';
-import { jpegPagePdf } from './pdf.js';
+import { jpegPagePdf, jpegPagesPdf } from './pdf.js';
+import { IV_GROUPS, IV_DATES, IV_REQUIRED, drawIvPage } from './ivisa.js';
 import { MISSIONS, OWN_FORMS, NO_FORM, missionTitle, findMission } from './missions.js';
 import { toLatin, hasArabic } from './translit.js';
 import { GUIDES, findGuide } from './guides.js';
@@ -839,6 +840,63 @@ function openTvisa() {
 
 // Pension data update (National Retirement Authority): do it yourself, or ask for help.
 const PENSION_URL = 'https://pension-update.mof.gov.iq';
+// ---------- Iraqi visa form for foreigners ----------
+const IV_KEY = 'bitaqa.ivisa.v1';
+function openIvisa() {
+  const u = t();
+  count('ivisa_open');
+  let v = {};
+  try { v = JSON.parse(localStorage.getItem(IV_KEY) || '{}') || {}; } catch (e) { v = {}; }
+  if (v.fillNone === undefined) v.fillNone = true;
+  const keep = () => { try { localStorage.setItem(IV_KEY, JSON.stringify(v)); } catch (e) { /* ignore */ } };
+  const field = (k) => {
+    const lab = h('label', { for: 'iv_' + k, text: u.ivLabels[k] + (IV_REQUIRED.includes(k) ? ' *' : '') });
+    let inp;
+    if (k === 'gender') {
+      inp = h('select', { class: 'input select', id: 'iv_' + k, onchange: () => { v[k] = inp.value; keep(); } },
+        h('option', { value: '', text: u.lfLtPick }), h('option', { value: 'm', text: u.ivMale, selected: v[k] === 'm' }), h('option', { value: 'f', text: u.ivFemale, selected: v[k] === 'f' }));
+    } else {
+      const isDate = IV_DATES.includes(k);
+      inp = h('input', { class: 'input', id: 'iv_' + k, type: isDate ? 'date' : 'text', dir: isDate || /^(ppNo|prevCount)$/.test(k) ? 'ltr' : 'rtl', autocomplete: 'off',
+        placeholder: u.ivPh[k] || '', maxlength: 120, oninput: () => { v[k] = inp.value; keep(); } });
+      inp.value = v[k] || '';
+    }
+    return h('div', { class: 'field' }, lab, inp, u.ivHelp[k] ? h('small', { class: 'hint', text: u.ivHelp[k] }) : null);
+  };
+  const none = h('input', { type: 'checkbox', id: 'iv_none', checked: v.fillNone, onchange: () => { v.fillNone = none.checked; keep(); } });
+  const err = h('p', { class: 'err' });
+  const loadBg = (n) => new Promise((res) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = `/img/iqvisa-${n}.jpg`; });
+  const go = h('button', { class: 'btn primary wide', type: 'button', text: u.ivMake, onclick: async () => {
+    const missing = IV_REQUIRED.filter((k) => !String(v[k] || '').trim());
+    if (missing.length) { err.textContent = `${u.lfLtMissing}: ${missing.map((k) => u.ivLabels[k]).join('، ')}`; return; }
+    err.textContent = ''; go.disabled = true;
+    try {
+      await sheetFontsReady();
+      const pages = [];
+      for (const n of [1, 2]) {
+        const bg = await loadBg(n);
+        const c = drawIvPage(document.createElement('canvas'), n, v, bg, { scale: 2.2, fillNone: v.fillNone });
+        const jpg = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.9));
+        pages.push({ jpeg: new Uint8Array(await jpg.arrayBuffer()), width: c.width, height: c.height });
+      }
+      afterSave = null;
+      if (await hand(jpegPagesPdf(pages), 'Iraq-Visa-Form.pdf')) { count('ivisa_made'); tally(`c:ivisa:${new Date().toISOString().slice(0, 10)}`, 'f'); if (isIOS()) toast(u.saved); }
+    } catch (e) { console.error(e); toast(u.failed); } finally { go.disabled = false; }
+  } });
+  sheet(h('div', { class: 'request tvisa life letter' },
+    h('div', { class: 'picker-top' }, h('h2', { text: u.ivTitle }), h('button', { class: 'x', type: 'button', 'aria-label': u.close, onclick: closeSheet, text: '✕' })),
+    h('p', { class: 'note', text: u.ivIntro }),
+    h('p', { class: 'qlabel', text: u.ivNeedTitle }), h('ul', { class: 'docs' }, u.ivNeed.map((x) => h('li', { text: x }))),
+    h('p', { class: 'hint', text: u.ivArabic }),
+    ...IV_GROUPS.flatMap(([grp, keys]) => [h('p', { class: 'qlabel', text: u.ivGroups[grp] }),
+      u.ivGroupHint[grp] ? h('small', { class: 'hint', text: u.ivGroupHint[grp] }) : null, ...keys.map(field)]),
+    h('label', { class: 'check iv-none' }, none, h('span', { text: u.ivNone })),
+    err, go,
+    h('p', { class: 'notice', text: u.ivNote }),
+    h('p', { class: 'trust small', html: ICON.check }, u.lfLtPrivacy),
+  ), { tall: true });
+}
+
 function openPension() {
   const u = t();
   count('pension_open');
@@ -1518,7 +1576,8 @@ function openGuides() {
     h('div', { class: 'options' },
       GUIDES.map((g) => row(g[app.lang].title, g[app.lang].short, () => openGuide(g.id, true))),
       row(u.pnTitle, u.pnShort, openPension),
-      row(u.tvTitle, u.tvShort, openTvisa)),
+      row(u.tvTitle, u.tvShort, openTvisa),
+      row(u.ivTitle, u.ivShort, openIvisa)),
   ), { tall: true });
 }
 function guideAction(kind) {
@@ -1656,6 +1715,7 @@ function quickNav() {
     item('wallet', () => openWallet(), true),
     item('letters', () => openExplain(), true),
     item('pension', openPension, true),
+    item('ivisa', openIvisa, true),
     item('tvisa', openTvisa, true),
     item('guides', openGuides),
     item('booking', () => openRequest(null)),
@@ -2258,6 +2318,7 @@ function renderHome() {
           h('b', { text: u.qaTitle }), h('small', { text: u.qaShort })),
         hot('wallet', u.pnTitle, u.pnShort, openPension),
         hot('plane', u.tvTitle, u.tvShort, openTvisa),
+        hot('plane', u.ivTitle, u.ivShort, openIvisa),
         h('button', { class: 'hotcard wide natur-hot', type: 'button', onclick: openNatur },
           h('span', { class: 'hot-top' }, h('i', { html: ICONS.flag })),
           h('b', { text: (NATUR[app.lang] || NATUR.Ara).title }), h('small', { text: (NATUR[app.lang] || NATUR.Ara).short }))),
@@ -3227,6 +3288,7 @@ start();
     else if (g === 'pension') openPension();
     else if (g === 'natur') openNatur();
     else if (g === 'tvisa') openTvisa();
+    else if (g === 'ivisa') openIvisa();
     else if (g && findGuide(g)) openGuide(g);
     else if (qa) openQA(qa === 'ask', qa === 'ask' ? null : qa.replace(/[^A-Za-z0-9_-]/g, ''));
   }, 400);
