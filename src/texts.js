@@ -226,6 +226,7 @@ export const VIDEOS = {
   guide_passport: '', guide_record: '', guide_birth: 'https://vm.tiktok.com/ZGdQcjAfG/', guide_marriage: '', guide_laissez: '',
   tvisa: 'https://vm.tiktok.com/ZGdQvT93B/',          // فيزا تركيا
   pension: 'https://vm.tiktok.com/ZGdQcd8PC/',        // تحديث بيانات المتقاعدين
+  ivisa: 'https://vm.tiktok.com/ZGdXaoyfT/',          // فيزا العراق للأجانب
 };
 
 // Services offered through the request form. `ar` is what the WhatsApp message carries.

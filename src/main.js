@@ -886,6 +886,7 @@ function openIvisa() {
   sheet(h('div', { class: 'request tvisa life letter' },
     h('div', { class: 'picker-top' }, h('h2', { text: u.ivTitle }), h('button', { class: 'x', type: 'button', 'aria-label': u.close, onclick: closeSheet, text: '✕' })),
     h('p', { class: 'note', text: u.ivIntro }),
+    videoBtn('ivisa'),
     h('p', { class: 'qlabel', text: u.ivNeedTitle }), h('ul', { class: 'docs' }, u.ivNeed.map((x) => h('li', { text: x }))),
     h('p', { class: 'hint', text: u.ivArabic }),
     ...IV_GROUPS.flatMap(([grp, keys]) => [h('p', { class: 'qlabel', text: u.ivGroups[grp] }),
