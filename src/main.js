@@ -2945,7 +2945,7 @@ async function renderReview() {
       h('p', { class: 'hint center', text: u.tapZoom }),
       h('button', { class: 'btn wa wide', type: 'button', text: u.shareForm, onclick: (e) => sharePdf(e.currentTarget, paint, fileName('pdf'), 'nid') }),
       printMailCard(`استمارة البطاقة الوطنية باسم ${personName(app.values)}`),
-      h('section', { class: 'card open' }, h('div', { class: 'card-body flat' }, checklist('nid', u.nidNeed), apptButton('nid'))),
+      h('section', { class: 'card open' }, h('div', { class: 'card-body flat' }, checklist('nid', u.nidNeed), h('p', { class: 'notice case-tip', text: u.nidCaseTip }), apptButton('nid'))),
       h('div', { class: 'owner-card' },
         h('div', { class: 'oc-head' }, h('img', { src: OWNER.photo, alt: '', width: 52, height: 52 }),
           h('div', {}, h('b', { text: OWNER.name[app.lang] }), h('p', { text: u.helpTitle }))),
