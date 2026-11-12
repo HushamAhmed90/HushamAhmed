@@ -2687,7 +2687,53 @@ function walletIcs(it) {
   count('wallet_calendar');
 }
 function walletState(days) { return days < 0 ? 'gone' : days <= 30 ? 'red' : days <= 90 ? 'amber' : 'ok'; }
-function openWallet() {
+// Case numbers ("معرّف الحالة") the consulate gives after submitting, to follow the file from Iraq.
+const CASES_KEY = 'bitaqa.cases.v1';
+const CASE_KINDS = ['nid', 'passport', 'poa', 'other'];
+function casesAll() { try { const a = JSON.parse(localStorage.getItem(CASES_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+function casesSave(a) { try { localStorage.setItem(CASES_KEY, JSON.stringify(a)); } catch (e) { /* ignore */ } }
+function casesBox() {
+  const u = t();
+  const list = h('div', { class: 'wl-list' });
+  const draw = () => {
+    const items = casesAll();
+    list.replaceChildren(...(items.length ? items.map((c) => h('div', { class: 'wl-card case' },
+      h('div', { class: 'wl-top' }, h('b', { text: (c.kind === 'other' && c.name ? c.name : u.csKinds[c.kind]) + (c.who ? ` · ${c.who}` : '') }),
+        c.date ? h('span', { class: 'wl-days', text: c.date.split('-').reverse().join('/') }) : null),
+      h('p', { class: 'case-no', dir: 'ltr', text: c.no }),
+      h('div', { class: 'two' },
+        h('button', { class: 'btn soft', type: 'button', text: u.csCopy, onclick: async () => { try { await navigator.clipboard.writeText(c.no); toast(u.csCopied); } catch (e) { /* ignore */ } } }),
+        h('button', { class: 'btn ghost', type: 'button', text: u.wlDelete, onclick: () => { casesSave(casesAll().filter((x) => x.id !== c.id)); count('case_delete'); draw(); } })))) :
+      [h('p', { class: 'hint', text: u.csEmpty })]));
+  };
+  const kind = h('select', { class: 'input select', id: 'cs_kind', onchange: () => { nameWrap.hidden = kind.value !== 'other'; } },
+    CASE_KINDS.map((k) => h('option', { value: k, text: u.csKinds[k] })));
+  const name = h('input', { class: 'input', id: 'cs_name', type: 'text', maxlength: 40, placeholder: u.wlNamePh });
+  const nameWrap = h('div', { class: 'field', hidden: true }, h('label', { for: 'cs_name', text: u.wlName }), name);
+  const who = h('input', { class: 'input', id: 'cs_who', type: 'text', maxlength: 30, placeholder: u.wlWhoPh });
+  const no = h('input', { class: 'input', id: 'cs_no', type: 'text', maxlength: 40, dir: 'ltr', inputmode: 'text', placeholder: '1705-12902' });
+  const date = h('input', { class: 'input', id: 'cs_date', type: 'date' });
+  const err = h('p', { class: 'err' });
+  const add = h('button', { class: 'btn primary wide', type: 'button', text: u.csAdd, onclick: () => {
+    const n = no.value.trim();
+    if (!n) { err.textContent = u.csNeedNo; return; }
+    err.textContent = '';
+    const all = casesAll(); all.unshift({ id: newId(), kind: kind.value, name: kind.value === 'other' ? name.value.trim().slice(0, 40) : '', who: who.value.trim().slice(0, 30), no: n.slice(0, 40), date: date.value || '' });
+    casesSave(all); count('case_add', { kind: kind.value });
+    no.value = ''; who.value = ''; name.value = ''; date.value = ''; toast(u.csAdded); draw();
+  } });
+  draw();
+  return h('div', { class: 'cases', id: 'cases' },
+    h('p', { class: 'qlabel', text: u.csTitle }), h('p', { class: 'hint', text: u.csIntro }), list,
+    h('details', { class: 'cs-add' }, h('summary', { text: u.csAddTitle }),
+      h('div', { class: 'field' }, h('label', { for: 'cs_kind', text: u.csKind }), kind), nameWrap,
+      h('div', { class: 'field' }, h('label', { for: 'cs_no', text: u.csNo }), no),
+      h('div', { class: 'field' }, h('label', { for: 'cs_who', text: u.csWho }), who),
+      h('div', { class: 'field' }, h('label', { for: 'cs_date', text: u.csDate }), date),
+      err, add));
+}
+
+function openWallet(focus) {
   const u = t();
   count('wallet_open');
   const list = h('div', { class: 'wl-list' });
@@ -2747,8 +2793,10 @@ function openWallet() {
     h('div', { class: 'field' }, h('label', { for: 'wl_who', text: u.wlWho }), who),
     h('div', { class: 'field' }, h('label', { for: 'wl_date', text: u.wlDate }), dateBox),
     err, add, pushBox,
+    casesBox(),
     h('p', { class: 'trust small', html: ICON.check }, u.wlPrivacy),
   ), { tall: true });
+  if (focus === 'cases') setTimeout(() => { const c = document.getElementById('cases'); if (c) { c.scrollIntoView({ block: 'start' }); const d = c.querySelector('details'); if (d) d.open = true; } }, 350);
 }
 // Home: the document that runs out soonest, if it is within 90 days.
 function walletHomeCard() {
@@ -2945,7 +2993,7 @@ async function renderReview() {
       h('p', { class: 'hint center', text: u.tapZoom }),
       h('button', { class: 'btn wa wide', type: 'button', text: u.shareForm, onclick: (e) => sharePdf(e.currentTarget, paint, fileName('pdf'), 'nid') }),
       printMailCard(`استمارة البطاقة الوطنية باسم ${personName(app.values)}`),
-      h('section', { class: 'card open' }, h('div', { class: 'card-body flat' }, checklist('nid', u.nidNeed), h('p', { class: 'notice case-tip', text: u.nidCaseTip }), apptButton('nid'))),
+      h('section', { class: 'card open' }, h('div', { class: 'card-body flat' }, checklist('nid', u.nidNeed), h('div', { class: 'notice case-tip' }, h('p', { text: u.nidCaseTip }), h('button', { class: 'btn soft wide', type: 'button', text: u.csSaveBtn, onclick: () => { count('case_tip'); openWallet('cases'); } })), apptButton('nid'))),
       h('div', { class: 'owner-card' },
         h('div', { class: 'oc-head' }, h('img', { src: OWNER.photo, alt: '', width: 52, height: 52 }),
           h('div', {}, h('b', { text: OWNER.name[app.lang] }), h('p', { text: u.helpTitle }))),

@@ -713,3 +713,7 @@ html.dk .calc-out { color: #f0c35a; }
 .calc label.check input { width: 20px; height: 20px; }
 .iv-none{display:flex;align-items:flex-start;gap:8px;margin:12px 0}.iv-none input{width:20px;height:20px;flex:none;margin-top:3px}
 .notice.case-tip{border-inline-start:5px solid #c9a227;background:#fff8e1;color:#5c4400;font-weight:600}
+.case-no{font:700 26px/1.2 ui-monospace,Menlo,Consolas,monospace;letter-spacing:1px;margin:6px 0 10px;color:var(--ink,#1b2430)}
+.cases{margin-top:22px;padding-top:14px;border-top:1px dashed #d9d4c7}
+.cs-add summary{cursor:pointer;font-weight:700;padding:10px 0}
+.notice.case-tip p{margin:0 0 10px}
