@@ -29,7 +29,7 @@ export const FIELDS = {
   a28motherBirthLoc:   { type: 'pick', list: 'prov' },
 
   a12office:           { type: 'pick', list: 'office', req: true },
-  a13bookNo:           { type: 'num', req: true },
+  a13bookNo:           { type: 'code', req: true }, // digits, sometimes with letters
   a14pageNo:           { type: 'num' },
 
   a15shProv:           { type: 'pick', list: 'prov', req: true },

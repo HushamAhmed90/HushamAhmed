@@ -703,7 +703,7 @@ function field(key) {
     control = dateSelect(id, app.values[key], (v) => setValue(key, v));
   } else {
     control = h('input', { class: 'input', id, type: f.tel ? 'tel' : 'text', value: app.values[key] || '',
-      inputmode: f.type === 'num' ? 'numeric' : 'text', dir: f.type === 'num' ? 'ltr' : null, autocomplete: 'off', enterkeyhint: 'next' });
+      inputmode: f.type === 'num' ? 'numeric' : 'text', dir: f.type === 'num' ? 'ltr' : f.type === 'code' ? 'auto' : null, autocomplete: 'off', enterkeyhint: 'next' });
     control.addEventListener('input', () => {
       const v = clean(control.value);
       if (v !== control.value) control.value = v;
@@ -3276,6 +3276,7 @@ function fillValues(data) {
     if (f.type === 'pick') { const code = matchPick(k, v); if (code) out[k] = code; }
     else if (f.type === 'date') { const d = latinDigits(String(v)).match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/); if (d) out[k] = `${d[1]}-${d[2].padStart(2, '0')}-${d[3].padStart(2, '0')}`; }
     else if (f.type === 'num') { const n = latinDigits(String(v)).replace(/\D/g, ''); if (n) out[k] = n; }
+    else if (f.type === 'code') { const n = latinDigits(String(v)).replace(/[^0-9A-Za-z\u0600-\u06FF/\- ]/g, '').trim(); if (n) out[k] = n; }
     else out[k] = clean(v).trim();
   }
   return out;
