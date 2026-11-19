@@ -1450,7 +1450,7 @@ function newsTicker() {
   const go = { natur: openNatur, tvisa: openTvisa, pension: openPension, guide: () => goSection('guide'), services: () => goSection('services'),
     consular: () => openForms('consular'), nid: () => openForms('nid') };
   const run = () => items.map((n) => h('button', { class: 'news-item', type: 'button', text: n[L] || n.Ara,
-    onclick: () => { count('news_click', { go: n.go }); (go[n.go] || (() => {}))(); } }));
+    onclick: () => { count('news_click', { go: n.go }); (go[n.go] || (n.go && findGuide(n.go) ? () => openGuide(n.go) : () => {}))(); } }));
   const track = h('div', { class: 'news-track' }, h('div', { class: 'news-run' }, run()), h('div', { class: 'news-run', 'aria-hidden': 'true' }, run()));
   const chars = items.reduce((a, n) => a + (n[L] || n.Ara).length, 0);
   track.style.animationDuration = `${Math.max(25, Math.round(chars * 0.22))}s`;
