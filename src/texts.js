@@ -220,7 +220,7 @@ export const VIDEOS = {
   nid: 'https://vm.tiktok.com/ZGdQcRqf5/',            // استمارة البطاقة الوطنية
   consular_poa: 'https://vm.tiktok.com/ZGdQvwBEd/',   // الوكالة
   consular_life: '',  // شهادة الحياة
-  consular_apostille: '', // تصديق بيان الولادة الألماني
+  consular_apostille: 'https://vm.tiktok.com/ZGdXpGb8Q/', // تصديق بيان الولادة الألماني
   booking: '',        // حجز موعد بالسفارة (ICASS)
   selfbook: '',       // تعلّم تحجز بنفسك (فيديو هشام)
   guide_passport: '', guide_record: '', guide_birth: 'https://vm.tiktok.com/ZGdQcjAfG/', guide_marriage: '', guide_laissez: '',
