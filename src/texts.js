@@ -227,6 +227,7 @@ export const VIDEOS = {
   tvisa: 'https://vm.tiktok.com/ZGdQvT93B/',          // فيزا تركيا
   pension: 'https://vm.tiktok.com/ZGdQcd8PC/',        // تحديث بيانات المتقاعدين
   ivisa: 'https://vm.tiktok.com/ZGdXaoyfT/',          // فيزا العراق للأجانب
+  app: 'https://vm.tiktok.com/ZGdXpb1vF/',            // فيديو التطبيق بشكل عام (الصفحة الرئيسية)
 };
 
 // Services offered through the request form. `ar` is what the WhatsApp message carries.
@@ -252,6 +253,7 @@ export const UI = {
     fillDone: (n) => `انعبّت ${n} معلومات من الهوية. راجع كل حقل وكمّل الناقص قبل الطباعة`,
     newsLabel: 'آخر الأخبار',
     videoBtn: 'شوف الشرح بالفيديو',
+    appVideoBtn: 'شوف شنو يسوي التطبيق بدقيقة',
     navSlots: 'المواعيد', navHome: 'الرئيسية', navForms: 'الاستمارات', navGuide: 'الدليل', navServices: 'خدماتي',
     homeAsk: 'شنو تحتاج اليوم؟',
     homeTiles: { nid: ['استمارة البطاقة الوطنية', 'مع رمز QR، جاهزة للطباعة'], consular: ['الوكالة وشهادة الحياة', 'لكل سفارات وقنصليات العراق'], guide: ['دليل المعاملات', 'الوثائق والخطوات لكل معاملة'], services: ['اطلب مساعدة', 'حجز، محامين، طباعة وتصاميم'] },
@@ -857,6 +859,7 @@ export const UI = {
     fillDone: (n) => `${n} زانیاری لە ناسنامەکەوە پڕکرایەوە. هەموو خانەیەک بپشکنە و ئەوەی ماوە تەواوی بکە`,
     newsLabel: 'دوایین هەواڵ',
     videoBtn: 'ڕوونکردنەوە بە ڤیدیۆ ببینە',
+    appVideoBtn: 'لە یەک خولەکدا ببینە بەرنامەکە چی دەکات',
     navSlots: 'ژوانەکان', navHome: 'سەرەکی', navForms: 'فۆرمەکان', navGuide: 'ڕێبەر', navServices: 'خزمەتگوزاری',
     homeAsk: 'ئەمڕۆ چیت پێویستە؟',
     homeTiles: { nid: ['فۆرمی کارتی نیشتمانی', 'لەگەڵ QR، ئامادە بۆ چاپ'], consular: ['بریکارنامە و بەڕژیانی', 'بۆ هەموو باڵیۆزخانەکانی عێراق'], guide: ['ڕێبەری مامەڵەکان', 'بەڵگەنامە و هەنگاوەکان'], services: ['داوای یارمەتی بکە', 'ژوان، پارێزەر، چاپ و دیزاین'] },

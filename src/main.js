@@ -1460,11 +1460,11 @@ function newsTicker() {
 }
 
 // ---------- video explanations (open on TikTok; hidden until a link is set) ----------
-function videoBtn(key) {
+function videoBtn(key, label) {
   const url = VIDEOS[key];
   if (!url || !/^https:\/\/([a-z]+\.)?tiktok\.com\//.test(url)) return null;
   return h('a', { class: 'btn video wide', href: url, target: '_blank', rel: 'noopener', html: ICON.tt,
-    onclick: () => count('video_click', { key }) }, t().videoBtn);
+    onclick: () => count('video_click', { key }) }, label || t().videoBtn);
 }
 
 // ---------- official announcements (hide themselves after their end date) ----------
@@ -2309,6 +2309,7 @@ function renderHome() {
         tile('consular', () => openForms('consular'), 'main'),
         tile('guide', () => goSection('guide')),
         tile('services', () => goSection('services'))),
+      videoBtn('app', t().appVideoBtn),
       h('div', { class: 'hots' },
         bookLinks().length ? h('div', { class: 'booklink-home' }, bookLinks().map((x) => h('button', { class: 'btn primary wide big', type: 'button', text: linkLabel(x), onclick: () => openBookLink(x, 'home') }))) : null,
         h('button', { class: 'hotcard wide sb-home', type: 'button', onclick: () => { count('home_tile', { tile: 'selfbook' }); openSelfBook(); } },
