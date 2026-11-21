@@ -27,6 +27,7 @@ m.appVersionCode = versionCode;
 m.appVersionName = versionName;
 m.signingKey = { path: '../android.keystore', alias: process.env.KEY_ALIAS || 'my-key-alias' };
 m.generatorApp = 'bubblewrap-ci';
+m.minSdkVersion = 24; // androidbrowserhelper 2.7+ needs API 24 (Android 7)
 
 const errors = m.validate();
 if (errors) throw new Error('Invalid TWA manifest: ' + errors);
