@@ -61,7 +61,16 @@ jobs:
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-        run: keytool -list -v -keystore "$RUNNER_TEMP/android.keystore" -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" | grep -E 'SHA1:|SHA256:'
+        run: |
+          K="$RUNNER_TEMP/android.keystore"
+          echo "Keystore size: $(stat -c %s "$K") bytes, type: $(file -b "$K")"
+          echo "Alias length: ${#KEY_ALIAS}, store password length: ${#KEYSTORE_PASSWORD}"
+          if ! keytool -list -keystore "$K" -storepass "$KEYSTORE_PASSWORD" > "$RUNNER_TEMP/kl.txt" 2>&1; then
+            echo "Cannot open keystore (wrong KEYSTORE_PASSWORD or broken KEYSTORE_BASE64):"
+            grep -i 'error' "$RUNNER_TEMP/kl.txt" | head -3; exit 1
+          fi
+          echo "Aliases in keystore:"; grep -i 'PrivateKeyEntry' "$RUNNER_TEMP/kl.txt" | cut -d, -f1
+          keytool -list -v -keystore "$K" -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" | grep -E 'SHA1:|SHA256:' || { echo "Alias not found: check KEY_ALIAS"; exit 1; }
 
       - name: Generate Android project
         env:
