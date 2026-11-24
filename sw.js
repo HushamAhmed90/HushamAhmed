@@ -1,5 +1,5 @@
 // Offline support. Change VERSION whenever any file changes.
-const VERSION = 'bitaqa-122';
+const VERSION = 'bitaqa-123';
 const MP_CACHE = 'mediapipe-0.10.21';
 const FILES = [
   '/', '/index.html', '/app.css', '/manifest.webmanifest',
@@ -21,7 +21,7 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   // Photo tool files are big: keep them in their own cache after the first use (works offline later).
-  if (url.origin === location.origin && url.pathname.startsWith('/vendor/mediapipe/')) {
+  if (url.origin === location.origin && url.pathname.startsWith('/src/vendor/mediapipe/')) {
     e.respondWith(caches.open(MP_CACHE).then((c) => c.match(e.request).then((hit) => hit || fetch(e.request).then((r) => { if (r.ok) c.put(e.request, r.clone()); return r; }))));
     return;
   }

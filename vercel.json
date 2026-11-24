@@ -83,7 +83,7 @@
       ]
     },
     {
-      "source": "/vendor/mediapipe/(.*)",
+      "source": "/src/vendor/mediapipe/(.*)",
       "headers": [
         {
           "key": "Cache-Control",
@@ -92,7 +92,7 @@
       ]
     },
     {
-      "source": "/vendor/mediapipe/wasm/(.*).wasm",
+      "source": "/src/vendor/mediapipe/wasm/(.*).wasm",
       "headers": [
         {
           "key": "Content-Type",

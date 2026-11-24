@@ -15,8 +15,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Download models
         run: |
-          mkdir -p vendor/mediapipe/models
-          cd vendor/mediapipe/models
+          mkdir -p src/vendor/mediapipe/models
+          cd src/vendor/mediapipe/models
           curl -fsSL -o selfie_segmenter.tflite https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite
           curl -fsSL -o face_detector.tflite https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/latest/blaze_face_short_range.tflite
           ls -la
@@ -25,6 +25,6 @@ jobs:
         run: |
           git config user.name HushamAhmed90
           git config user.email HushamAhmed90@users.noreply.github.com
-          git add vendor/mediapipe/models
+          git add src/vendor/mediapipe/models
           git commit -m "Add on-device MediaPipe models for the photo tool" || echo "nothing to commit"
           git push

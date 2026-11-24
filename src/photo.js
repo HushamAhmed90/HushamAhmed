@@ -8,7 +8,7 @@ const PH = Math.round(45 * MM);         // 531
 const SHEET_W = Math.round(150 * MM);   // 10 × 15 cm print, landscape
 const SHEET_H = Math.round(100 * MM);
 const GAP = Math.round(3 * MM);
-const BASE = '/vendor/mediapipe';
+const BASE = '/src/vendor/mediapipe';
 
 const T = {
   Ara: {
@@ -267,7 +267,8 @@ export function openPhoto({ h, sheet, closeSheet, lang, count, toast }) {
       a = await analyse(file);
     } catch (e) {
       console.error(e);
-      const why = String((e && (e.message || e)) || '').slice(0, 140);
+      const tgt = e && e.target;
+      const why = String((e && e.message) || (e && e.type ? `${e.type} ${(tgt && (tgt.src || tgt.currentSrc)) || ''}` : e) || '').slice(0, 160);
       count && count('photo_error', { why });
       return result(null, s.failed + (why ? `\n(${why})` : ''));
     }
