@@ -84,7 +84,7 @@ const T = {
 let models = null;
 async function loadModels() {
   if (models) return models;
-  const v = await import(`${BASE}/vision_bundle.mjs`);
+  const v = await import(`${BASE}/vision_bundle.js`);
   const fileset = await v.FilesetResolver.forVisionTasks(`${BASE}/wasm`);
   const face = await v.FaceDetector.createFromOptions(fileset, {
     baseOptions: { modelAssetPath: `${BASE}/models/face_detector.tflite`, delegate: 'CPU' },
@@ -170,9 +170,14 @@ async function analyse(file) {
   let lum = 0; for (let i = 0; i < px.length; i += 16) lum += 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
   if (lum / (px.length / 16) < 75) warn.push('dark');
 
+  // Read the person mask. Some phone GPUs can't read float textures, so fall back to 8-bit.
+  let mask;
   const res = seg.segment(canvas);
   const conf = res.confidenceMasks[0];
-  const mask = conf.getAsFloat32Array();
+  try { mask = conf.getAsFloat32Array(); } catch (e1) {
+    const u8 = conf.getAsUint8Array(); mask = new Float32Array(u8.length);
+    for (let i = 0; i < u8.length; i++) mask[i] = u8[i] / 255;
+  }
   whiten(canvas, mask);
   res.close?.();
 
@@ -261,8 +266,10 @@ export function openPhoto({ h, sheet, closeSheet, lang, count, toast }) {
       if (!models) { await loadModels(); msg.textContent = s.working; }
       a = await analyse(file);
     } catch (e) {
-      console.error(e); count && count('photo_error');
-      return result(null, s.failed);
+      console.error(e);
+      const why = String((e && (e.message || e)) || '').slice(0, 140);
+      count && count('photo_error', { why });
+      return result(null, s.failed + (why ? `\n(${why})` : ''));
     }
     if (a.error) { count && count('photo_noface'); return result(null, s[a.error]); }
     count && count('photo_done');
