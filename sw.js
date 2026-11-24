@@ -1,8 +1,9 @@
 // Offline support. Change VERSION whenever any file changes.
-const VERSION = 'bitaqa-120';
+const VERSION = 'bitaqa-121';
+const MP_CACHE = 'mediapipe-0.10.21';
 const FILES = [
   '/', '/index.html', '/app.css', '/manifest.webmanifest',
-  '/src/main.js', '/src/va.js', '/src/sheet.js', '/src/schema.js', '/src/texts.js', '/src/lists.js', '/src/qr.js', '/src/pdf.js', '/src/consular.js', '/src/missions.js', '/src/translit.js', '/src/guides.js', '/src/natur.js', '/src/vendor/qrcode.mjs',
+  '/src/main.js', '/src/va.js', '/src/sheet.js', '/src/schema.js', '/src/texts.js', '/src/lists.js', '/src/qr.js', '/src/photo.js', '/src/pdf.js', '/src/consular.js', '/src/missions.js', '/src/translit.js', '/src/guides.js', '/src/natur.js', '/src/vendor/qrcode.mjs',
   '/fonts/cairo-regular.woff2', '/fonts/cairo-semibold.woff2', '/privacy.html', '/privacy.css', '/track.html', '/track.css', '/src/track.js', '/src/track-core.js', '/src/push.js', '/src/theme.js', '/src/life.js',
   '/img/emblem.png', '/img/iraq-emblem.png', '/img/owner.jpg', '/img/og.jpg', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.png', '/icons/badge-72.png',
 ];
@@ -13,12 +14,17 @@ self.addEventListener('install', (e) => {
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys()
-    .then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k))))
+    .then((keys) => Promise.all(keys.filter((k) => k !== VERSION && k !== MP_CACHE).map((k) => caches.delete(k))))
     .then(() => self.clients.claim()));
 });
 
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
+  // Photo tool files are big: keep them in their own cache after the first use (works offline later).
+  if (url.origin === location.origin && url.pathname.startsWith('/vendor/mediapipe/')) {
+    e.respondWith(caches.open(MP_CACHE).then((c) => c.match(e.request).then((hit) => hit || fetch(e.request).then((r) => { if (r.ok) c.put(e.request, r.clone()); return r; }))));
+    return;
+  }
   if (e.request.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/_vercel/') || url.pathname === '/content.json' || url.pathname.startsWith('/api/')) return;
   if (e.request.mode === 'navigate') {
     // Weak signal: don't leave an empty screen while the network hangs. After 3.5 s the

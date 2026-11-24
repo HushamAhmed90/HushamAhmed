@@ -18,7 +18,6 @@ jobs:
           mkdir -p vendor/mediapipe/models
           cd vendor/mediapipe/models
           curl -fsSL -o selfie_segmenter.tflite https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite
-          curl -fsSL -o selfie_multiclass.tflite https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite
           curl -fsSL -o face_detector.tflite https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/latest/blaze_face_short_range.tflite
           ls -la
           sha256sum *.tflite

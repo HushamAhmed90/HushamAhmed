@@ -1447,7 +1447,7 @@ function newsTicker() {
   const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   const items = NEWS.filter((n) => (!n.from || today >= n.from) && (!n.to || today <= n.to) && (!n.until || Date.now() < Date.parse(n.until)));
   if (!items.length) return null;
-  const go = { natur: openNatur, tvisa: openTvisa, pension: openPension, guide: () => goSection('guide'), services: () => goSection('services'),
+  const go = { photo: openPhoto, natur: openNatur, tvisa: openTvisa, pension: openPension, guide: () => goSection('guide'), services: () => goSection('services'),
     consular: () => openForms('consular'), nid: () => openForms('nid') };
   const run = () => items.map((n) => h('button', { class: 'news-item', type: 'button', text: n[L] || n.Ara,
     onclick: () => { count('news_click', { go: n.go }); (go[n.go] || (n.go && findGuide(n.go) ? () => openGuide(n.go) : () => {}))(); } }));
@@ -1609,6 +1609,13 @@ function guideCards(c) {
     h('p', { class: 'qlabel', text: c.stepsTitle }),
     h('ol', { class: 'steps' }, c.steps.map((x) => h('li', { text: x }))));
 }
+// White-background passport-style photo (runs on the phone, loaded only when opened).
+function openPhoto() {
+  import('./photo.js').then((m) => m.openPhoto({ h, sheet, closeSheet, lang: app.lang, count, toast }))
+    .catch(() => toast(app.lang === 'Kur' ? '⚠️ پەیوەندی ئینتەرنێت بپشکنە' : '⚠️ تأكد من النت وجرب مرة ثانية'));
+}
+const needsPhoto = (need) => (need || []).some((n) => /صور[ةه]? شخصي|صور.*خلفية بيضاء|خلفية بيضاء|وێنەی (کەسی|پاسپۆرت)|باکگراوندی سپی/.test(n));
+
 function openGuide(id, fromList) {
   const g = findGuide(id);
   if (!g) return;
@@ -1624,6 +1631,7 @@ function openGuide(id, fromList) {
     g.calc ? (g.calc === 'cash' || g.calc === 'customs' ? customsCalc(g.calc) : benefitCalc(g.calc)) : null,
     g.links ? g.links.map((l) => h('a', { class: 'btn soft wide', href: l.url, target: '_blank', rel: 'noopener', onclick: () => count('guide_link', { id }) }, l[app.lang] || l.Ara)) : null,
     checklist('g:' + g.id, x.need),
+    needsPhoto(x.need) ? h('button', { class: 'btn soft wide', type: 'button', text: u.photoBtn, onclick: () => { count('photo_from_guide', { id }); openPhoto(); } }) : null,
     apptButton('g:' + g.id),
     h('p', { class: 'qlabel', text: u.gSteps }),
     h('ol', { class: 'steps' }, x.steps.map((n) => h('li', { text: n }))),
@@ -2257,6 +2265,7 @@ const ICONS = {
   flag: svgI('<path d="M5 21V4"/><path d="M5 4h13l-2.5 4L18 12H5"/>'),
   menu: svgI('<path d="M4 7h16M4 12h16M4 17h16"/>'),
   calendar: svgI('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18M8 14h3v3H8z"/>'),
+  camera: svgI('<path d="M4 8h3l2-3h6l2 3h3v12H4z"/><circle cx="12" cy="13.5" r="3.5"/>'),
 };
 const GUIDE_ICON = { passport: 'passport', record: 'shield', birth: 'baby', marriage: 'rings', laissez: 'plane', licence: 'car', degree: 'cap', iqdocs: 'stamp', invite: 'plane', travel: 'suitcase', kindergeld: 'baby', elterngeld: 'baby', wohngeld: 'wallet', bafoeg: 'cap', iqdrive: 'car', carpoa: 'car', poarevoke: 'stamp', propsale: 'stamp', customsout: 'suitcase', customsin: 'suitcase' };
 function goSection(sec, fromHistory) {
@@ -2378,7 +2387,7 @@ function renderGuide() {
 function renderServices() {
   const u = t();
   const design = UI.Ara.promos.find((p) => p.key === 'design');
-  const SV_ICON = { booking: 'calendar', passport: 'passport', lawyer: 'scale', printmail: 'printer', tvisa: 'plane', design: 'pen' };
+  const SV_ICON = { booking: 'calendar', passport: 'passport', lawyer: 'scale', printmail: 'printer', tvisa: 'plane', design: 'pen', photo: 'camera' };
   const sv = (key, onclick) => h('button', { class: 'svbtn', type: 'button', onclick: () => { count('service_click', { item: key }); onclick(); } },
     h('i', { html: ICONS[SV_ICON[key]] }), h('span', { text: u.svItems[key] }));
   $('#app').replaceChildren(
@@ -2394,6 +2403,7 @@ function renderServices() {
         sv('passport', () => openRequest('passport')),
         sv('lawyer', () => openRequest('lawyer')),
         sv('printmail', () => openRequest('printmail')),
+        sv('photo', openPhoto),
         sv('tvisa', openTvisa),
         sv('design', () => window.open(waLink(design ? design.msg : u.waHello), '_blank', 'noopener'))),
       h('a', { class: 'btn soft wide', href: '/track.html', onclick: () => count('track_open') }, u.myCases),
@@ -3339,6 +3349,7 @@ start();
     else if (g === 'natur') openNatur();
     else if (g === 'tvisa') openTvisa();
     else if (g === 'ivisa') openIvisa();
+    else if (g === 'photo') openPhoto();
     else if (g && findGuide(g)) openGuide(g);
     else if (qa) openQA(qa === 'ask', qa === 'ask' ? null : qa.replace(/[^A-Za-z0-9_-]/g, ''));
   }, 400);
