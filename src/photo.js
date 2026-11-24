@@ -268,7 +268,9 @@ export function openPhoto({ h, sheet, closeSheet, lang, count, toast }) {
     } catch (e) {
       console.error(e);
       const tgt = e && e.target;
-      const why = String((e && e.message) || (e && e.type ? `${e.type} ${(tgt && (tgt.src || tgt.currentSrc)) || ''}` : e) || '').slice(0, 160);
+      let why = String((e && e.message) || (e && e.type ? `${e.type} ${(tgt && (tgt.src || tgt.currentSrc)) || ''}` : e) || '').slice(0, 160);
+      // What security policy does the server send right now? (helps find caching problems)
+      try { const r = await fetch('/', { cache: 'no-store' }); const csp = r.headers.get('content-security-policy') || ''; why += ` | csp:${/wasm-unsafe-eval/.test(csp) ? 'ok' : 'old'}`; } catch (e2) { /* offline */ }
       count && count('photo_error', { why });
       return result(null, s.failed + (why ? `\n(${why})` : ''));
     }

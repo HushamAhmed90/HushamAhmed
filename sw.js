@@ -1,5 +1,5 @@
 // Offline support. Change VERSION whenever any file changes.
-const VERSION = 'bitaqa-123';
+const VERSION = 'bitaqa-124';
 const MP_CACHE = 'mediapipe-0.10.21';
 const FILES = [
   '/', '/index.html', '/app.css', '/manifest.webmanifest',
