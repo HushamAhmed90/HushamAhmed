@@ -1,0 +1,13 @@
+name: Check live site headers
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          for u in / /index.html /?g=photo /src/photo.js /src/vendor/mediapipe/vision_bundle.js /src/vendor/mediapipe/wasm/vision_wasm_internal.wasm; do
+            echo "== $u"; curl -sSI "https://husham-ahmed.vercel.app$u" | grep -iE '^(HTTP|content-type|content-security|cache-control|x-vercel-cache|age)'
+          done
+          curl -s https://husham-ahmed.vercel.app/src/photo.js | grep -c "csp:"
