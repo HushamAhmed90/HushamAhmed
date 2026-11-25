@@ -33,9 +33,13 @@ const T = {
     small: 'الوجه صغير بالصورة، فالجودة ممكن تكون ضعيفة بالطباعة. قرّب الموبايل شوية.',
     dark: 'الإضاءة ضعيفة على الوجه. صوّر قرب شباك أو ضوء من قدامك.',
     tilt: 'راسك شوية مايل. خلي وجهك مستقيم.',
-    ok: '✅ الصورة تبين زينة. راجعها قبل لا تطبع.',
+    ok: '✅ الصورة تبين زينة. تأكد إن الفم مسدود والوجه طبيعي بدون ابتسامة عريضة، وراجعها قبل لا تطبع.',
     size: 'حجم الوجه',
     move: 'فوق / تحت',
+    rotate: 'تعديل الميلان',
+    mouth: 'الدوائر تطلب فم مسدود ووجه طبيعي بدون ابتسامة عريضة.',
+    light: 'الإضاءة',
+    contrast: 'التباين',
     sheetBtn: '🖨️ نزّل ورقة الطباعة (8 صور · 10×15)',
     singleBtn: '⬇️ نزّل صورة وحدة (رقمية)',
     share: '📤 مشاركة',
@@ -67,9 +71,13 @@ const T = {
     small: 'ڕووخسار لە وێنەکەدا بچووکە، لەوانەیە چاپەکە کوالیتی کەم بێت. مۆبایل کەمێک نزیک بکەرەوە.',
     dark: 'ڕووناکی سەر ڕووخسار کەمە. لە نزیک پەنجەرە یان ڕووناکی لە پێشەوە وێنە بگرە.',
     tilt: 'سەرت کەمێک لارە. ڕووخسارت ڕاست ڕابگرە.',
-    ok: '✅ وێنەکە باش دیارە. پێش چاپکردن پێیدا بچۆرەوە.',
+    ok: '✅ وێنەکە باش دیارە. دڵنیابە دەم داخراوە و ڕووخسار ئاساییە بێ پێکەنینی گەورە، و پێش چاپکردن پێیدا بچۆرەوە.',
     size: 'قەبارەی ڕووخسار',
     move: 'سەرەوە / خوارەوە',
+    rotate: 'ڕاستکردنەوەی لاری',
+    mouth: 'فەرمانگەکان دەمی داخراو و ڕووخساری ئاسایی بێ پێکەنینی گەورە داوا دەکەن.',
+    light: 'ڕووناکی',
+    contrast: 'جیاوازی ڕەنگ',
     sheetBtn: '🖨️ پەڕەی چاپ دابەزێنە (8 وێنە · 10×15)',
     singleBtn: '⬇️ یەک وێنە دابەزێنە (دیجیتاڵ)',
     share: '📤 هاوبەشکردن',
@@ -135,7 +143,7 @@ function whiten(canvas, mask) {
     }
   }
   for (let i = 0; i < m.length; i++) {
-    let a = (m[i] - 0.25) / 0.5; a = a < 0 ? 0 : a > 1 ? 1 : a; a = a * a * (3 - 2 * a);
+    let a = (m[i] - 0.4) / 0.35; a = a < 0 ? 0 : a > 1 ? 1 : a; a = a * a * (3 - 2 * a);
     const j = i * 4;
     d[j] = d[j] * a + 255 * (1 - a);
     d[j + 1] = d[j + 1] * a + 255 * (1 - a);
@@ -178,29 +186,51 @@ async function analyse(file) {
     const u8 = conf.getAsUint8Array(); mask = new Float32Array(u8.length);
     for (let i = 0; i < u8.length; i++) mask[i] = u8[i] / 255;
   }
-  whiten(canvas, mask);
-  res.close?.();
-
-  // head geometry: eyes sit about halfway between the top of the head and the chin
   const eyeY = eyeR && eyeL ? (eyeR.y + eyeL.y) / 2 : bb.originY + bb.height * 0.38;
   const cx = eyeR && eyeL ? (eyeR.x + eyeL.x) / 2 : bb.originX + bb.width / 2;
   const chinY = bb.originY + bb.height * 1.02;
-  const headH = (chinY - eyeY) * 2.05;
-  return { canvas, cx, eyeY, chinY, headH, warn };
+  // top of the head (with hair): walk up from the eyes while the person mask continues
+  let crownY = eyeY - (chinY - eyeY) * 1.05;
+  const x0 = Math.max(0, Math.round(cx - bb.width * 0.3)); const x1 = Math.min(W - 1, Math.round(cx + bb.width * 0.3));
+  for (let y = Math.round(eyeY); y >= 0; y--) {
+    let on = 0;
+    for (let x = x0; x <= x1; x += 2) if (mask[y * W + x] > 0.6) on++;
+    if (on < 2) { crownY = y; break; }
+    if (y === 0) crownY = 0;
+  }
+  const headH = Math.max(chinY - crownY, (chinY - eyeY) * 1.7);
+  const roll = eyeR && eyeL ? Math.atan2(eyeL.y - eyeR.y, eyeL.x - eyeR.x) * 180 / Math.PI : 0;
+  const faceLum = lum / (px.length / 16);
+  whiten(canvas, mask);
+  res.close?.();
+  return { canvas, cx, eyeY, chinY, headH, roll: Math.abs(roll) < 12 ? roll : 0, faceLum, warn };
 }
 
-// Draw the 35 × 45 mm photo. zoom 1 = head is 74 % of the photo height.
-function drawPhoto(a, zoom = 1, shift = 0) {
+// Draw the 35 × 45 mm photo. o.zoom 1 = head is 76 % of the photo height.
+function drawPhoto(a, o = {}) {
+  const { zoom = 1, shift = 0, rot = 0, light = 1, contrast = 1 } = o;
   const out = document.createElement('canvas'); out.width = PW; out.height = PH;
   const ctx = out.getContext('2d');
   ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, PW, PH);
-  const cropH = a.headH / (0.71 * zoom);
+  const cropH = a.headH / (0.76 * zoom);
   const cropW = cropH * PW / PH;
   const crown = a.chinY - a.headH;
-  const top = crown - cropH * (0.12 + shift * 0.06);
+  const top = crown - cropH * (0.10 + shift * 0.06);
   const left = a.cx - cropW / 2;
+  const k = PH / cropH;
+  const ex = (a.cx - left) * k; const ey = (a.eyeY - top) * k;
+  ctx.save();
+  ctx.translate(ex, ey); ctx.rotate(-(a.roll + rot) * Math.PI / 180); ctx.translate(-ex, -ey);
   ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(a.canvas, left, top, cropW, cropH, 0, 0, PW, PH);
+  ctx.drawImage(a.canvas, -left * k, -top * k, a.canvas.width * k, a.canvas.height * k);
+  ctx.restore();
+  if (light !== 1 || contrast !== 1) {
+    const img = ctx.getImageData(0, 0, PW, PH); const d = img.data;
+    for (let n = 0; n < d.length; n += 4) {
+      for (let c = 0; c < 3; c++) { const v = (d[n + c] * light - 128) * contrast + 128; d[n + c] = v < 0 ? 0 : v > 255 ? 255 : v; }
+    }
+    ctx.putImageData(img, 0, 0);
+  }
   return out;
 }
 
@@ -285,19 +315,23 @@ export function openPhoto({ h, sheet, closeSheet, lang, count, toast }) {
         h('button', { class: 'btn primary wide big', type: 'button', text: s.retake, onclick: start })), { tall: true });
       return;
     }
-    let zoom = 1; let shift = 0; let photo = drawPhoto(a);
+    const o = { zoom: 1, shift: 0, rot: 0, contrast: 1, light: a.faceLum < 110 ? Math.min(1.35, 125 / Math.max(a.faceLum, 40)) : 1 };
+    let photo = drawPhoto(a, o);
     const img = h('img', { class: 'photo-prev', alt: s.title, width: PW, height: PH });
-    const paint = () => { photo = drawPhoto(a, zoom, shift); img.src = photo.toDataURL('image/jpeg', 0.9); };
+    const paint = () => { photo = drawPhoto(a, o); img.src = photo.toDataURL('image/jpeg', 0.9); };
     paint();
     const slider = (label, min, max, val, on) => h('label', { class: 'photo-adj' }, h('span', { text: label }),
       h('input', { type: 'range', min, max, step: '0.01', value: val, oninput: (e) => { on(parseFloat(e.target.value)); paint(); } }));
-    const warns = a.warn.length ? a.warn.map((k) => h('li', { text: s[k] })) : [h('li', { text: s.ok })];
+    const warns = a.warn.length ? a.warn.map((k) => h('li', { text: s[k] })).concat(h('li', { text: s.mouth })) : [h('li', { text: s.ok })];
     const canShare = !!(navigator.canShare && navigator.share);
     sheet(h('div', { class: 'request photo-tool' }, top(),
       h('div', { class: 'photo-frame' }, img),
       h('ul', { class: 'docs photo-warn' }, warns),
-      slider(s.size, '0.85', '1.15', '1', (v) => { zoom = v; }),
-      slider(s.move, '-1', '1', '0', (v) => { shift = -v; }),
+      slider(s.size, '0.8', '1.25', '1', (v) => { o.zoom = v; }),
+      slider(s.move, '-1', '1', '0', (v) => { o.shift = -v; }),
+      slider(s.rotate, '-8', '8', '0', (v) => { o.rot = v; }),
+      slider(s.light, '1', '1.5', String(o.light), (v) => { o.light = v; }),
+      slider(s.contrast, '1', '1.3', '1', (v) => { o.contrast = v; }),
       h('button', { class: 'btn primary wide big', type: 'button', text: s.sheetBtn,
         onclick: async () => { count && count('photo_sheet'); await download(drawSheet(photo, s.footer), 'photo-10x15.jpg'); toast && toast(s.saved); } }),
       h('button', { class: 'btn soft wide', type: 'button', text: s.singleBtn,
