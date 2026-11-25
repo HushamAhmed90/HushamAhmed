@@ -1,0 +1,31 @@
+name: Arabic voice-over (Piper TTS)
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  tts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - name: Synthesize
+        run: |
+          pip install -q piper-tts
+          mkdir -p voice out && cd voice
+          for v in ar/ar_JO/kareem/medium/ar_JO-kareem-medium; do
+            curl -fsSL -o kareem.onnx "https://huggingface.co/rhasspy/piper-voices/resolve/main/$v.onnx"
+            curl -fsSL -o kareem.onnx.json "https://huggingface.co/rhasspy/piper-voices/resolve/main/$v.onnx.json"
+          done
+          curl -fsSL -o MODEL_CARD.txt "https://huggingface.co/rhasspy/piper-voices/resolve/main/ar/ar_JO/kareem/medium/MODEL_CARD" || true
+          cat MODEL_CARD.txt || true
+          cd ..
+          python - <<'PY'
+          import json, subprocess
+          lines = json.load(open('scripts/tts/lines.json'))
+          for i, t in enumerate(lines):
+              subprocess.run(['piper', '-m', 'voice/kareem.onnx', '-f', f'out/l{i:02d}.wav', '--length-scale', '1.05', '--sentence-silence', '0.15'], input=t.encode(), check=True)
+          PY
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with: { name: voice, path: out/*.wav, retention-days: 7 }
