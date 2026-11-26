@@ -749,3 +749,26 @@ html.dk .calc-out { color: #f0c35a; }
 .vback { margin-top: 0; min-height: 40px; padding: 0 14px; }
 .chipbtn.on { background: var(--navy, #173F5F); color: #fff; border-color: var(--navy, #173F5F); }
 html.dk .vault-person, html.dk .vault-doc { background: #1f2a36; border-color: #2c3a49; }
+/* vault: expiry badges and "what is missing" */
+.vd-exp { display: inline-block; font-size: 12px; font-weight: 700; border-radius: 999px; padding: 2px 10px; margin: 0 10px 8px; }
+.vault-person .vd-exp { margin: 0 auto 0 0; }
+.vd-exp.big { display: block; font-size: 15px; padding: 8px 14px; margin: 6px 0 10px; border-radius: 12px; text-align: center; }
+.vd-exp.ok { background: #e7f6ee; color: #11734b; }
+.vd-exp.amber { background: #fff4dc; color: #8a5a00; }
+.vd-exp.red, .vd-exp.gone { background: #fde8e8; color: #b42318; }
+.vault-need { background: #f6f9fc; border: 1px solid var(--line, #e3e7ec); border-radius: 16px; padding: 12px 14px; margin: 8px 0 14px; }
+.vn-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px dashed #dbe2ea; }
+.vn-row:last-of-type { border-bottom: 0; }
+.vn-row.ok span { color: #11734b; font-weight: 700; }
+.vn-row.miss b { color: #b42318; }
+.vn-row .btn { padding: 6px 12px; font-size: 14px; }
+html.dk .vault-need { background: #1a2430; border-color: #2c3a49; }
+/* signature tool */
+.sign-prev { display: block; max-width: 100%; margin: 10px auto; border-radius: 12px; border: 1px solid var(--line, #e3e7ec);
+  background: repeating-conic-gradient(#eef1f5 0 25%, #fff 0 50%) 0 0 / 18px 18px; }
+.sign-inks { display: flex; gap: 10px; justify-content: center; margin: 8px 0; }
+.sign-inks button { width: 44px; height: 44px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; }
+.sign-inks button.on { border-color: #0f4c5c; box-shadow: 0 0 0 3px #fff inset; }
+.sign-range { width: 100%; }
+.sign-inks .ink-black { background: rgb(20,20,24); } .sign-inks .ink-blue { background: rgb(16,46,140); } .sign-inks .ink-navy { background: rgb(15,40,80); }
+.vault input[type=date] { display: block; width: 100%; min-height: 50px; font-size: 18px; padding: 8px 12px; border: 1px solid var(--line, #d5dbe3); border-radius: 12px; margin: 6px 0 12px; background: #fff; }

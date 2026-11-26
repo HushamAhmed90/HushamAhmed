@@ -69,6 +69,21 @@ const T = {
     exportOne: '📄 PDF لهذا المستمسك',
     error: 'صار خطأ. جرب مرة ثانية، أو حدّث التطبيق.',
     storeError: 'ما كدرنا نحفظ على هذا الموبايل. تأكد إن عندك مساحة فارغة.',
+    expTitle: 'متى ينتهي؟ (اختياري)',
+    expHint: 'إذا كتبت تاريخ الانتهاء، نحطه بـ «محفظة مستمسكاتي» وننبهك قبل 3 أشهر وقبل شهر حتى تلحك تجدده.',
+    expSave: '✅ احفظ ويّا التاريخ',
+    expSkip: 'احفظ بدون تاريخ',
+    expLeft: (d) => (d < 0 ? 'منتهي ⚠️' : d === 0 ? 'ينتهي اليوم' : d < 60 ? `باقي ${d} يوم` : `باقي ${Math.round(d / 30)} شهر`),
+    expires: 'ينتهي',
+    setExp: '📅 حط تاريخ الانتهاء',
+    shareImg: '📤 شارك الصورة (واتساب…)',
+    needTitle: (t) => `شنو ناقصني لمعاملة «${t}»؟`,
+    needPick: 'اختار الشخص اللي المعاملة إله:',
+    needHave: 'موجود ✅',
+    needMiss: 'ناقص، صوّره هسه',
+    needPdf: '📄 PDF بالموجود من المطلوب',
+    needNote: 'هاي بس المستمسكات اللي تنحفظ بالحافظة. باقي الشروط (الحضور، الدفع، الصور…) شوفها بدليل المعاملة.',
+    needAll: 'كل المستمسكات المطلوبة موجودة ✅',
     footer: 'هشام للمعاملات · حافظة المستمسكات',
   },
   Kur: {
@@ -122,6 +137,21 @@ const T = {
     exportOne: '📄 PDF بۆ ئەم بەڵگەنامەیە',
     error: 'هەڵەیەک ڕوویدا. دووبارە هەوڵ بدەرەوە یان بەرنامەکە نوێ بکەرەوە.',
     storeError: 'نەمانتوانی لەسەر ئەم مۆبایلە پاشەکەوت بکەین. دڵنیابە شوێنی بەتاڵت هەیە.',
+    expTitle: 'کەی بەسەردەچێت؟ (ئارەزوومەندانە)',
+    expHint: 'ئەگەر بەرواری بەسەرچوون بنووسیت، دەیخەینە «جزدانی بەڵگەنامەکانم» و 3 مانگ و مانگێک پێشتر ئاگادارت دەکەینەوە.',
+    expSave: '✅ لەگەڵ بەروار پاشەکەوتی بکە',
+    expSkip: 'بێ بەروار پاشەکەوتی بکە',
+    expLeft: (d) => (d < 0 ? 'بەسەرچووە ⚠️' : d === 0 ? 'ئەمڕۆ بەسەردەچێت' : d < 60 ? `${d} ڕۆژ ماوە` : `${Math.round(d / 30)} مانگ ماوە`),
+    expires: 'بەسەردەچێت',
+    setExp: '📅 بەرواری بەسەرچوون دابنێ',
+    shareImg: '📤 وێنەکە بنێرە (واتسئاپ…)',
+    needTitle: (t) => `چیم کەمە بۆ مامەڵەی «${t}»؟`,
+    needPick: 'ئەو کەسە هەڵبژێرە کە مامەڵەکە بۆ ئەوە:',
+    needHave: 'هەیە ✅',
+    needMiss: 'نییە، ئێستا وێنەی بگرە',
+    needPdf: '📄 PDF بە ئەوانەی هەن',
+    needNote: 'ئەمە تەنها ئەو بەڵگەنامانەیە کە لە هەڵگرەکەدا پاشەکەوت دەکرێن. مەرجەکانی تر لە ڕێبەری مامەڵەکەدا ببینە.',
+    needAll: 'هەموو بەڵگەنامە پێویستەکان هەن ✅',
     footer: 'هشام للمعاملات · هەڵگری بەڵگەنامەکان',
   },
 };
@@ -376,7 +406,14 @@ async function docsToPdf(docs) {
 }
 
 /* ---------- UI ---------- */
-export function openVault({ h, sheet, closeSheet, lang, count, toast }) {
+const EXP_KINDS = ['passport', 'nid', 'residence'];
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const daysTo = (iso) => Math.round((new Date(`${iso}T00:00`) - new Date(`${today()}T00:00`)) / 864e5);
+const expClass = (d) => (d < 0 ? 'gone' : d <= 30 ? 'red' : d <= 90 ? 'amber' : 'ok');
+
+// need: { title, kinds: [...] } opens the folder as a "what is missing" check for one transaction.
+// onExpiry({ kind, who, date }) lets the app add the date to its expiry reminders.
+export function openVault({ h, sheet, closeSheet, lang, count, toast, need, onExpiry }) {
   const s = T[lang] || T.Ara;
   count && count('vault_open');
   const root = h('div', { class: 'request vault' });
@@ -396,14 +433,18 @@ export function openVault({ h, sheet, closeSheet, lang, count, toast }) {
       const p = { id: uid(), name: s.me, created: Date.now() };
       try { await putPerson(p); people = [p]; } catch (e) { fail(e, s.storeError); }
     }
-    const counts = await Promise.all(people.map((p) => docsOf(p.id).then((d) => d.length).catch(() => 0)));
+    const lists = await Promise.all(people.map((p) => docsOf(p.id).catch(() => [])));
+    const counts = lists.map((l) => l.length);
+    // soonest expiry within 90 days, per person
+    const alerts = lists.map((l) => { const ds = l.filter((d) => d.expiry).map((d) => daysTo(d.expiry)).filter((n) => n <= 90); return ds.length ? Math.min(...ds) : null; });
     show(top(),
-      h('p', { class: 'note', text: s.intro }),
-      h('p', { class: 'trust', text: s.private }),
-      h('p', { class: 'qlabel', text: s.people }),
+      need ? h('h2', { class: 'vault-name', text: s.needTitle(need.title) }) : h('p', { class: 'note', text: s.intro }),
+      need ? null : h('p', { class: 'trust', text: s.private }),
+      h('p', { class: 'qlabel', text: need ? s.needPick : s.people }),
       h('div', { class: 'vault-people' }, people.map((p, i) => h('button', { class: 'vault-person', type: 'button', onclick: () => person(p) },
         h('span', { class: 'vp-av', text: (p.name || '?').trim().charAt(0) }),
-        h('span', { class: 'vp-txt' }, h('b', { text: p.name }), h('small', { text: s.docsCount(counts[i]) }))))),
+        h('span', { class: 'vp-txt' }, h('b', { text: p.name }), h('small', { text: s.docsCount(counts[i]) })),
+        alerts[i] !== null ? h('span', { class: 'vd-exp ' + expClass(alerts[i]), text: s.expLeft(alerts[i]) }) : null))),
       h('button', { class: 'btn soft wide', type: 'button', text: s.addPerson, onclick: () => nameForm(null) }),
       h('p', { class: 'notice', text: s.warn }));
   }
@@ -440,10 +481,28 @@ export function openVault({ h, sheet, closeSheet, lang, count, toast }) {
       return h('div', { class: 'vault-doc', onclick: () => docView(p, d) },
         h('img', { src: thumbUrl(d.pages[0]), alt: '' }),
         h('span', { class: 'vd-txt' }, h('b', { text: `${KINDS[d.kind].icon} ${d.title || s.kinds[d.kind]}` }), d.pages.length > 1 ? h('small', { text: '2 ×' }) : null),
+        d.expiry ? h('span', { class: 'vd-exp ' + expClass(daysTo(d.expiry)), text: s.expLeft(daysTo(d.expiry)) }) : null,
         box);
     }));
+    let needBox = null;
+    if (need) {
+      const have = (k) => docs.find((d) => d.kind === k);
+      const missing = need.kinds.filter((k) => !have(k));
+      const got = need.kinds.map(have).filter(Boolean);
+      needBox = h('div', { class: 'vault-need' },
+        h('p', { class: 'qlabel', text: s.needTitle(need.title) }),
+        need.kinds.map((k) => h('div', { class: 'vn-row ' + (have(k) ? 'ok' : 'miss') },
+          h('b', { text: `${KINDS[k].icon} ${s.kinds[k]}` }),
+          have(k) ? h('span', { text: s.needHave })
+            : h('button', { class: 'btn soft', type: 'button', text: s.needMiss, onclick: () => capture(p, { kind: k, title: '', pages: [] }) }))),
+        !missing.length ? h('p', { class: 'trust', text: s.needAll }) : null,
+        got.length ? h('button', { class: 'btn primary wide', type: 'button', text: s.needPdf, onclick: () => exportPdf(got, `${p.name}-${need.title}`, () => person(p)) }) : null,
+        h('p', { class: 'hint', text: s.needNote }));
+      count && count('vault_need', { missing: missing.length });
+    }
     show(top(() => home()),
       h('h2', { class: 'vault-name', text: p.name }),
+      needBox,
       docs.length ? h('p', { class: 'hint', text: s.selectHint }) : h('p', { class: 'note', text: s.noDocs }),
       docs.length ? grid : null,
       docs.length ? expBtn : null,
@@ -563,11 +622,29 @@ export function openVault({ h, sheet, closeSheet, lang, count, toast }) {
 
   function review(p, draft) { if (draft.pages.length) save(p, draft); else capture(p, draft); }
 
+  function expiryForm(onDone, onBack, cur) {
+    const inp = h('input', { class: 'inp', type: 'date', min: '2000-01-01', value: cur || '' });
+    show(top(onBack),
+      h('h2', { class: 'vault-name', text: s.expTitle }),
+      h('p', { class: 'hint', text: s.expHint }),
+      inp,
+      h('button', { class: 'btn primary wide big', type: 'button', text: s.expSave, onclick: () => { if (!inp.value) { inp.focus(); return; } onDone(inp.value); } }),
+      h('button', { class: 'btn soft wide', type: 'button', text: s.expSkip, onclick: () => onDone('') }));
+  }
+  function tellExpiry(p, d) {
+    if (d.expiry && onExpiry) { try { onExpiry({ kind: d.kind, who: p.name, date: d.expiry }); } catch (e) { /* ignore */ } }
+  }
+
   async function save(p, draft) {
     if (!draft.pages.length) return capture(p, draft);
+    if (EXP_KINDS.includes(draft.kind) && draft.expiry === undefined) {
+      return expiryForm((v) => { draft.expiry = v; save(p, draft); }, () => capture(p, draft));
+    }
     const d = { id: uid(), personId: p.id, kind: draft.kind, title: draft.title || '', pages: draft.pages, created: Date.now() };
+    if (draft.expiry) d.expiry = draft.expiry;
     try { await putDoc(d); } catch (e) { return fail(e, s.storeError); }
-    count && count('vault_save', { kind: d.kind, sides: d.pages.length });
+    count && count('vault_save', { kind: d.kind, sides: d.pages.length, exp: !!d.expiry });
+    tellExpiry(p, d);
     toast && toast(s.saved);
     person(p);
   }
@@ -575,13 +652,31 @@ export function openVault({ h, sheet, closeSheet, lang, count, toast }) {
   function docView(p, d) {
     show(top(() => person(p)),
       h('h2', { class: 'vault-name', text: `${KINDS[d.kind].icon} ${d.title || s.kinds[d.kind]}` }),
+      d.expiry ? h('p', { class: 'vd-exp big ' + expClass(daysTo(d.expiry)), text: `${s.expires}: ${d.expiry.split('-').reverse().join('/')} · ${s.expLeft(daysTo(d.expiry))}` }) : null,
       d.pages.map((b) => h('div', { class: 'vault-resultwrap' }, h('img', { class: 'vault-result', src: thumbUrl(b), alt: '' }))),
-      h('button', { class: 'btn primary wide big', type: 'button', text: s.exportOne, onclick: () => exportPdf([d], `${p.name}-${s.kinds[d.kind]}`, () => docView(p, d)) }),
+      h('button', { class: 'btn primary wide big', type: 'button', text: s.shareImg, onclick: () => shareImages(p, d) }),
+      EXP_KINDS.includes(d.kind) ? h('button', { class: 'btn soft wide', type: 'button', text: s.setExp, onclick: () => expiryForm(async (v) => {
+        const nd = { ...d }; if (v) nd.expiry = v; else delete nd.expiry;
+        try { await putDoc(nd); } catch (e) { return fail(e, s.storeError); }
+        tellExpiry(p, nd); count && count('vault_setexp'); docView(p, nd);
+      }, () => docView(p, d), d.expiry) }) : null,
+      h('button', { class: 'btn soft wide', type: 'button', text: s.exportOne, onclick: () => exportPdf([d], `${p.name}-${s.kinds[d.kind]}`, () => docView(p, d)) }),
       h('button', { class: 'btn small wide', type: 'button', text: s.deleteDoc, onclick: async () => {
         if (!confirm(s.confirmDelDoc)) return;
         try { await delDoc(d.id); count && count('vault_deldoc'); } catch (e) { return fail(e, s.storeError); }
         person(p);
       } }));
+  }
+
+  async function shareImages(p, d) {
+    const base = `${p.name}-${d.title || s.kinds[d.kind]}`.replace(/[\\/:*?"<>|]+/g, '-');
+    const files = d.pages.map((b, i) => new File([b], `${base}${d.pages.length > 1 ? `-${i + 1}` : ''}.jpg`, { type: 'image/jpeg' }));
+    count && count('vault_shareimg', { kind: d.kind });
+    if (navigator.canShare && navigator.share && navigator.canShare({ files })) {
+      try { await navigator.share({ files }); } catch (e) { /* cancelled */ }
+      return;
+    }
+    files.forEach((f) => { const u = URL.createObjectURL(f); const a = h('a', { href: u, download: f.name }); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 5000); });
   }
 
   async function exportPdf(docs, name, onBack) {

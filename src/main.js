@@ -1447,7 +1447,7 @@ function newsTicker() {
   const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   const items = NEWS.filter((n) => (!n.from || today >= n.from) && (!n.to || today <= n.to) && (!n.until || Date.now() < Date.parse(n.until)));
   if (!items.length) return null;
-  const go = { vault: openVault, photo: openPhoto, natur: openNatur, tvisa: openTvisa, pension: openPension, guide: () => goSection('guide'), services: () => goSection('services'),
+  const go = { vault: openVault, sign: openSign, photo: openPhoto, natur: openNatur, tvisa: openTvisa, pension: openPension, guide: () => goSection('guide'), services: () => goSection('services'),
     consular: () => openForms('consular'), nid: () => openForms('nid') };
   const run = () => items.map((n) => h('button', { class: 'news-item', type: 'button', text: n[L] || n.Ara,
     onclick: () => { count('news_click', { go: n.go }); (go[n.go] || (n.go && findGuide(n.go) ? () => openGuide(n.go) : () => {}))(); } }));
@@ -1611,9 +1611,35 @@ function guideCards(c) {
 }
 // White-background passport-style photo (runs on the phone, loaded only when opened).
 // Document folder: scan, straighten and export IDs as a print-ready PDF (all on the phone).
-function openVault() {
-  import('./vault.js').then((m) => m.openVault({ h, sheet, closeSheet, lang: app.lang, count, toast }))
+// A document saved in the folder with an expiry date also goes into the expiry wallet (with reminders).
+function vaultExpiry({ kind, who, date }) {
+  const all = walletAll();
+  const old = all.find((x) => x.kind === kind && (x.who || '') === (who || ''));
+  if (old) {
+    if (old.date === date) return;
+    Object.values(old.rem || {}).forEach((id) => cancelReminder(id));
+    old.date = date; old.rem = {};
+  } else all.push({ id: newId(), kind, name: '', who: (who || '').slice(0, 30), date, rem: {} });
+  walletSave(all); count('wallet_add', { kind, from: 'vault' });
+  walletSchedule().catch(() => {});
+}
+function openVault(need) {
+  import('./vault.js').then((m) => m.openVault({ h, sheet, closeSheet, lang: app.lang, count, toast, onExpiry: vaultExpiry, need: need && need.kinds ? need : undefined }))
     .catch(() => toast(app.lang === 'Kur' ? '⚠️ پەیوەندی ئینتەرنێت بپشکنە' : '⚠️ تأكد من النت وجرب مرة ثانية'));
+}
+function openSign() {
+  import('./sign.js').then((m) => m.openSign({ h, sheet, closeSheet, lang: app.lang, count, toast }))
+    .catch(() => toast(app.lang === 'Kur' ? '⚠️ پەیوەندی ئینتەرنێت بپشکنە' : '⚠️ تأكد من النت وجرب مرة ثانية'));
+}
+// Which folder documents a guide asks for, read from its own (Arabic) list.
+function vaultKinds(g) {
+  const txt = (g.Ara.need || []).join(' \n ');
+  const out = [];
+  if (/البطاقة الوطنية|الموحدة/.test(txt)) out.push('nid');
+  if (/جواز/.test(txt)) out.push('passport');
+  if (/الإقامة|إقامة/.test(txt)) out.push('residence');
+  if (/شهادة (ال)?ميلاد|بيان (ال)?ولادة|شهادة الولادة/.test(txt)) out.push('birth');
+  return out;
 }
 function openPhoto() {
   import('./photo.js').then((m) => m.openPhoto({ h, sheet, closeSheet, lang: app.lang, count, toast }))
@@ -1636,6 +1662,7 @@ function openGuide(id, fromList) {
     g.calc ? (g.calc === 'cash' || g.calc === 'customs' ? customsCalc(g.calc) : benefitCalc(g.calc)) : null,
     g.links ? g.links.map((l) => h('a', { class: 'btn soft wide', href: l.url, target: '_blank', rel: 'noopener', onclick: () => count('guide_link', { id }) }, l[app.lang] || l.Ara)) : null,
     checklist('g:' + g.id, x.need),
+    vaultKinds(g).length ? h('button', { class: 'btn soft wide', type: 'button', text: u.vaultNeedBtn, onclick: () => { count('vault_need_open', { id }); openVault({ title: x.title, kinds: vaultKinds(g) }); } }) : null,
     needsPhoto(x.need) ? h('button', { class: 'btn soft wide', type: 'button', text: u.photoBtn, onclick: () => { count('photo_from_guide', { id }); openPhoto(); } }) : null,
     apptButton('g:' + g.id),
     h('p', { class: 'qlabel', text: u.gSteps }),
@@ -1727,6 +1754,7 @@ function quickNav() {
     item('qa', () => openQA(), true),
     item('life', () => openLife(), true),
     item('vault', openVault, true),
+    item('sign', openSign, true),
     item('wallet', () => openWallet(), true),
     item('letters', () => openExplain(), true),
     item('pension', openPension, true),
@@ -2271,6 +2299,7 @@ const ICONS = {
   flag: svgI('<path d="M5 21V4"/><path d="M5 4h13l-2.5 4L18 12H5"/>'),
   menu: svgI('<path d="M4 7h16M4 12h16M4 17h16"/>'),
   calendar: svgI('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18M8 14h3v3H8z"/>'),
+  sign: svgI('<path d="M3 17c3-1 4-7 6-7s1 6 3 6 2-4 4-4 1 3 3 3"/><path d="M3 21h18"/>'),
   folder: svgI('<path d="M3 6h6l2 2h10v11H3z"/><path d="M8 13h8M8 16h5"/>'),
   camera: svgI('<path d="M4 8h3l2-3h6l2 3h3v12H4z"/><circle cx="12" cy="13.5" r="3.5"/>'),
 };
@@ -2394,7 +2423,7 @@ function renderGuide() {
 function renderServices() {
   const u = t();
   const design = UI.Ara.promos.find((p) => p.key === 'design');
-  const SV_ICON = { booking: 'calendar', passport: 'passport', lawyer: 'scale', printmail: 'printer', tvisa: 'plane', design: 'pen', photo: 'camera', vault: 'folder' };
+  const SV_ICON = { booking: 'calendar', passport: 'passport', lawyer: 'scale', printmail: 'printer', tvisa: 'plane', design: 'pen', photo: 'camera', vault: 'folder', sign: 'sign' };
   const sv = (key, onclick) => h('button', { class: 'svbtn', type: 'button', onclick: () => { count('service_click', { item: key }); onclick(); } },
     h('i', { html: ICONS[SV_ICON[key]] }), h('span', { text: u.svItems[key] }));
   $('#app').replaceChildren(
@@ -2412,6 +2441,7 @@ function renderServices() {
         sv('printmail', () => openRequest('printmail')),
         sv('vault', openVault),
         sv('photo', openPhoto),
+        sv('sign', openSign),
         sv('tvisa', openTvisa),
         sv('design', () => window.open(waLink(design ? design.msg : u.waHello), '_blank', 'noopener'))),
       h('a', { class: 'btn soft wide', href: '/track.html', onclick: () => count('track_open') }, u.myCases),
@@ -2605,6 +2635,11 @@ function downloadIcs(a) {
   setTimeout(() => URL.revokeObjectURL(url), 60000);
   count('appt_calendar');
 }
+// Directions: a map search for the place the person typed (or picked).
+function mapBtn(place) {
+  if (!place) return null;
+  return h('a', { class: 'btn soft wide', href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place)}`, target: '_blank', rel: 'noopener', onclick: () => count('appt_map') }, t().apptMap);
+}
 function openAppt(key, place) {
   const u = t();
   const label = apptLabel(key);
@@ -2619,6 +2654,7 @@ function openAppt(key, place) {
   const dateBox = h('div', { class: 'input date-box' }, dateText, h('span', { class: 'date-ico', 'aria-hidden': 'true', text: '📅' }), date);
   const time = h('input', { class: 'input', type: 'time', id: 'appt_time', value: '09:00' });
   const where = h('input', { class: 'input', type: 'text', id: 'appt_place', value: place || '' });
+  const placeChips = h('div', { class: 'chips' }, u.apptPlaces.map(([label, val]) => h('button', { class: 'chipbtn', type: 'button', text: label, onclick: () => { where.value = val; } })));
   const err = h('p', { class: 'err' });
   const saveBtn = h('button', { class: 'btn primary wide', type: 'button', text: u.apptSave, onclick: async () => {
     if (!date.value) { err.textContent = u.apptNeedDate; return; }
@@ -2635,7 +2671,7 @@ function openAppt(key, place) {
     h('p', { class: 'note', text: `${u.apptFor}: ${label}` }),
     h('div', { class: 'field' }, h('label', { for: 'appt_date', text: u.apptDate }), dateBox),
     h('div', { class: 'field' }, h('label', { for: 'appt_time', text: u.apptTime }), time),
-    h('div', { class: 'field' }, h('label', { for: 'appt_place', text: u.apptPlace }), where),
+    h('div', { class: 'field' }, h('label', { for: 'appt_place', text: u.apptPlace }), placeChips, where),
     err, saveBtn,
     h('button', { class: 'btn ghost wide', type: 'button', text: u.close, onclick: closeSheet })));
 }
@@ -2654,6 +2690,7 @@ function apptSaved(a) {
     h('h2', { text: u.apptSaved }),
     h('p', { class: 'note', text: `${a.label} · ${a.date.split('-').reverse().join('/')} ${u.apptAt(a.time)}` }),
     h('button', { class: 'btn primary wide', type: 'button', text: u.apptCal, onclick: () => downloadIcs(a) }),
+    mapBtn(a.place),
     push,
     h('button', { class: 'btn ghost wide', type: 'button', text: u.close, onclick: () => { closeSheet(); renderCurrent(); } })));
 }
@@ -2841,6 +2878,7 @@ function nextApptCard() {
     h('b', { text: apptLabel(a.key) || a.label }),
     h('p', { text: [a.date.split('-').reverse().join('/'), u.apptAt(a.time), a.place].filter(Boolean).join(' · ') }),
     items.length ? h('p', { class: 'appt-ready', text: u.checkProgress(ready, items.length) }) : null,
+    mapBtn(a.place),
     h('div', { class: 'two' },
       h('button', { class: 'btn primary', type: 'button', text: u.apptOpen, onclick: () => openApptTarget(a.key) }),
       h('button', { class: 'btn ghost', type: 'button', text: u.apptDelete, onclick: () => {
@@ -3359,6 +3397,7 @@ start();
     else if (g === 'ivisa') openIvisa();
     else if (g === 'photo') openPhoto();
     else if (g === 'vault') openVault();
+    else if (g === 'sign') openSign();
     else if (g && findGuide(g)) openGuide(g);
     else if (qa) openQA(qa === 'ask', qa === 'ask' ? null : qa.replace(/[^A-Za-z0-9_-]/g, ''));
   }, 400);
