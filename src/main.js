@@ -1447,7 +1447,7 @@ function newsTicker() {
   const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   const items = NEWS.filter((n) => (!n.from || today >= n.from) && (!n.to || today <= n.to) && (!n.until || Date.now() < Date.parse(n.until)));
   if (!items.length) return null;
-  const go = { photo: openPhoto, natur: openNatur, tvisa: openTvisa, pension: openPension, guide: () => goSection('guide'), services: () => goSection('services'),
+  const go = { vault: openVault, photo: openPhoto, natur: openNatur, tvisa: openTvisa, pension: openPension, guide: () => goSection('guide'), services: () => goSection('services'),
     consular: () => openForms('consular'), nid: () => openForms('nid') };
   const run = () => items.map((n) => h('button', { class: 'news-item', type: 'button', text: n[L] || n.Ara,
     onclick: () => { count('news_click', { go: n.go }); (go[n.go] || (n.go && findGuide(n.go) ? () => openGuide(n.go) : () => {}))(); } }));
@@ -1610,6 +1610,11 @@ function guideCards(c) {
     h('ol', { class: 'steps' }, c.steps.map((x) => h('li', { text: x }))));
 }
 // White-background passport-style photo (runs on the phone, loaded only when opened).
+// Document folder: scan, straighten and export IDs as a print-ready PDF (all on the phone).
+function openVault() {
+  import('./vault.js').then((m) => m.openVault({ h, sheet, closeSheet, lang: app.lang, count, toast }))
+    .catch(() => toast(app.lang === 'Kur' ? '⚠️ پەیوەندی ئینتەرنێت بپشکنە' : '⚠️ تأكد من النت وجرب مرة ثانية'));
+}
 function openPhoto() {
   import('./photo.js').then((m) => m.openPhoto({ h, sheet, closeSheet, lang: app.lang, count, toast }))
     .catch(() => toast(app.lang === 'Kur' ? '⚠️ پەیوەندی ئینتەرنێت بپشکنە' : '⚠️ تأكد من النت وجرب مرة ثانية'));
@@ -1721,6 +1726,7 @@ function quickNav() {
     item('selfbook', () => openSelfBook(), true),
     item('qa', () => openQA(), true),
     item('life', () => openLife(), true),
+    item('vault', openVault, true),
     item('wallet', () => openWallet(), true),
     item('letters', () => openExplain(), true),
     item('pension', openPension, true),
@@ -2265,6 +2271,7 @@ const ICONS = {
   flag: svgI('<path d="M5 21V4"/><path d="M5 4h13l-2.5 4L18 12H5"/>'),
   menu: svgI('<path d="M4 7h16M4 12h16M4 17h16"/>'),
   calendar: svgI('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18M8 14h3v3H8z"/>'),
+  folder: svgI('<path d="M3 6h6l2 2h10v11H3z"/><path d="M8 13h8M8 16h5"/>'),
   camera: svgI('<path d="M4 8h3l2-3h6l2 3h3v12H4z"/><circle cx="12" cy="13.5" r="3.5"/>'),
 };
 const GUIDE_ICON = { passport: 'passport', record: 'shield', birth: 'baby', marriage: 'rings', laissez: 'plane', licence: 'car', degree: 'cap', iqdocs: 'stamp', invite: 'plane', travel: 'suitcase', kindergeld: 'baby', elterngeld: 'baby', wohngeld: 'wallet', bafoeg: 'cap', iqdrive: 'car', carpoa: 'car', poarevoke: 'stamp', propsale: 'stamp', customsout: 'suitcase', customsin: 'suitcase' };
@@ -2387,7 +2394,7 @@ function renderGuide() {
 function renderServices() {
   const u = t();
   const design = UI.Ara.promos.find((p) => p.key === 'design');
-  const SV_ICON = { booking: 'calendar', passport: 'passport', lawyer: 'scale', printmail: 'printer', tvisa: 'plane', design: 'pen', photo: 'camera' };
+  const SV_ICON = { booking: 'calendar', passport: 'passport', lawyer: 'scale', printmail: 'printer', tvisa: 'plane', design: 'pen', photo: 'camera', vault: 'folder' };
   const sv = (key, onclick) => h('button', { class: 'svbtn', type: 'button', onclick: () => { count('service_click', { item: key }); onclick(); } },
     h('i', { html: ICONS[SV_ICON[key]] }), h('span', { text: u.svItems[key] }));
   $('#app').replaceChildren(
@@ -2403,6 +2410,7 @@ function renderServices() {
         sv('passport', () => openRequest('passport')),
         sv('lawyer', () => openRequest('lawyer')),
         sv('printmail', () => openRequest('printmail')),
+        sv('vault', openVault),
         sv('photo', openPhoto),
         sv('tvisa', openTvisa),
         sv('design', () => window.open(waLink(design ? design.msg : u.waHello), '_blank', 'noopener'))),
@@ -3350,6 +3358,7 @@ start();
     else if (g === 'tvisa') openTvisa();
     else if (g === 'ivisa') openIvisa();
     else if (g === 'photo') openPhoto();
+    else if (g === 'vault') openVault();
     else if (g && findGuide(g)) openGuide(g);
     else if (qa) openQA(qa === 'ask', qa === 'ask' ? null : qa.replace(/[^A-Za-z0-9_-]/g, ''));
   }, 400);
