@@ -212,13 +212,17 @@ function detect(cv, canvas) {
   small.getContext('2d').drawImage(canvas, 0, 0, small.width, small.height);
   const src = cv.imread(small); const g = new cv.Mat(); const e = new cv.Mat();
   const cs = new cv.MatVector(); const hi = new cv.Mat();
+  const rgb = new cv.MatVector(); const one = new cv.Mat();
   let best = null; let bestArea = 0;
   try {
-    cv.cvtColor(src, g, cv.COLOR_RGBA2GRAY);
+    // Edges from each colour channel, so a dark-green card on a brown table still has a clear border.
+    cv.cvtColor(src, g, cv.COLOR_RGBA2RGB);
     cv.GaussianBlur(g, g, new cv.Size(5, 5), 0);
+    cv.split(g, rgb);
     const tries = [[30, 90], [60, 160], [15, 60]];
     for (const [lo, hiT] of tries) {
-      cv.Canny(g, e, lo, hiT);
+      cv.Canny(rgb.get(0), e, lo, hiT);
+      for (let ch = 1; ch < 3; ch++) { cv.Canny(rgb.get(ch), one, lo, hiT); cv.bitwise_or(e, one, e); }
       const kern = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(5, 5));
       cv.dilate(e, e, kern); cv.erode(e, e, kern); kern.delete();
       cv.findContours(e, cs, hi, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
@@ -241,7 +245,7 @@ function detect(cv, canvas) {
       }
       if (best && bestArea > small.width * small.height * 0.2) break;
     }
-  } finally { src.delete(); g.delete(); e.delete(); cs.delete(); hi.delete(); }
+  } finally { src.delete(); g.delete(); e.delete(); cs.delete(); hi.delete(); rgb.delete(); one.delete(); }
   if (best) return { pts: order(best.map((p) => ({ x: Math.max(0, Math.min(W, p.x)), y: Math.max(0, Math.min(H, p.y)) }))), ok: true };
   const m = 0.06;
   return { pts: [{ x: W * m, y: H * m }, { x: W * (1 - m), y: H * m }, { x: W * (1 - m), y: H * (1 - m) }, { x: W * m, y: H * (1 - m) }], ok: false };
@@ -281,18 +285,16 @@ function enhance(c) {
   const o = document.createElement('canvas'); o.width = c.width; o.height = c.height;
   const x = o.getContext('2d'); x.drawImage(c, 0, 0);
   const img = x.getImageData(0, 0, o.width, o.height); const d = img.data;
-  const hist = [new Uint32Array(256), new Uint32Array(256), new Uint32Array(256)];
-  for (let i = 0; i < d.length; i += 16) { hist[0][d[i]]++; hist[1][d[i + 1]]++; hist[2][d[i + 2]]++; }
-  const n = d.length / 16; const lo = []; const hi = [];
-  for (let ch = 0; ch < 3; ch++) {
-    let acc = 0; let l = 0; let h = 255;
-    for (let v = 0; v < 256; v++) { acc += hist[ch][v]; if (acc > n * 0.01) { l = v; break; } }
-    acc = 0;
-    for (let v = 255; v >= 0; v--) { acc += hist[ch][v]; if (acc > n * 0.02) { h = v; break; } }
-    lo[ch] = l; hi[ch] = Math.max(l + 40, h);
-  }
+  // Same stretch for all channels (keeps the real colours), based on brightness.
+  const hist = new Uint32Array(256);
+  for (let i = 0; i < d.length; i += 16) hist[(d[i] * 77 + d[i + 1] * 150 + d[i + 2] * 29) >> 8]++;
+  const n = d.length / 16; let lo = 0; let hi = 255; let acc = 0;
+  for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc > n * 0.01) { lo = v; break; } }
+  acc = 0;
+  for (let v = 255; v >= 0; v--) { acc += hist[v]; if (acc > n * 0.02) { hi = v; break; } }
+  hi = Math.max(lo + 60, hi); const k = 255 / (hi - lo);
   for (let i = 0; i < d.length; i += 4) {
-    for (let ch = 0; ch < 3; ch++) { const v = (d[i + ch] - lo[ch]) * 255 / (hi[ch] - lo[ch]); d[i + ch] = v < 0 ? 0 : v > 255 ? 255 : v; }
+    for (let ch = 0; ch < 3; ch++) { const v = (d[i + ch] - lo) * k; d[i + ch] = v < 0 ? 0 : v > 255 ? 255 : v; }
   }
   x.putImageData(img, 0, 0);
   // light unsharp mask
